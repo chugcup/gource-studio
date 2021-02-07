@@ -1,0 +1,13 @@
+*.sw[op]
+*.py[oc]
+
+dist/*
+env
+.DS_Store
+
+*.bak
+*.db
+*.rdb
+
+secrets.py
+gource_studio/gource_studio/media

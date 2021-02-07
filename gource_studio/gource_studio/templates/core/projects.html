@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <title>Projects - Gource Studio</title>
+
+  <!-- Bootstrap core CSS -->
+  <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Custom styles for this template -->
+  <link href="/static/css/custom.css" rel="stylesheet">
+
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container">
+      <a class="navbar-brand" href="/">Gource Studio</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarResponsive">
+        <ul class="navbar-nav ml-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/new/">New Project</a>
+          </li>
+          <li class="nav-item active">
+            <a class="nav-link">Projects
+              <span class="sr-only">(current)</span>
+            </a>
+          </li>
+          <li class="nav-item">
+              <a class="nav-link" href="/queue/">Queue</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/about/">About</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Page Content -->
+  <div class="container">
+    <h3 class="float-left" style="margin-right:40px">Projects List</h3>
+    <div class="projects-search-container" style="display:inline-block; width: 600px;">
+      <div class="input-group">
+        <input type="text" class="form-control projects-search" placeholder="Name, URL, ..." value="" />
+        <div class="input-group-append">
+          <button class="btn btn-default btn-outline-secondary" type="button">Search</button>
+        </div>
+      </div>
+    </div>
+    <hr />
+  </div>
+
+  <div class="container">
+    <!-- Page Features -->
+    <div class="row text-center">
+    {% for conf in page_obj %}
+      {% with latest_build=conf.latest_build %}
+      <div class="col-lg-12 col-md-12 mb-12">
+        <div class="card mb-3">
+          <div class="row no-gutters">
+            <div class="col-md-2">
+              <a href="{% url 'project-details' conf.id %}">
+              {% if latest_build.thumbnail %}
+                <img class="card-img-top" src="{% url 'project-build-thumbnail' conf.id latest_build.id %}" alt="" style=""/>
+              {% else %}
+                <img class="card-img-top" src="https://via.placeholder.com/185x100/D0D0D0/808080?text=No Preview" alt="No Preview" />
+              {% endif %}
+              </a>
+            </div>
+            <div class="col-md-10">
+              <div class="card-header" style="padding:.25rem 1.25rem;">
+                <h5 class="card-title text-left" style="margin-bottom:0">{{ conf.name }}</h5>
+              </div>
+              <div class="card-body">
+                <p class="card-text"><!-- Card Text --></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endwith %}
+    {% empty %}
+      <div class="col-lg-12 col-md-12 col-sm-12">
+          <h5 class="text-center text-muted"><i>No projects yet</i></h5>
+      </div>
+    {% endfor %}
+
+      <div class="pagination">
+        <span class="step-links">
+        {% if page_obj.has_previous %}
+          <a href="?page=1">&laquo; first</a>
+          <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+        {% endif %}
+          <span class="current">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+          </span>
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}">next</a>
+          <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
+        {% endif %}
+        </span>
+      </div>
+
+    </div>
+    <!-- /.row -->
+    <br />
+  </div>
+  <!-- /.container -->
+
+  <!-- Footer -->
+  <footer class="py-5 bg-dark">
+    <div class="container">
+      <p class="m-0 text-center text-white">Copyright &copy; Jeff Gordon 2021</p>
+    </div>
+    <!-- /.container -->
+  </footer>
+
+  <!-- Bootstrap core JavaScript -->
+  <script src="/static/js/jquery.min.js"></script>
+  <script src="/static/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

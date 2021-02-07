@@ -1,0 +1,9 @@
+billiard
+celery
+Django
+django-filter
+djangorestframework
+Pillow
+pydub
+pytz
+redis

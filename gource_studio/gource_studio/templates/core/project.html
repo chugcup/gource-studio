@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <title>Project - Gource Studio</title>
+
+  <!-- Bootstrap core CSS -->
+  <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Custom styles for this template -->
+  <link href="/static/css/custom.css" rel="stylesheet">
+
+  <style type="text/css">
+    body {
+      padding-top: 56px;
+    }
+  </style>
+
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container">
+      <a class="navbar-brand" href="/">Gource Studio</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarResponsive">
+        <ul class="navbar-nav ml-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/new/">New Project</a>
+          </li>
+          <li class="nav-item active">
+            <a class="nav-link" href="/projects/">Projects
+              <span class="sr-only">(current)</span>
+            </a>
+          </li>
+          <li class="nav-item">
+              <a class="nav-link" href="/queue/">Queue</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/about/">About</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Page Content -->
+  {% with latest_build=project.latest_build %}
+  <div style="text-align:center; background:#000000;">
+  {% if build.content %}
+    <video controls poster="{% url 'project-build-screenshot' project.id build.id %}" style="max-height:80vh">
+      <source src="{% url 'project-build-video' project.id build.id %}" type="video/mp4">
+    </video>
+  {% else %}
+    <div style="max-height:80vh;height:600px;color:#FFFFFF;vertical-align:middle;line-height:600px">
+        No video available.
+    </div>
+  {% endif %}
+  </div>
+  <div class="container">
+    <div class="float-right">
+        <a href="{% url 'project-builds' project.id %}">View Builds</a>
+        <br />
+        <a href="{% url 'project-avatars' project.id %}">View Avatars</a>
+    </div>
+    <div class="row justify-content-center text-center">
+      <div class="col-10">
+        <b>{{ project.project_url }}</b>
+      </div>
+    </div>
+    {% if project.project_log_commit_hash %}
+    <div class="row justify-content-center text-center">
+      <div class="col-10">
+        <b>Last Commit:</b>
+        <span title="{{ project.project_log_commit_time|date:"M j, Y H:i:s T" }}">
+          [{{ project.project_log_commit_time|date:"M j, Y" }}]
+        </span>
+        {{ project.project_log_commit_preview }}
+      </div>
+    </div>
+    {% endif %}
+    <hr />
+    <div class="row justify-content-center text-center">
+      <div class="col-5">
+        <b>Created:</b> {{ project.created_at|date:"M j, Y H:i:s T" }}
+      </div>
+      <div class="col-5">
+        <b>Last Updated:</b> {{ build.created_at|date:"M j, Y H:i:s T" }}
+      </div>
+    </div>
+    {% if build.id != latest_build.id %}
+    <div class="row justify-content-center text-center">
+      <div class="col-5">
+          <i><a href="{% url 'project-details' project.id %}">See Latest Build</a></i>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endwith %}
+  <!-- /.container -->
+  <hr />
+
+  <div class="container">
+    <div class="row justify-content-center">
+        <div class="col-5">
+            <b>Background Audio:</b>
+          {% if project.build_audio %}
+            {{ project.build_audio_name }}
+          {% else %}
+            <form method="POST" action="{% url 'project-audio-upload' project.id %}" class="form-inline" enctype="multipart/form-data">
+                <input id="project_build_audio_file" class="form-control-file form-control-sm" type="file" name="build_audio" />
+                <button type="submit" class="btn btn-primary btn-sm">Upload</button>
+                {% csrf_token %}
+            </form>
+          {% endif %}
+        </div>
+    </div>
+  </div>
+
+  <br />
+
+  <!-- Footer -->
+  <footer class="py-5 bg-dark">
+    <div class="container">
+      <p class="m-0 text-center text-white">Copyright &copy; Jeff Gordon 2021</p>
+    </div>
+    <!-- /.container -->
+  </footer>
+
+  <!-- Bootstrap core JavaScript -->
+  <script src="/static/js/jquery.min.js"></script>
+  <script src="/static/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

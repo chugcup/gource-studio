@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <title>Build Queue - Gource Studio</title>
+
+  <!-- Bootstrap core CSS -->
+  <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Custom styles for this template -->
+  <link href="/static/css/custom.css" rel="stylesheet">
+
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container">
+      <a class="navbar-brand" href="/">Gource Studio</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarResponsive">
+        <ul class="navbar-nav ml-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/new/">New Project</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/projects/">Projects</a>
+          </li>
+          <li class="nav-item active">
+            <a class="nav-link">Queue
+              <span class="sr-only">(current)</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/about/">About</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Page Content -->
+  <div class="container">
+    <h3>Build Queue</h3>
+    <hr />
+  </div>
+
+  <div class="container">
+    <div class="row text-center">
+    {% for build in page_obj %}
+      <div class="col-lg-12 col-md-12 mb-12">
+        <div class="card mb-3">
+          <div class="row no-gutters">
+          {% if build.status == "pending" %}
+            <div class="col-3 col-sm-3 col-md-2 col-xl-1 bg-light"
+          {% elif build.status == "queued" %}
+            <div class="col-3 col-sm-3 col-md-2 col-xl-1 bg-light"
+          {% elif build.status == "running" %}
+            <div class="col-3 col-sm-3 col-md-2 col-xl-1 bg-primary text-white"
+          {% elif build.status == "completed" %}
+            <div class="col-3 col-sm-3 col-md-2 col-xl-1 bg-success text-white"
+          {% elif build.status == "error" %}
+            <div class="col-3 col-sm-3 col-md-2 col-xl-1 bg-danger text-white"
+          {% endif %}
+                 style="border-radius: .25rem 0 0 .25rem">
+                <div class="" style="line-height:73px">
+                {{ build.status|capfirst }}
+              </div>
+            </div>
+            <div class="col-9 col-sm-9 col-md-10 col-xl-11" style="border-left: 1px solid rgba(0,0,0,0.125)">
+              <div class="card-header" style="padding:.25rem 1.25rem;">
+                <h5 class="card-title text-left" style="margin-bottom:0">
+                 <small class="float-right">
+                    {{ build.created_at }}
+                  </small>
+                  <a href="{% url 'project-details' build.project.id %}">
+                    {{ build.project.name }}
+                  </a>
+                  <small>
+                  {% if build.id != latest_build.id %}
+                    (Build ID = {{build.id}})
+                  {% endif %}
+                  </small>
+                </h5>
+              </div>
+              <div class="card-body" style="padding:10px">
+                <p class="card-text" style="font-size:12px; text-align:left;">
+                {% if build.error_description %}{{ build.error_description }}{% endif %}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="col-lg-12 col-md-12 col-sm-12">
+        <h5 class="text-center text-muted"><i>No builds yet</i></h5>
+      </div>
+    {% endfor %}
+
+      <div class="pagination">
+        <span class="step-links">
+        {% if page_obj.has_previous %}
+          <a href="?page=1">&laquo; first</a>
+          <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+        {% endif %}
+          <span class="current">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+          </span>
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}">next</a>
+          <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
+        {% endif %}
+        </span>
+      </div>
+    </div>
+    <br />
+  </div>
+  <!-- /.container -->
+
+  <!-- Footer -->
+  <footer class="py-5 bg-dark">
+    <div class="container">
+      <p class="m-0 text-center text-white">Copyright &copy; Jeff Gordon 2021</p>
+    </div>
+    <!-- /.container -->
+  </footer>
+
+  <!-- Bootstrap core JavaScript -->
+  <script src="/static/js/jquery.min.js"></script>
+  <script src="/static/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>
