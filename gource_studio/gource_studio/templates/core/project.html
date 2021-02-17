@@ -11,6 +11,7 @@
 
   <!-- Bootstrap core CSS -->
   <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/css/font-awesome.min.css" rel="stylesheet">
 
   <!-- Custom styles for this template -->
   <link href="/static/css/custom.css" rel="stylesheet">
@@ -56,7 +57,7 @@
   {% with latest_build=project.latest_build %}
   <div style="text-align:center; background:#000000;">
   {% if build.content %}
-    <video controls poster="{% url 'project-build-screenshot' project.id build.id %}" style="max-height:80vh">
+    <video controls poster="{% url 'project-build-screenshot' project.id build.id %}" preload="none" style="max-height:80vh">
       <source src="{% url 'project-build-video' project.id build.id %}" type="video/mp4">
     </video>
   {% else %}
@@ -66,65 +67,132 @@
   {% endif %}
   </div>
   <div class="container">
-    <div class="float-right">
-        <a href="{% url 'project-builds' project.id %}">View Builds</a>
-        <br />
-        <a href="{% url 'project-avatars' project.id %}">View Avatars</a>
-    </div>
-    <div class="row justify-content-center text-center">
-      <div class="col-10">
-        <b>{{ project.project_url }}</b>
-      </div>
-    </div>
-    {% if project.project_log_commit_hash %}
-    <div class="row justify-content-center text-center">
-      <div class="col-10">
-        <b>Last Commit:</b>
-        <span title="{{ project.project_log_commit_time|date:"M j, Y H:i:s T" }}">
-          [{{ project.project_log_commit_time|date:"M j, Y" }}]
-        </span>
-        {{ project.project_log_commit_preview }}
-      </div>
-    </div>
-    {% endif %}
-    <hr />
-    <div class="row justify-content-center text-center">
-      <div class="col-5">
-        <b>Created:</b> {{ project.created_at|date:"M j, Y H:i:s T" }}
-      </div>
-      <div class="col-5">
-        <b>Last Updated:</b> {{ build.created_at|date:"M j, Y H:i:s T" }}
-      </div>
-    </div>
-    {% if build.id != latest_build.id %}
-    <div class="row justify-content-center text-center">
-      <div class="col-5">
-          <i><a href="{% url 'project-details' project.id %}">See Latest Build</a></i>
-      </div>
-    </div>
-    {% endif %}
-  </div>
-  {% endwith %}
-  <!-- /.container -->
-  <hr />
+    <div class="row">
+      <div class="col-1"></div>
 
-  <div class="container">
-    <div class="row justify-content-center">
-        <div class="col-5">
+      <div class="col-10">
+        <!-- Project details -->
+        <div class="container">
+          <div class="row justify-content-center text-center">
+            <div class="col-12">
+              <b>{{ project.project_url }}</b>
+              {% if build.content %}
+              <a class="btn btn-link" href="{% url 'project-build-video' project.id build.id %}" download="video-{{ build.id }}.mp4" title="Download video ({{ build.content.size|filesizeformat }})"$>
+                <i class="fa fa-download"></i>
+              </a>
+              {% endif %}
+            </div>
+          </div>
+<div class="tab-content" id="project-tab-content">
+  <div class="tab-pane show active" id="project-details-pane" role="tabpanel">
+          {% if project.project_log_commit_hash %}
+          <div class="row justify-content-center text-center">
+            <div class="col-12">
+            {% if build.project_log %}
+              <a class="btn btn-link" href="{% url 'project-build-project-log' project.id build.id %}" download="project.log">
+                <i class="fa fa-file-text-o"></i>
+              </a>
+            {% elif project.project_log %}
+              <a class="btn btn-link" href="{% url 'project-project-log' project.id %}" download="project.log">
+                <i class="fa fa-file-text-o"></i>
+              </a>
+            {% endif %}
+              <b>Last Commit:</b>
+              <span title="{{ project.project_log_commit_time|date:"M j, Y H:i:s T" }}">
+                [{{ project.project_log_commit_time|date:"M j, Y" }}]
+              </span>
+              {{ project.project_log_commit_preview }}
+            </div>
+          </div>
+          {% endif %}
+          <hr />
+
+          <div class="row justify-content-center text-center">
+            <div class="col-6">
+              <b>Created:</b> {{ project.created_at|date:"M j, Y H:i:s T" }}
+            </div>
+            <div class="col-6">
+            {% if build %}
+              <b>Last Updated:</b> {{ build.created_at|date:"M j, Y H:i:s T" }}
+            {% endif %}
+            </div>
+          </div>
+          {% if latest_build and build.id != latest_build.id %}
+          <div class="row justify-content-center text-center">
+            <div class="col-12">
+                <i><a href="{% url 'project-details' project.id %}">See Latest Build</a></i>
+            </div>
+          </div>
+          {% endif %}
+  </div>
+  <div class="tab-pane" id="project-settings-pane" role="tabpanel">
+    <hr />
+    <div class="float-right">
+      <button class="btn btn-success save-project-settings-btn"><i class="fa fa-disk"></i> Save</button>
+    </div>
+    <h5>Video Settings</h5>
+      <div class="row justify-content-center">
+        <div class="col-12">
+          <div class="form-group form-inline">
+            <label for="project-video-size"><b>Video Size:</b>&nbsp;</label>
+            <select id="project-video-size" name="project-video-size" class="form-control form-control-sm">
+              <option value="1280x720">1280 x 720</option>
+              <option value="1920x1080">1920 x 1080</option>
+              <option value="3840x2160">3840 x 2160</option>
+            </select>
+          </div>
+
+          <div class="form-group">
             <b>Background Audio:</b>
           {% if project.build_audio %}
             {{ project.build_audio_name }}
           {% else %}
             <form method="POST" action="{% url 'project-audio-upload' project.id %}" class="form-inline" enctype="multipart/form-data">
-                <input id="project_build_audio_file" class="form-control-file form-control-sm" type="file" name="build_audio" />
+                <input id="project_build_audio_file" class="form-control form-control-file form-control-sm" type="file" name="build_audio" style="display:inline-block; width:auto;"/>
                 <button type="submit" class="btn btn-primary btn-sm">Upload</button>
                 {% csrf_token %}
             </form>
           {% endif %}
+          </div>
         </div>
+      </div>
+    <hr />
+    <h5>Gource Settings</h5>
+    <div id="gource-settings-container">
+      <div class="form-group gource-option-container">
+        <b>Seconds Per Day:</b>
+        <input class="form-control" name="seconds-per-day" type="text" value="{{ seconds_per_day }}" />
+      </div>
+      <button class="btn btn-primary btn-sm"><i class="fa fa-plus"></i> Add Option</button>
     </div>
   </div>
+</div>
+        </div>
+      </div>
 
+      <div class="col-1">
+        <!-- Nav sidebar -->
+        <ul class="nav flex-column" id="project-nav-tabs" role="tablist">
+          <li class="nav-item">
+            <a class="nav-link active" href="#project-details-pane" data-toggle="tab" role="tab">Details</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#project-settings-pane" data-toggle="tab" role="tab">Settings</a>
+          </li>
+          <li class="nav-item">
+              <a class="nav-link" href="{% url 'project-avatars' project.id %}">Avatars</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'project-builds' project.id %}">Builds</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <!-- /.container -->
+
+  {% endwith %}
+  <hr />
   <br />
 
   <!-- Footer -->
@@ -138,6 +206,62 @@
   <!-- Bootstrap core JavaScript -->
   <script src="/static/js/jquery.min.js"></script>
   <script src="/static/js/bootstrap.bundle.min.js"></script>
+  <script type="text/javascript">
+    // https://docs.djangoproject.com/en/dev/ref/csrf/#ajax
+    // - See also: https://github.com/js-cookie/js-cookie/
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Save settings
+    // NOTE: Background Audio saved separately
+    $('body').on('click', '.save-project-settings-btn', function(e) {
+        let video_size = $('#project-video-size').val();
+        let gource_options = {};
+        $('.gource-option-container').each(function(idx, e) {
+            let $input = $(e).find('input');
+            if ($input.length > 0 && $input.attr('name')) {
+                gource_options[$input.attr('name')] = $input.val();
+            }
+        });
+
+        let post_data = {
+            'video_size': video_size,
+            'gource_options': gource_options
+        };
+        $.ajax({
+            url: "/projects/{{project.id}}/edit/",
+            method: 'POST',
+            data: JSON.stringify(post_data),
+            contentType: "application/json",
+            dataType: "json",
+            beforeSend: function(xhr) {
+                // Attach CSRF Token
+                xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+            },
+            success: function(data, textStatus, xhr) {
+                // TODO show success message
+                console.log("Options saved successfully.");
+            },
+            error: function(xhr, textStatus, err) {
+                // Error
+                console.log("Save error: "+err, xhr);
+            }
+        });
+    });
+  </script>
 
 </body>
 </html>

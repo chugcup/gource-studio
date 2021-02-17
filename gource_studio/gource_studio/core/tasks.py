@@ -1,6 +1,7 @@
 import logging
 import os
 from pathlib import Path
+import shutil
 import tempfile
 import time
 
@@ -8,6 +9,7 @@ from celery import shared_task
 from django.core.files import File
 from django.core.files.base import ContentFile
 
+from .constants import GOURCE_OPTIONS
 from .models import Project, ProjectBuild, UserAvatar, ProjectUserAvatar
 from .utils import (
     add_background_audio,   #(video_path, audio_path, loop=True):
@@ -16,6 +18,7 @@ from .utils import (
     generate_gource_video,  #(log_data, seconds_per_day=0.1, framerate=60, avatars=None, default_avatar=None):
     get_video_duration,     #(video_path):
     get_video_thumbnail,    #(video_path, width=512, secs=None, percent=None):
+    rescale_image,          #(image_path, width=256)
     test_http_url,          #(url):
 )
 
@@ -82,7 +85,13 @@ def generate_gource_build(build_id):
             logger.exception("Failed to generate avatar folder")
 
         # Generate video
-        final_path = generate_gource_video(log_data, seconds_per_day=0.01, avatars=avatar_dir)
+        gource_options = {}
+        # - Load build options from table
+        for option in build.options.all():
+            if option.name in GOURCE_OPTIONS:
+                gource_options[option.name] = option.value
+        #final_path = generate_gource_video(log_data, avatars=avatar_dir, gource_options={'--seconds-per-day': 0.01})
+        final_path = generate_gource_video(log_data, avatars=avatar_dir, gource_options=gource_options)
         process_time = time.monotonic() - start_time
         logger.info("Processing time: %s sec", process_time)
 
@@ -109,9 +118,10 @@ def generate_gource_build(build_id):
         except:
             logger.exception("Failed to generate screenshot")
 
-        # Generate thumbnail
+        # Generate thumbnail (by rescaling screenshot)
         try:
-            thumb_data = get_video_thumbnail(final_path, secs=-1)
+            #thumb_data = get_video_thumbnail(final_path, secs=-1)
+            thumb_data = rescale_image(build.screenshot.path, width=256)
             build.thumbnail.save('thumb.jpg', thumb_data)
         except:
             logger.exception("Failed to generate thumbnail")
@@ -121,3 +131,5 @@ def generate_gource_build(build_id):
 
     except Exception as e:
         build.mark_errored(error_description=str(e))
+    finally:
+        shutil.rmtree(tempdir)

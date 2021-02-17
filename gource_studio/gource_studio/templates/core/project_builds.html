@@ -56,7 +56,13 @@
           Queue Build
       </button>
     </div>
-    <h3>Project Builds</h3>
+    <h3>
+      <small>
+        <a href="{% url 'project-details' project.id %}">Project</a>
+        &gt;&gt;
+      </small>
+      Builds
+    </h3>
     <hr />
   </div>
 
@@ -112,7 +118,7 @@
                     {% endif %}
                     {% if build.size %}
                     <b style="margin-left:20px">Size:</b>
-                    {{ build.size }} bytes
+                    <span title="{{ build.size }} bytes">{{ build.size|filesizeformat }}</span>
                     {% endif %}
                 {% endif %}
                 </p>
@@ -181,9 +187,8 @@
     // Queue build handler
     $('body').on('click', '.queue-project-build-btn', function(e) {
         $.ajax({
-            //url: "/projects/{{project.id}}/queue/",
-            url: "/test/queue/?url={{ project.project_url }}",
-            method: 'GET',
+            url: "/projects/{{project.id}}/queue/",
+            method: 'POST',
             beforeSend: function(xhr) {
                 // Attach CSRF Token
                 xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));

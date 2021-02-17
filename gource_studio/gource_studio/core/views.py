@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 import logging
 import os
 import re
@@ -13,6 +14,7 @@ from django.core.paginator import Paginator
 from django.db.models import Exists, OuterRef
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
+from django.utils import dateparse
 from django.utils.timezone import make_aware, now as utc_now
 from django.views.decorators.csrf import csrf_protect
 from django.views.static import serve
@@ -20,12 +22,14 @@ from django.views.static import serve
 # Ignore SSL verification
 ssl._create_default_https_context = ssl._create_unverified_context
 
-from .models import Project, ProjectBuild, ProjectUserAvatar, UserAvatar
+from .constants import VIDEO_OPTIONS, GOURCE_OPTIONS
+from .models import Project, ProjectBuild, ProjectBuildOption, ProjectOption, ProjectUserAvatar, UserAvatar
 from .tasks import generate_gource_build
 from .utils import (
     analyze_gource_log,     #(data):
     download_git_log,       #(url, branch="master"):
-    generate_gource_video,  #(log_data, seconds_per_day=0.1, framerate=60):
+    estimate_gource_video_duration,
+    generate_gource_video,  #(log_data, video_size='1280x720', framerate=60, gource_options={}):
     get_video_duration,     #(video_path):
     get_video_thumbnail,    #(video_path, width=512, secs=None, percent=None):
     test_http_url,          #(url):
@@ -73,11 +77,67 @@ def project_details(request, project_id=None, project_slug=None):
         project = get_object_or_404(Project, **{'id': project_id})
     elif project_slug:
         project = get_object_or_404(Project, **{'project_slug': project_slug})
+    project_options = project.options.all()
+    try:
+        seconds_per_day = project_options.get(name='seconds-per-day').value
+    except:
+        seconds_per_day = GOURCE_OPTIONS['seconds-per-day']['default']
     context = {
         'project': project,
+        'project_options': project_options,
+        'seconds_per_day': seconds_per_day, # REMOVEME - Temporary default
         'build': project.latest_build
     }
     return render(request, 'core/project.html', context)
+
+
+@csrf_protect
+def edit_project(request, project_id=None, project_slug=None):
+    "Edit Project Settings view"
+    if project_id:
+        project = get_object_or_404(Project, **{'id': project_id})
+    elif project_slug:
+        project = get_object_or_404(Project, **{'project_slug': project_slug})
+    if request.method not in ['POST', 'PUT', 'PATCH']:
+        return HttpResponseRedirect(f'/projects/{project.id}/')
+
+    # Edit video options
+    # - Gource build options
+    new_options = None
+    data = json.loads(request.body)
+    logging.error(request.POST)
+    logging.error(data)
+    if 'gource_options' in data:
+        if isinstance(data['gource_options'], dict):
+            new_options = []
+            for option, value in data['gource_options'].items():
+                if option in GOURCE_OPTIONS:
+                    gource_opt = GOURCE_OPTIONS[option]
+                    try:
+                        # Parse/validate input
+                        typed_value = gource_opt['parser'](value)
+                        # Stage new set of options
+                        new_options.append(
+                            ProjectOption(
+                                project=project,
+                                name=option,
+                                value=str(value),
+                                value_type=gource_opt['type'],
+                            )
+                        )
+                    except Exception as e:
+                        logging.exception(f"Gource option error: {option} => {value}")
+                        response = {"error": True, "message": f"Gource option error: {option} => {value}"}
+                        return HttpResponse(response, status=400)
+                else:
+                    logging.warning(f"Unrecognized option: {option}")
+            # Delete old options
+            project.options.all().delete()
+            # Add new set
+            ProjectOption.objects.bulk_create(new_options)
+        else:
+            logging.error(f"Invalid 'gource_options' provided: {data['gource_options']}")
+    return HttpResponseRedirect(f'/projects/{project.id}/')
 
 
 def project_builds(request, project_id=None, project_slug=None):
@@ -152,6 +212,22 @@ def project_build_video(request, project_id=None, project_slug=None, build_id=No
         project = get_object_or_404(Project, **{'project_slug': project_slug})
     build = get_object_or_404(ProjectBuild, **{'project_id': project.id, 'id': build_id})
     filepath = build.content.path
+    return serve(request, os.path.basename(filepath), os.path.dirname(filepath))
+
+
+def project_build_gource_log(request, project_id=None, project_slug=None, build_id=None):
+    "Project (Build) Gource log"
+    if project_id:
+        project = get_object_or_404(Project, **{'id': project_id})
+    elif project_slug:
+        project = get_object_or_404(Project, **{'project_slug': project_slug})
+
+    if build_id is not None:
+        # Get build log
+        build = get_object_or_404(ProjectBuild, **{'project_id': project.id, 'id': build_id})
+        filepath = build.project_log.path
+    else:
+        filepath = project.project_log.path
     return serve(request, os.path.basename(filepath), os.path.dirname(filepath))
 
 
@@ -251,6 +327,75 @@ def project_audio_upload(request, project_id=None, project_slug=None):
     return HttpResponseRedirect(f'/projects/{project.id}/')
 
 
+@csrf_protect
+def project_queue_build(request, project_id=None, project_slug=None):
+    if project_id:
+        project = get_object_or_404(Project, **{'id': project_id})
+    elif project_slug:
+        project = get_object_or_404(Project, **{'project_slug': project_slug})
+
+    # Determine if project log should be re-downloaded
+    refetch_log = request.GET.get('refetch_log', None)
+
+    # Check if project currently has queued build
+    if project.builds.filter(status__in=['pending', 'queued', 'running']).count():
+        response = "ERROR: Project already has pending builds.<br /><br />"
+        response += f'<a href="/projects/{project.id}/">{project.project_url}</a>'
+        return HttpResponse(response, status=400)
+
+    try:
+        if str(refetch_log) in ['t', 'true', '1']:
+            # Download latest VCS branch; generate Gource log
+            content = test_http_url(user_url)
+            log_data, log_hash, log_subject = download_git_log(user_url, branch=project.project_branch)
+            project.project_log_commit_hash = log_hash
+            project.project_log_commit_preview = log_subject
+            # Get time/author from last entry
+            latest_commit = log_data.splitlines()[-1].split('|')
+            project.project_log_commit_time = make_aware(datetime.utcfromtimestamp(int(latest_commit[0])))
+            if project.project_log:
+                #os.remove(project.project_log.path)
+                project.project_log.delete()
+            project.project_log.save('gource.log', ContentFile(log_data))
+
+        # Create new build (immediately in "queued" state)
+        build = ProjectBuild(
+            project=project,
+            project_branch=project.project_branch,
+            status='queued',
+            queued_at=utc_now()
+        )
+        build.save()
+
+        # Copy over build options from master project
+        build_options = []
+        for option in project.options.all():
+            build_options.append(
+                ProjectBuildOption(
+                    build=build,
+                    name=option.name,
+                    value=option.value,
+                    value_type=option.value_type
+                )
+            )
+        if build_options:
+            ProjectBuildOption.objects.bulk_create(build_options)
+
+        # Send to background worker
+        generate_gource_build.delay(build.id)
+
+        response = 'Build has been queued successfully.<br /><br />'
+        response += f'Project Page: <a href="/projects/{project.id}/">/projects/{project.id}/</a><br />'
+        response += f'Pending Build: <a href="/queue/">/queue/</a> (ID={build.id})<br />'
+
+    except urllib.error.URLError as e:
+        response = f'URL/HTTP error: {e.reason}'
+    except Exception as e:
+        logging.exception("Uncaught exception")
+        response = f'Server error: [{e.__class__.__name__}] {e}'
+    return HttpResponse(response)
+
+
 def new_project(request):
     "New Project page"
     context = {}
@@ -346,10 +491,11 @@ def fetch_log(request):
         post_time = time.monotonic()
 
         log_info = analyze_gource_log(log_data)
+        project_days = (log_info['end_date'] - log_info['start_date']).days
         response = f"<b>URL:</b> <a href=\"{user_url}\" target=\"_blank\">{user_url}</a><br />"
-        response += f"<b>Date Range:</b> {log_info['start_date']} -- {log_info['end_date']}<br />"
+        response += f"<b>Date Range:</b> {log_info['start_date']} -- {log_info['end_date']} ({project_days} days)<br />"
         response += f"<b>Latest Commit:</b> {log_subject} ({log_hash})<br />"
-        response += f"<b># Commits:</b> {log_info['num_commits']} ({log_info['num_commit_days']} commit days)<br />"
+        response += f"<b># Commits:</b> {log_info['num_commits']} ({log_info['num_commit_days']} commit days / {log_info['num_changes']} changes)<br />"
         response += f"<b>Committers:</b> {', '.join(log_info['users'])}<br /><br />"
         analyze_time = time.monotonic() - post_time
         response += f"<b>Time Taken:</b> {total_time:.3f} sec (+ {test_time:.3f} test / {analyze_time:.3f} process)<br /><hr />"
@@ -362,8 +508,7 @@ def fetch_log(request):
     return HttpResponse(response)
 
 
-
-def queue_video(request):
+def test_queue_video(request):
     response = ''
     user_url = request.GET.get('url', None)
     if user_url is None:
@@ -393,7 +538,6 @@ def queue_video(request):
 
     try:
         # Download latest VCS branch; generate Gource log
-        start_time = time.monotonic()
         content = test_http_url(user_url)
         log_data, log_hash, log_subject = download_git_log(user_url, branch=project.project_branch)
         project.project_log_commit_hash = log_hash
@@ -473,7 +617,8 @@ def make_video(request):
             build.project_log.save('gource.log', ContentFile(log_data))
 
             # Generate video
-            final_path = generate_gource_video(log_data, seconds_per_day=0.01)
+            #final_path = generate_gource_video(log_data, gource_options={'--seconds-per-day': 0.01})
+            final_path = generate_gource_video(log_data)
             response = 'Video created successfully.<br /><br />'
             process_time = time.monotonic() - start_time
 
@@ -509,4 +654,65 @@ def make_video(request):
     except Exception as e:
         logging.exception("Uncaught exception")
         response = f'Server error: [{e.__class__.__name__}] {e}'
+    return HttpResponse(response)
+
+
+def estimate_video_duration(request, project_id):
+    response = ''
+    project = get_object_or_404(Project, **{'pk': project_id})
+    latest_build = project.latest_build
+
+    with open(project.project_log.path, 'r') as f:
+        data = f.read()
+
+    added = 0
+    modded = 0
+    deleted = 0
+    lines = data.strip().split('\n')
+    for line in lines:
+        # <TIME>|<AUTHOR>|<MODIFICATION>|<PATH>
+        segments = line.split('|')
+        if segments[2] == 'A': added += 1
+        elif segments[2] == 'M': modded += 1
+        elif segments[2] == 'D': deleted += 1
+
+    try:
+        spd = float(request.GET.get('spd', None))
+    except:
+        spd = 1.0
+    try:
+        ass = float(request.GET.get('ass', None))
+    except:
+        ass = 3.0
+
+    gource_options = {
+        'seconds-per-day': spd,
+        'auto-skip-seconds': ass,
+    }
+    duration = estimate_gource_video_duration(data, gource_options=gource_options)
+    from datetime import timedelta
+    td_duration = str(timedelta(seconds=int(duration)))
+
+    log_info = analyze_gource_log(data)
+    project_days = (log_info['end_date'] - log_info['start_date']).days
+    response = f"<b>URL:</b> <a href=\"{project.project_url}\" target=\"_blank\">{project.project_url}</a><br />"
+    response += f"<b>Date Range:</b> {log_info['start_date']} -- {log_info['end_date']} ({project_days} days)<br />"
+    response += f"<b># Commits:</b> {log_info['num_commits']} ({log_info['num_commit_days']} commit days / {log_info['num_changes']} changes)<br />"
+    response += f"<b>Added:</b> {added} -- <b>Modified:</b> {modded} -- <b>Deleted:</b> {deleted}<br />"
+    response += f"<b>Committers:</b> {', '.join(log_info['users'])}<br /><hr />"
+
+    response += '<table>'
+    response += f'<tr><td>Duration:</td><td>{duration} secs</td></tr>'
+    response += f'<tr><td>Duration:</td><td>{td_duration}</td></tr>'
+    # Get latest build duration
+    if latest_build and latest_build.duration:
+        td_latest_duration = str(timedelta(seconds=latest_build.duration))
+        duration_diff = int(latest_build.duration - duration)
+        if duration_diff > 0:
+            duration_diff = f'<span style="color:#090">+{duration_diff}</span>'
+        else:
+            duration_diff = f'<span style="color:#F00">{duration_diff}</span>'
+        response += f'<tr><td>Latest Build:</td><td>{td_latest_duration} (<b>{duration_diff}</b>)</td><tr>'
+    response += '</table>'
+
     return HttpResponse(response)

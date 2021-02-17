@@ -85,6 +85,24 @@ class Project(models.Model):
             return analyze_gource_log(f.read())
 
 
+class ProjectOption(models.Model):
+    """
+    Individual Gource option used for project build.
+
+    Stores command line option without -- prefix. Example:
+
+        name='seconds-per-day', value='0.5'
+
+    """
+    project = models.ForeignKey(Project, related_name='options', on_delete=models.CASCADE)
+    name = models.CharField(max_length=128, blank=False)
+    value = models.CharField(max_length=1024)
+    value_type = models.CharField(max_length=32, blank=False)
+
+    def __str__(self):
+        return '{0}={1}'.format(self.name, self.value)
+
+
 class ProjectCaption(models.Model):
     """
     Caption entry for Gource video
@@ -225,7 +243,15 @@ class ProjectBuild(models.Model):
 
 
 class ProjectBuildOption(models.Model):
-    "Individual Gource option used for project build"
+    """
+    Individual Gource option used for project build
+
+    Stores command line option without -- prefix. Example:
+
+        name='seconds-per-day', value='0.5'
+
+    * NOTE: Cached copy of options used in base ProjectOption
+    """
     build = models.ForeignKey(ProjectBuild, related_name='options', on_delete=models.CASCADE)
     name = models.CharField(max_length=128, blank=False)
     value = models.CharField(max_length=1024)

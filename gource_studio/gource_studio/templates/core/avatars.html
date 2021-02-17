@@ -60,7 +60,15 @@
             {% csrf_token %}
         </form>
     </div>
-    <h3>{% if page_view == 'project_avatars' %}Project {% endif %}Avatars</h3>
+    <h3>
+    {% if page_view == 'project_avatars' %}
+      <small>
+        <a href="{% url 'project-details' project.id %}">Project</a>
+        &gt;&gt;
+      </small>
+    {% endif %}
+      Avatars
+    </h3>
     <div class="clearfix"></div>
     <hr />
   </div>

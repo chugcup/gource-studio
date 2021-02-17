@@ -13,19 +13,15 @@ import time
 import urllib
 
 from django.conf import settings
+from PIL import Image
+
+from .constants import VIDEO_OPTIONS
 
 # Ignore SSL verification
 ssl._create_default_https_context = ssl._create_unverified_context
 
-#GIT = 'git'
-#GOURCE = 'gource'
-
-#FFMPEG = '/Users/jeffg/ffmpeg/ffmpeg'
-#FFPLAY = '/Users/jeffg/ffmpeg/ffplay'
-#FFPROBE = '/Users/jeffg/ffmpeg/ffprobe'
-
 GOURCE_TIMEOUT = 4*60*60    # 4 hours
-FFMPEG_TIMEOUT = 10*60      # 10 minutes
+FFMPEG_TIMEOUT = 4*60*60    # 4 hours
 
 
 def get_gource():
@@ -141,7 +137,18 @@ def download_git_log(url, branch="master"):
     raise RuntimeError("Unexpected end")
 
 
-def generate_gource_video(log_data, seconds_per_day=0.1, framerate=60, avatars=None, default_avatar=None):
+def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars=None, default_avatar=None, gource_options=None):
+    # Input validation
+    if video_size not in VIDEO_OPTIONS:
+        raise ValueError(f'Invalid video size: {video_size}')
+
+    gource_options = gource_options if gource_options else {}
+    if not isinstance(gource_options, dict):
+        raise ValueError(f"Argument 'gource_options' must be a dict: {gource_options}")
+
+    seconds_per_day = gource_options.pop('seconds-per-day', 0.5)
+    auto_skip_seconds = gource_options.pop('auto-skip-seconds', 3)
+
     tempdir = tempfile.mkdtemp(prefix="gource_")
     print(f"VIDEO TEMPDIR = {tempdir}")
     try:
@@ -160,7 +167,7 @@ def generate_gource_video(log_data, seconds_per_day=0.1, framerate=60, avatars=N
                 '--user-scale', '3',
                 '--dir-name-depth', '4',
                 '--seconds-per-day', str(seconds_per_day),
-                '--auto-skip-seconds', '1',
+                '--auto-skip-seconds', str(auto_skip_seconds),
                 '--bloom-multiplier', '0.5',
                 '--disable-input',
                 '--no-vsync',
@@ -173,7 +180,7 @@ def generate_gource_video(log_data, seconds_per_day=0.1, framerate=60, avatars=N
             cmd += ['--default-user-image', default_avatar]
 
         # - Add resolution options
-        cmd += ['-1280x720',
+        cmd += [f'-{video_size}',
                 '--output-ppm-stream', str(output_ppm),
                 '--output-framerate', str(framerate),
                 str(log_path)
@@ -307,6 +314,22 @@ def get_video_duration(video_path):
     return float(_stdout)
 
 
+def rescale_image(image_path, width=256):
+    """
+    Rescale an image to the specified width (preserving aspect ratio)
+
+    Returns BytesIO object containing image (JPEG)
+    """
+    # https://stackoverflow.com/a/451580
+    img = Image.open(image_path)
+    wpercent = (width / float(img.size[0]))
+    hsize = int((float(img.size[1]) * float(wpercent)))
+    img = img.resize((width, hsize), Image.ANTIALIAS)
+    bf = BytesIO()
+    img.save(bf, "JPEG")
+    return bf
+
+
 def get_video_thumbnail(video_path, width=512, secs=None, percent=None):
     "Get a thumbnail from file using seconds or duration percentage"
     video_duration = get_video_duration(video_path)
@@ -360,6 +383,7 @@ def analyze_gource_log(data):
         {
             "start_date":       <datetime>,
             "end_date":         <datetime>,
+            "num_changes":      <int>
             "num_commits":      <int>
             "num_commit_days":  <int>
             "users":            [<str>, ...]
@@ -370,19 +394,100 @@ def analyze_gource_log(data):
     end_date = datetime.utcfromtimestamp(int(lines[-1].split('|')[0]))
     users = set()
     commit_days = set()
+    num_commits = 0
+    current_date = None
     for line in lines:
-        # <TIME>|<AUTHOR>|<MODIFICATION>|<PATH>
+        # <TIME>|<AUTHOR>|<MODIFICATION>|<PATH>[|<COLOR>]
         segments = line.split('|')
         # Add user
         users.add(segments[1])
         # Check date
         commit_date = datetime.utcfromtimestamp(int(segments[0]))
         commit_days.add(commit_date.date())
+        if current_date is None or current_date != commit_date:
+            num_commits += 1
+            current_date = commit_date
 
     return {
         'start_date': start_date,
         'end_date': end_date,
-        'num_commits': len(lines),
+        'num_changes': len(lines),
+        'num_commits': num_commits,
         'num_commit_days': len(commit_days),
         'users': sorted(list(users), key=lambda n: n.lower())
     }
+
+
+def estimate_gource_video_duration(data, gource_options=None):
+    """
+    Estimate the duration (in seconds) of a Gource video based on log.
+
+    Uses relevant `gource_options` to determine changes in time:
+
+      `seconds-per-day`   (default=1) - Speed of simulation in seconds per day.
+      `auto-skip-seconds` (default=3) - Skip to next entry if nothing happens for a number of seconds.
+
+    Time-based options (mutually exclusive):
+
+      `start-date`  YYYY-MM-DD [HH:mm:ss] - Start with the first entry after the supplied date and optional time.
+      `stop-date`   YYYY-MM-DD [HH:mm:ss] - Stop after the last entry prior to the supplied date and optional time.
+      `start-position` 0.0 - 1.0 - Begin at some position in the log (between 0.0 and 1.0 or 'random').
+      `stop-position`  0.0 - 1.0 - Stop (exit) at some position in the log (does not work with STDIN).
+
+    Returns number of seconds of resulting video.
+    """
+    lines = data.strip().split('\n')
+    start_date = datetime.utcfromtimestamp(int(lines[0].split('|')[0]))
+    end_date = datetime.utcfromtimestamp(int(lines[-1].split('|')[0]))
+
+    gource_options = gource_options if gource_options else {}
+    seconds_per_day = float(gource_options.get('seconds-per-day', 1.0))
+    skip_secs = float(gource_options.get('auto-skip-seconds', 3.0))
+    # Amount of days before auto-skip kicks in
+    skip_day_limit = math.ceil(skip_secs / seconds_per_day)
+
+    duration = 0.0
+    duration += seconds_per_day     # First day
+    current_date = start_date
+    file_count = 0
+    mod_time = 0
+    dir_changes = set()
+    user_changes = set()
+    for line in lines:
+        # <TIME>|<AUTHOR>|<MODIFICATION>|<PATH>[|<COLOR>]
+        segments = line.split('|')
+        # Check user
+        user_changes.add( segments[1] )
+        # Check date
+        commit_date = datetime.utcfromtimestamp(int(segments[0]))
+        dir_changes.add( os.path.dirname(segments[3]) )
+        if commit_date.date() > current_date.date():
+            # Include time taken to "touch" each file in tree
+            #if (file_count * 0.1) > seconds_per_day:
+            #    duration += ((file_count * 0.1) - seconds_per_day)
+            #duration += ((file_count * 0.1) - 0)
+            #if mod_time > seconds_per_day:
+            #    duration += (mod_time - seconds_per_day)
+            #duration += max((len(dir_changes) * 0.25)-seconds_per_day, 0)
+            #duration += max((len(dir_changes) * 0.25), 0)
+            #duration += (len(dir_changes) * 0.01)
+            #duration += (len(user_changes) * 0.1)
+            #duration += mod_time
+            user_changes = set()
+            dir_changes = set()
+            mod_time = 0
+            file_count = 0
+            # Determine number of days that have elapsed since last commit change
+            day_gap = (commit_date.date() - current_date.date()).days
+            # - Check for auto-size threshold
+            if day_gap >= skip_day_limit:
+                duration += (seconds_per_day * skip_day_limit)+skip_secs
+            else:
+                duration += (seconds_per_day * day_gap)
+            current_date = commit_date
+        else:
+            file_count += 1
+
+    VIDEO_BUFFER = 5    # 5 second still at end
+    #return duration
+    return duration + VIDEO_BUFFER
