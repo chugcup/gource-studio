@@ -44,6 +44,7 @@ urlpatterns = [
     re_path(r'^test/log/?', views.fetch_log, name='test-fetch-log'),
     re_path(r'^test/queue/?', views.test_queue_video, name='test-queue-video'),
     re_path(r'^test/video/?', views.make_video, name='test-make-video'),
-    re_path(r'^test/(?P<project_id>\d+)/duration/?$', views.estimate_video_duration, name='test-project-duration'),
+    re_path(r'^test/(?P<project_id>\d+)/duration.html?$', views.estimate_video_duration, name='test-video-duration'),
+    re_path(r'^test/(?P<project_id>\d+)/duration/?$', views.estimate_project_duration, name='test-project-duration'),
     re_path(r'^test/?', views.index, name='test-home'),
 ]

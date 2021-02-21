@@ -102,6 +102,13 @@ class ProjectOption(models.Model):
     def __str__(self):
         return '{0}={1}'.format(self.name, self.value)
 
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "value": self.value,
+            "value_type": self.value_type
+        }
+
 
 class ProjectCaption(models.Model):
     """
@@ -259,6 +266,13 @@ class ProjectBuildOption(models.Model):
 
     def __str__(self):
         return '{0}={1}'.format(self.name, self.value)
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "value": self.value,
+            "value_type": self.value_type
+        }
 
 
 def get_global_avatar_path(instance, filename):

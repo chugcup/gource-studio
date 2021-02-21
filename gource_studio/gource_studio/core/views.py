@@ -22,7 +22,7 @@ from django.views.static import serve
 # Ignore SSL verification
 ssl._create_default_https_context = ssl._create_unverified_context
 
-from .constants import VIDEO_OPTIONS, GOURCE_OPTIONS
+from .constants import VIDEO_OPTIONS, GOURCE_OPTIONS, GOURCE_OPTIONS_LIST
 from .models import Project, ProjectBuild, ProjectBuildOption, ProjectOption, ProjectUserAvatar, UserAvatar
 from .tasks import generate_gource_build
 from .utils import (
@@ -33,6 +33,7 @@ from .utils import (
     get_video_duration,     #(video_path):
     get_video_thumbnail,    #(video_path, width=512, secs=None, percent=None):
     test_http_url,          #(url):
+    validate_project_url,   #(url):
 )
 
 
@@ -85,6 +86,10 @@ def project_details(request, project_id=None, project_slug=None):
     context = {
         'project': project,
         'project_options': project_options,
+        'project_options_json': [
+            json.dumps(opt.to_dict()) for opt in project_options
+        ],
+        'gource_options': GOURCE_OPTIONS_LIST,
         'seconds_per_day': seconds_per_day, # REMOVEME - Temporary default
         'build': project.latest_build
     }
@@ -128,7 +133,7 @@ def edit_project(request, project_id=None, project_slug=None):
                     except Exception as e:
                         logging.exception(f"Gource option error: {option} => {value}")
                         response = {"error": True, "message": f"Gource option error: {option} => {value}"}
-                        return HttpResponse(response, status=400)
+                        return HttpResponse(json.dumps(response), status=400, content_type="application/json")
                 else:
                     logging.warning(f"Unrecognized option: {option}")
             # Delete old options
@@ -137,7 +142,8 @@ def edit_project(request, project_id=None, project_slug=None):
             ProjectOption.objects.bulk_create(new_options)
         else:
             logging.error(f"Invalid 'gource_options' provided: {data['gource_options']}")
-    return HttpResponseRedirect(f'/projects/{project.id}/')
+    response = {"error": False, "message": "Project saved successfully."}
+    return HttpResponse(json.dumps(response), status=201, content_type="application/json")
 
 
 def project_builds(request, project_id=None, project_slug=None):
@@ -268,6 +274,8 @@ def avatar_upload(request):
             #avatar.created_by = request.user
             avatar.save()
             return HttpResponseRedirect('/avatars/')
+            #response = {"error": False, "message": "Avatar saved successfully."}
+            #return HttpResponse(json.dumps(response), status=201, content_type="application/json")
         else:
             logging.error("Invalid form: %s", form.errors)
     return HttpResponseRedirect('/avatars/')
@@ -294,6 +302,8 @@ def project_avatar_upload(request, project_id=None, project_slug=None):
             #avatar.created_by = request.user
             avatar.save()
             return HttpResponseRedirect(f'/projects/{project.id}/avatars/')
+            #response = {"error": False, "message": "Avatar saved successfully."}
+            #return HttpResponse(json.dumps(response), status=201, content_type="application/json")
         else:
             logging.error("Invalid form: %s", form.errors)
     return HttpResponseRedirect(f'/projects/{project.id}/avatars/')
@@ -322,6 +332,8 @@ def project_audio_upload(request, project_id=None, project_slug=None):
             project.build_audio_name = project.build_audio.name
             project.save()
             return HttpResponseRedirect(f'/projects/{project.id}/')
+            #response = {"error": False, "message": "Project saved successfully."}
+            #return HttpResponse(json.dumps(response), status=201, content_type="application/json")
         else:
             logging.error("Invalid form: %s", form.errors)
     return HttpResponseRedirect(f'/projects/{project.id}/')
@@ -398,6 +410,85 @@ def project_queue_build(request, project_id=None, project_slug=None):
 
 def new_project(request):
     "New Project page"
+    # Save a new project
+    if request.method == 'POST':
+        print(f"##### {request.POST}")
+        data = json.loads(request.body)
+        print(f"##### {data}")
+        for field in ['project_url', 'project_vcs', 'project_branch']:
+            if field not in data:
+                response = {"error": True, "message": f"[ERROR] Missing required field: {field}"}
+                return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+
+        project_url = data['project_url']
+        project_vcs = data['project_vcs']
+        project_branch = data['project_branch']
+        if project_vcs not in [ch[0] for ch in Project.VCS_CHOICES]:
+            response = {"error": True, "message": f"[ERROR] Invalid VCS option: {project_vcs}"}
+            return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+        if not project_branch:
+            response = {"error": True, "message": f"[ERROR] Must provide project branch"}
+            return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+
+        # Validate URL string (and domain)
+        try:
+            validate_project_url(project_url)
+        except Exception as e:
+            response = {"error": True, "message": f"[ERROR] {str(e)}"}
+            return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+
+        # Check that project does not exist (identified by URL)
+        try:
+            Project.objects.get(project_url=project_url)
+            response = {"error": True, "message": f"[ERROR] Project already exists matching that URL"}
+            return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+        except Project.DoesNotExist:
+            pass
+
+        # Test that URL is reachable
+        try:
+            test_http_url(project_url)
+        except Exception as e:
+            response = {"error": True, "message": f"[ERROR] {str(e)}"}
+            return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+
+        # Download initial project data
+        try:
+            if project_vcs == 'git':
+                log_data, log_hash, log_subject = download_git_log(project_url, branch=project_branch)
+            elif project_vcs == 'hg':
+                # TODO
+                response = {"error": True, "message": f"[ERROR] Mercurial download not supported"}
+                return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+            else:
+                response = {"error": True, "message": f"[ERROR] Invalid VCS option: {project_vcs}"}
+                return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+        except Exception as e:
+            response = {"error": True, "message": f"[ERROR] {str(e)}"}
+            return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+
+        project_name = os.path.basename(project_url).rstrip('/')
+        project = Project(
+            name=project_name,
+            project_url=project_url,
+            project_vcs=project_vcs,
+            project_branch=project_branch
+        )
+        # Populate attributes from source download
+        if log_hash:
+            project.project_log_commit_hash = log_hash
+        if log_subject:
+            project.project_log_commit_preview = log_subject
+        # Get time/author from last entry
+        if log_data:
+            latest_commit = log_data.splitlines()[-1].split('|')
+            project.project_log_commit_time = make_aware(datetime.utcfromtimestamp(int(latest_commit[0])))
+        project.save()
+        # Save new Gource log content
+        project.project_log.save('gource.log', ContentFile(log_data))
+        response = {"error": False, "message": "Project saved successfully.",
+                    "data": {"id": project.id}}
+        return HttpResponse(json.dumps(response), status=201, content_type="application/json")
     context = {}
     return render(request, 'core/new_project.html', context)
 
@@ -657,7 +748,50 @@ def make_video(request):
     return HttpResponse(response)
 
 
+def estimate_project_duration(request, project_id):
+    response = ''
+    project = get_object_or_404(Project, **{'pk': project_id})
+    latest_build = project.latest_build
+
+    with open(project.project_log.path, 'r') as f:
+        data = f.read()
+
+    added = 0
+    modded = 0
+    deleted = 0
+    lines = data.strip().split('\n')
+    for line in lines:
+        # <TIME>|<AUTHOR>|<MODIFICATION>|<PATH>
+        segments = line.split('|')
+        if segments[2] == 'A': added += 1
+        elif segments[2] == 'M': modded += 1
+        elif segments[2] == 'D': deleted += 1
+
+    try:
+        spd = float(request.GET.get('seconds-per-day', None))
+    except:
+        spd = 1.0
+    try:
+        ass = float(request.GET.get('auto-skip-seconds', None))
+    except:
+        ass = 3.0
+
+    gource_options = {
+        'seconds-per-day': spd,
+        'auto-skip-seconds': ass,
+    }
+    duration = estimate_gource_video_duration(data, gource_options=gource_options)
+    from datetime import timedelta
+    td_duration = str(timedelta(seconds=int(duration)))
+    response = {
+        "duration": duration,
+        "duration_str": td_duration
+    }
+    return HttpResponse(json.dumps(response), content_type='application/json')
+
+
 def estimate_video_duration(request, project_id):
+    "Returns HTML"
     response = ''
     project = get_object_or_404(Project, **{'pk': project_id})
     latest_build = project.latest_build

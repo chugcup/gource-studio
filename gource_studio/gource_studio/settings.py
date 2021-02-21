@@ -130,6 +130,19 @@ MEDIA_ROOT = Path(__file__).resolve().parent / "media"
 
 
 # Celery Configuration Options
-CELERY_TIMEZONE = "US/Mountain"
+CELERY_TIMEZONE = "UTC"
 CELERY_TASK_TRACK_STARTED = True
 CELERY_BROKER_URL = "redis://localhost:6379"
+
+# Whitelist of web domains that projects can be pulled from
+PROJECT_DOMAINS = [
+    'bitbucket.org',
+    'github.com',
+    'gitlab.com',
+]
+
+# Custom user overrides
+try:
+    from .custom_settings import *
+except (ImportError, ModuleNotFoundError):
+    pass

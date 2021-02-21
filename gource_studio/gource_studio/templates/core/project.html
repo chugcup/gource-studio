@@ -157,14 +157,29 @@
         </div>
       </div>
     <hr />
-    <h5>Gource Settings</h5>
-    <div id="gource-settings-container">
-      <div class="form-group gource-option-container">
-        <b>Seconds Per Day:</b>
-        <input class="form-control" name="seconds-per-day" type="text" value="{{ seconds_per_day }}" />
+    <div>
+      <h5 class="float-left" style="padding-right: 36px">Gource Settings</h5>
+      <div id="gource-duration-estimate-container">
+          <small>Estimated Duration:</small>
+          <span id="gource-duration-estimate">-</span>
       </div>
-      <button class="btn btn-primary btn-sm"><i class="fa fa-plus"></i> Add Option</button>
     </div>
+    <div class="clearfix"></div>
+    <div id="gource-settings-container"></div>
+
+  <div id="project-gource-options-container" class="form-group gource-option-container" style="display:flex; width:100%;">
+    <div class="input-group" style="width:305px">
+      <select id="gource-new-option-selector" class="form-control form-control-sm">
+        <option value="">-- Choose a Setting --</option>
+      {% for gource_opt in gource_options %}
+        <option value="{{ gource_opt.name }}" data-description="{{ gource_opt.description }}" data-placeholder="{{ gource_opt.placeholder }}" {% if gource_opt.default is not None %} data-default="{{ gource_opt.default }}"{% endif %}>{{ gource_opt.label }}</option>
+      {% endfor %}
+      </select>
+      <div class="input-group-append">
+        <button id="add-gource-option-btn" class="btn btn-primary btn-sm"><i class="fa fa-plus"></i> Add Option</button>
+      </div>
+    </div>
+  </div>
   </div>
 </div>
         </div>
@@ -206,6 +221,7 @@
   <!-- Bootstrap core JavaScript -->
   <script src="/static/js/jquery.min.js"></script>
   <script src="/static/js/bootstrap.bundle.min.js"></script>
+  <script src="/static/js/underscore-min.js"></script>
   <script type="text/javascript">
     // https://docs.djangoproject.com/en/dev/ref/csrf/#ajax
     // - See also: https://github.com/js-cookie/js-cookie/
@@ -260,6 +276,106 @@
                 console.log("Save error: "+err, xhr);
             }
         });
+    });
+
+    function addGourceOption($option, value) {
+        let option_default = $option.attr('data-default');
+        if (!_.isUndefined(value)) {
+          option_default = value;
+        }
+        $('#gource-settings-container').append(
+            gource_option_template({
+                name: $option.val(),
+                label: $option.text(),
+                value: option_default ? option_default : "",
+                placeholder: $option.attr('data-placeholder'),
+                description: $option.attr('data-description'),
+            })
+        );
+        $option.remove();
+    }
+
+    function refreshGourceDuration() {
+        let VALID_FIELDS = ["seconds-per-day", "auto-skip-seconds"];
+        let gource_options = {};
+        $('.gource-option-container').each(function(idx, e) {
+            let $input = $(e).find('input');
+            console.log('!!! ',e, $input);
+            if ($input.length > 0 && $input.attr('name')) {
+                if (_.contains(VALID_FIELDS, $input.attr('name'))) {
+                    gource_options[$input.attr('name')] = $input.val();
+                }
+            }
+        });
+        console.log(' ==> ',gource_options);
+
+        $.ajax({
+            url: "/test/{{project.id}}/duration/",
+            method: 'GET',
+            data: gource_options,
+            contentType: "application/json",
+            success: function(data, textStatus, xhr) {
+                // TODO show success message
+                console.log("Duration response: ",data);
+                $('#gource-duration-estimate').text(data.duration_str);
+            },
+            error: function(xhr, textStatus, err) {
+                // Error
+                console.log("Duration error: "+err, xhr);
+                $('#gource-duration-estimate').text('-');
+            }
+        });
+    }
+
+    let gource_option_template = _.template(''
+      +'<div class="form-group gource-option-container" style="display:flex; width:100%;">'
+      +  '<div title="<%- name %>" style="width:130px; font-size:12px; line-height:32px; text-align:right; padding-right:8px">'
+      +    '<b><%- label %>:</b>'
+      +  '</div>'
+      +  '<div style="flex:1">'
+      +    '<input class="form-control form-control-sm" name="<%- name %>" type="text" value="<%- value %>"<% if (placeholder) { %> placeholder="<%- placeholder %>"<% } %> style="width:200px" />'
+      +  '</div>'
+      +'</div>');
+
+    $('body').on('click', '#add-gource-option-btn', function(e) {
+        let $selector = $('#gource-new-option-selector');
+        if ($selector.length === 0 || $selector.val() == "") { return false; }
+        let $option = $selector.find('option:selected');
+        if ($option.length === 0) { return false; }
+
+        // Pluck from <select> and add to section
+        addGourceOption($option);
+        refreshGourceDuration();
+    });
+
+    $('body').on('change', '.gource-option-container input.form-control', function(e) {
+        console.log('value change', e);
+        refreshGourceDuration();
+    });
+
+    $(document).ready(function() {
+        let init_gource_options = [
+        {% for option_json in project_options_json %}
+            {{ option_json|safe }},
+        {% endfor %}
+        ];
+
+        _.each(init_gource_options, function(item) {
+            console.log(item);
+            let $selector = $('#gource-new-option-selector');
+            if ($selector.length === 0) {
+                console.log("Selector not found.");
+                return false;
+            }
+            let $option = $selector.find('option[value="'+item.name+'"]');
+            if ($option.length === 0) {
+                console.log("Option not found.");
+                return false;
+            }
+
+            addGourceOption($option, item.value);
+        });
+        refreshGourceDuration();
     });
   </script>
 

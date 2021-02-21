@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import time
 import urllib
+from urllib.parse import urlparse
 
 from django.conf import settings
 from PIL import Image
@@ -61,6 +62,16 @@ def test_http_url(url):
     if resp.status in [200]:
         return True
     raise urllib.error.HTTPError(code=resp.status, reason="Request error")
+
+
+def validate_project_url(url):
+    if not re.match(r'https?:\/\/', url):
+        raise ValueError("URL must be a valid HTTP resource")
+
+    # Only allow projects from whitelisted domains (in settings)
+    info = urlparse(url)
+    if info.netloc not in settings.PROJECT_DOMAINS:
+        raise ValueError(f"Unauthorized URL domain: {info.netloc}")
 
 
 def download_git_log(url, branch="master"):

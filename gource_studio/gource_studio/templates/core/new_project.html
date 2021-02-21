@@ -48,7 +48,37 @@
 
   <!-- Page Content -->
   <div class="container">
-    <h2 class="text-center">Coming Soon</h2>
+    <h2 class="text-center">New Project</h2>
+    <label for="project-url-input" style="font-weight:bold">Project URL:</label>
+    <div class="input-group">
+        <div class="input-group-prepend">
+            <select id="project-vcs-select" class="form-control" name="project_vcs" style="width: 120px; border-radius: .25rem 0 0 .25rem">
+                <option value="git">Git</option>
+                <option value="hg">Mercurial</option>
+            </select>
+            <!-- 
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
+            <div class="dropdown-menu">
+                <a class="dropdown-item">Git</a>
+                <a class="dropdown-item">Mercurial</a>
+            </div>
+            -->
+        </div>
+        <input type="text" id="project-url-input" name="project_url" class="form-control" placeholder="http://..." />
+    </div>
+    <br />
+    <div class="input-group" style="width:400px">
+        <div class="input-group-prepend">
+            <div class="input-group-text text-right" style="display:inline-block;width: 120px">Branch:</div>
+        </div>
+        <input type="text" id="project-branch-input" name="project_branch" class="form-control" value="master" />
+    </div>
+    <br />
+    <div class="text-center">
+        <button id="save-project-btn" class="btn btn-lg btn-success">
+            Create Project
+        </button>
+    </div>
     <br />
   </div>
   <!-- /.container -->
@@ -65,5 +95,97 @@
   <script src="/static/js/jquery.min.js"></script>
   <script src="/static/js/bootstrap.bundle.min.js"></script>
 
+  <script type="text/javascript">
+    // https://docs.djangoproject.com/en/dev/ref/csrf/#ajax
+    // - See also: https://github.com/js-cookie/js-cookie/
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+      // Listen for VCS option changes
+      $('body').on('change', '#project-vcs-select', function(e) {
+          // Change 'branch' default input if VCS is changed
+          if ($(e.currentTarget).val() == 'hg') {
+              // Mercurial
+              $('#project-branch-input').val('default');
+          } else {
+              // Git
+              $('#project-branch-input').val('master');
+          }
+      });
+
+    // Save project
+    $('body').on('click', '#save-project-btn', function(e) {
+        console.log('save');
+        let project_url = ($('#project-url-input').val() || "").trim();
+        let project_vcs = ($('#project-vcs-select').val() || "").trim();
+        let project_branch = ($('#project-branch-input').val() || "").trim();
+
+        // Clear errors
+        $('.is-invalid').removeClass('is-invalid');
+
+        // Validate fields
+        let has_errors = false;
+        if (project_url == "") {
+            has_errors = true;
+            $('#project-url-input').addClass('is-invalid');
+        }
+        if (project_vcs == "") {
+            has_errors = true;
+            $('#project-vcs-select').addClass('is-invalid');
+        }
+        if (project_branch == "" || project_branch.indexOf(' ') > -1) {
+            has_errors = true;
+            $('#project-branch-input').addClass('is-invalid');
+        }
+        if (has_errors) {
+            return false;
+        }
+
+        let post_data = {
+            'project_url': project_url,
+            'project_vcs': project_vcs,
+            'project_branch': project_branch,
+        };
+        console.log('POST DATA: ',post_data);
+        $('#save-project-btn').attr({disabled: true});
+        $.ajax({
+            url: "/new/",
+            method: 'POST',
+            data: JSON.stringify(post_data),
+            contentType: "application/json",
+            dataType: "json",
+            beforeSend: function(xhr) {
+                // Attach CSRF Token
+                xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+            },
+            success: function(data, textStatus, xhr) {
+                // TODO show success message
+                console.log("Project saved successfully.");
+                // Redirect to new project page
+                window.location = '/projects/'+data.data.id+'/';
+            },
+            error: function(xhr, textStatus, err) {
+                // Error
+                console.log("Save error: "+err, xhr);
+                $('#save-project-btn').attr({disabled: false});
+            }
+        });
+    });
+
+
+  </script>
 </body>
 </html>
