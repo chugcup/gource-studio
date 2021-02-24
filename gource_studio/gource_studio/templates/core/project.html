@@ -223,6 +223,8 @@
   <script src="/static/js/bootstrap.bundle.min.js"></script>
   <script src="/static/js/underscore-min.js"></script>
   <script type="text/javascript">
+    let IS_LATEST_BUILD = {{ is_latest_build|lower }};
+
     // https://docs.djangoproject.com/en/dev/ref/csrf/#ajax
     // - See also: https://github.com/js-cookie/js-cookie/
     function getCookie(name) {
@@ -278,20 +280,29 @@
         });
     });
 
-    function addGourceOption($option, value) {
+    function addGourceOption($option, value, readonly) {
         let option_default = $option.attr('data-default');
         if (!_.isUndefined(value)) {
           option_default = value;
         }
-        $('#gource-settings-container').append(
-            gource_option_template({
-                name: $option.val(),
-                label: $option.text(),
-                value: option_default ? option_default : "",
-                placeholder: $option.attr('data-placeholder'),
-                description: $option.attr('data-description'),
-            })
-        );
+        if (!readonly) {
+            $('#gource-settings-container').append(
+                gource_option_template({
+                    name: $option.val(),
+                    label: $option.text(),
+                    value: option_default ? option_default : "",
+                    placeholder: $option.attr('data-placeholder'),
+                    description: $option.attr('data-description'),
+                })
+            );
+        } else {
+            $('#gource-settings-container').append(
+                _.template('<div><b><%- label %>:</b> <%- value %></div>')({
+                    label: $option.text(),
+                    value: option_default ? option_default : "",
+                })
+            );
+        }
         $option.remove();
     }
 
@@ -373,9 +384,18 @@
                 return false;
             }
 
-            addGourceOption($option, item.value);
+            if (IS_LATEST_BUILD) {
+                addGourceOption($option, item.value);
+            } else {
+                addGourceOption($option, item.value, true);
+            }
         });
         refreshGourceDuration();
+        if (!IS_LATEST_BUILD) {
+            // Remove selectable options
+            let $selector = $('#project-gource-options-container');
+            $selector.remove();
+        }
     });
   </script>
 

@@ -165,10 +165,14 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
     try:
         tempdir_path = Path(tempdir)
         log_path = tempdir_path / 'gource.log'
-        output_ppm = tempdir_path / 'output.ppm'
         # Write log file to disk
         with log_path.open('a') as f:
             f.write(log_data)
+        # Use FIFO (named pipe) to pipe Gource PPM output to FFmpeg
+        # and run both processes simultaneously
+        fifo_path = tempdir_path / 'gource.fifo'
+        os.mkfifo(str(fifo_path), 0o666)
+
         ## 1 - Generate PPM video file from Gource
         cmd = [get_gource(),
                 '--stop-at-end',
@@ -192,37 +196,51 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
 
         # - Add resolution options
         cmd += [f'-{video_size}',
-                '--output-ppm-stream', str(output_ppm),
                 '--output-framerate', str(framerate),
-                str(log_path)
+                '--output-ppm-stream', str(fifo_path),
+                str(log_path),  # NOTE: must be last argument
         ]
+        print(f" ~ Starting Gource")
         p1 = subprocess.Popen(cmd, cwd=str(tempdir_path),
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        p1.wait(timeout=GOURCE_TIMEOUT)
-        if p1.returncode:
+        logging.info("[STEP 1] %s", p1.args)
+        #p1.wait(timeout=GOURCE_TIMEOUT)
+        time.sleep(1)   # Wait a short time for Gource to get started
+        p1.poll()
+        if p1.returncode is not None:
             # Error
+            print(" ~ Gource command error - exiting...")
             _stdout, _stderr = p1.communicate()
             raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
 
         ## 2 - Generate video using ffmpeg
+        print(f" ~ Starting ffmpeg encoding")
         dest_video = tempdir_path / 'output.mp4'
         cmd = [get_ffmpeg(),
                '-y',
                '-r', str(framerate),
                '-f', 'image2pipe',
                '-vcodec', 'ppm',
-               '-i', str(output_ppm),
+               '-i', str(fifo_path),
                '-vcodec', 'libx264',
                '-crf', '23',
                str(dest_video)
         ]
-        p2 = subprocess.Popen(cmd, cwd=str(tempdir_path),
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        p2.wait(timeout=FFMPEG_TIMEOUT)
-        if p2.returncode:
-            # Error
-            _stdout, _stderr = p2.communicate()
-            raise RuntimeError(f"[{p2.returncode}] Error: {_stderr}")
+        # Direct FFmpeg stdout/stderr to file to avoid halting due to filled I/O buffer
+        # - On long running videos, can cause process to halt waiting for output to be read
+        with open(str(tempdir_path / 'ffmpeg.stdout'), 'w') as ffout:
+            with open(str(tempdir_path / 'ffmpeg.stderr'), 'w') as fferr:
+                p2 = subprocess.Popen(cmd, cwd=str(tempdir_path),
+                                      stdout=ffout, stderr=fferr)
+                                      #stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                logging.info("[STEP 2] %s", p2.args)
+                p2.wait(timeout=FFMPEG_TIMEOUT)
+                if p2.returncode:
+                    # Error
+                    print(" ~ FFmpeg command error - exiting...")
+                    #_stdout, _stderr = p2.communicate()
+                    #raise RuntimeError(f"[{p2.returncode}] Error: {_stderr}")
+                    raise RuntimeError(f"[{p2.returncode}] Error during FFmpeg conversion")
 
         final_path = f'/tmp/{int(time.time())}.mp4'
         shutil.move(str(dest_video), final_path)

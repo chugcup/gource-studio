@@ -72,17 +72,31 @@ def projects(request):
     return render(request, 'core/projects.html', context)
 
 
-def project_details(request, project_id=None, project_slug=None):
+@csrf_protect
+def project_details(request, project_id=None, project_slug=None, build_id=None):
     "Project Details page"
     if project_id:
         project = get_object_or_404(Project, **{'id': project_id})
     elif project_slug:
         project = get_object_or_404(Project, **{'project_slug': project_slug})
-    project_options = project.options.all()
-    try:
-        seconds_per_day = project_options.get(name='seconds-per-day').value
-    except:
-        seconds_per_day = GOURCE_OPTIONS['seconds-per-day']['default']
+
+    build = None
+    is_latest_build = True
+    if build_id is not None:
+        build = get_object_or_404(ProjectBuild, **{'project_id': project.id, 'id': build_id})
+        project_options = project.options.all()
+        is_latest_build = build.id == project.latest_build.id
+    else:
+        build = project.latest_build
+        project_options = build.options.all()
+        is_latest_build = True
+
+    # Allow for deleting build
+    if build_id and request.method == 'DELETE':
+        # Delete build
+        build.delete()
+        return HttpResponseRedirect(f'/projects/{project.id}/')
+
     context = {
         'project': project,
         'project_options': project_options,
@@ -90,8 +104,8 @@ def project_details(request, project_id=None, project_slug=None):
             json.dumps(opt.to_dict()) for opt in project_options
         ],
         'gource_options': GOURCE_OPTIONS_LIST,
-        'seconds_per_day': seconds_per_day, # REMOVEME - Temporary default
-        'build': project.latest_build
+        'build': build,
+        'is_latest_build': is_latest_build,
     }
     return render(request, 'core/project.html', context)
 
@@ -164,28 +178,6 @@ def project_builds(request, project_id=None, project_slug=None):
     page_obj = paginator.get_page(page_number)
     context['page_obj'] = page_obj
     return render(request, 'core/project_builds.html', context)
-
-
-@csrf_protect
-def project_build_details(request, project_id=None, project_slug=None, build_id=None):
-    "Project Build Details page"
-    if project_id:
-        project = get_object_or_404(Project, **{'id': project_id})
-    elif project_slug:
-        project = get_object_or_404(Project, **{'project_slug': project_slug})
-
-    build = get_object_or_404(ProjectBuild, **{'project_id': project.id, 'id': build_id})
-
-    if request.method == 'DELETE':
-        # Delete build
-        build.delete()
-        return HttpResponseRedirect(f'/projects/{project.id}/')
-
-    context = {
-        'project': project,
-        'build': build
-    }
-    return render(request, 'core/project.html', context)
 
 
 def project_build_screenshot(request, project_id=None, project_slug=None, build_id=None):

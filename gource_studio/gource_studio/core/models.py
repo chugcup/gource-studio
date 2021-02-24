@@ -248,6 +248,15 @@ class ProjectBuild(models.Model):
         if update_fields:
             self.save(update_fields=update_fields)
 
+    def get_build_duration(self):
+        "Returns total runtime duration of build (from 'running' -> 'completed'|'error')"
+        if not self.running_at:
+            return None
+        if self.completed_at:
+            return (self.completed_at - self.running_at).total_seconds()
+        elif self.errored_at:
+            return (self.errored_at - self.running_at).total_seconds()
+        return None
 
 class ProjectBuildOption(models.Model):
     """

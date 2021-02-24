@@ -100,10 +100,10 @@ def generate_gource_build(build_id):
 
         # Add background audio (optional)
         try:
-            logger.info("Beginning audio mixing...")
             if build.project.build_audio:
                 audio_path = build.project.build_audio.path
                 if os.path.isfile(audio_path):
+                    logger.info("Beginning audio mixing...")
                     final_path = add_background_audio(final_path, audio_path, loop=True)
         except:
             logger.exception("Failed to mix background audio")
@@ -131,5 +131,6 @@ def generate_gource_build(build_id):
 
     except Exception as e:
         build.mark_errored(error_description=str(e))
+        logger.exception("Unhandled task error while generating video")
     finally:
         shutil.rmtree(tempdir)

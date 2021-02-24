@@ -1,3 +1,4 @@
+{% load duration %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -114,12 +115,16 @@
                 {% else %}
                     {% if build.duration %}
                     <b>Duration:</b>
-                    {{ build.duration }} sec
+                    {{ build.duration|duration }}
                     {% endif %}
                     {% if build.size %}
                     <b style="margin-left:20px">Size:</b>
                     <span title="{{ build.size }} bytes">{{ build.size|filesizeformat }}</span>
                     {% endif %}
+                {% endif %}
+                {% if build.completed_at %}
+                    <br />
+                    <b>Build Time:</b> {{ build.get_build_duration|duration }}
                 {% endif %}
                 </p>
               </div>
