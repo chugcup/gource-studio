@@ -57,7 +57,7 @@
   {% with latest_build=project.latest_build %}
   <div style="text-align:center; background:#000000;">
   {% if build.content %}
-    <video controls poster="{% url 'project-build-screenshot' project.id build.id %}" preload="none" style="max-height:80vh">
+    <video controls poster="{% url 'project-build-screenshot' project.id build.id %}" preload="metadata" style="max-height:80vh">
       <source src="{% url 'project-build-video' project.id build.id %}" type="video/mp4">
     </video>
   {% else %}

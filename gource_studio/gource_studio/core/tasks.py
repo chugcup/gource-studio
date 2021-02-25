@@ -94,9 +94,7 @@ def generate_gource_build(build_id):
         final_path = generate_gource_video(log_data, avatars=avatar_dir, gource_options=gource_options)
         process_time = time.monotonic() - start_time
         logger.info("Processing time: %s sec", process_time)
-
         build.duration = int(get_video_duration(final_path))
-        build.size = os.path.getsize(final_path)
 
         # Add background audio (optional)
         try:
@@ -109,9 +107,12 @@ def generate_gource_build(build_id):
             logger.exception("Failed to mix background audio")
 
         # Save video content
-        logger.info("Generating screenshots...")
+        build.size = os.path.getsize(final_path)
+        logger.info("Saving video (%s bytes)...", build.size)
         with open(final_path, 'rb') as f:
             build.content.save('video.mp4', File(f))
+
+        logger.info("Generating screenshots...")
         try:
             screen_data = get_video_thumbnail(final_path, secs=-1, width=1280)
             build.screenshot.save('screenshot.jpg', screen_data)

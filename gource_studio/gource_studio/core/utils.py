@@ -223,9 +223,15 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
                '-vcodec', 'ppm',
                '-i', str(fifo_path),
                '-vcodec', 'libx264',
+               '-pix_fmt', 'yuv420p',       # * Change to chroma subsampling 4:2:0 YUV
                '-crf', '23',
                str(dest_video)
         ]
+        # * - The chroma subsampling default for FFmpeg (Planar 4:4:4 YUV) will not play in
+        #     some browsers that do support H.264, notably Firefox.
+        #     Changing to an alternate 4:2:0 value found in H.26x standards seems to work better,
+        #     even though it is technically lower quality.
+
         # Direct FFmpeg stdout/stderr to file to avoid halting due to filled I/O buffer
         # - On long running videos, can cause process to halt waiting for output to be read
         with open(str(tempdir_path / 'ffmpeg.stdout'), 'w') as ffout:
@@ -271,7 +277,7 @@ def add_background_audio(video_path, audio_path, loop=True):
     try:
         cmd1_out = Path(tempdir) / 'output_1a.mp4'
 
-        ##Loop audio with video until shortest ends
+        # Loop audio with video until shortest ends
         #ffmpeg  -i input.mp4 -stream_loop -1 -i input.mp3 -shortest -map 0:v:0 -map 1:a:0 -y out.mp4
         cmd1 = [get_ffmpeg(),
                 '-i', video_path,
@@ -294,7 +300,7 @@ def add_background_audio(video_path, audio_path, loop=True):
         # Checkpoint
         save_file = cmd1_out
 
-        ##Audio Fadeout (crossfade with silence -> 0.6 sec)
+        # Audio Fadeout (crossfade with silence -> 2.0 sec)
         #ffmpeg -i input.mp4 -filter_complex "aevalsrc=0:d=0.6 [a_silence]; [0:a:0] [a_silence] acrossfade=d=0.6" output.mp4
         cmd2_out = Path(tempdir) / 'output_1b.mp4'
         cmd2 = [get_ffmpeg(),
