@@ -259,6 +259,7 @@
             'video_size': video_size,
             'gource_options': gource_options
         };
+        $('.save-project-settings-btn').attr({disabled: true});
         $.ajax({
             url: "/projects/{{project.id}}/edit/",
             method: 'POST',
@@ -272,10 +273,20 @@
             success: function(data, textStatus, xhr) {
                 // TODO show success message
                 console.log("Options saved successfully.");
+                $('.save-project-settings-btn').attr({disabled: false})
+                                               .prepend('<i class="fa fa-check"></i>');
             },
             error: function(xhr, textStatus, err) {
                 // Error
                 console.log("Save error: "+err, xhr);
+                $('.save-project-settings-btn').attr({disabled: false})
+                                               .prepend('<i class="fa fa-times"></i>');
+            },
+            complete: function(xhr, textStatus) {
+                setTimeout(function() {
+                    $('.save-project-settings-btn').attr({disabled: false})
+                                                   .find('.fa').remove();
+                }, 1500);
             }
         });
     });

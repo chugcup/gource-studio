@@ -11,7 +11,7 @@ from django import forms
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.paginator import Paginator
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, Max, OuterRef
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.utils import dateparse
@@ -49,20 +49,25 @@ def index(request):
     # TODO: sort by latest build
     context = {
         'projects': Project.objects.prefetch_related('builds')\
+                                   .annotate(latest_build_time=Max('builds__completed_at'))\
                                    .filter(
                                        Exists(ProjectBuild.objects.filter(project=OuterRef('pk'))\
                                                                   .exclude(content=''))
                                    )\
-                                   .order_by('-id')[:8],
+                                   .order_by('-latest_build_time')[:8],
     }
     return render(request, 'core/index.html', context)
 
 
 def projects(request):
     "Projects page"
+    sort_key = request.GET.get('sort_key', None)
+    if sort_key not in ['id']:
+        sort_key = 'latest_build_time'  # Default
     context = {
         'projects': Project.objects.prefetch_related('builds')\
-                                             .order_by('-id'),
+                                   .annotate(latest_build_time=Max('builds__completed_at'))\
+                                   .order_by(f'-{sort_key}'),
     }
     # Pagination
     paginator = Paginator(context['projects'], 10)
