@@ -43,6 +43,7 @@ urlpatterns = [
     re_path(r'^about/?$', views.about, name='about'),
     # Test views
     re_path(r'^test/log/?', views.fetch_log, name='test-fetch-log'),
+    re_path(r'^test/tags/?', views.fetch_tags, name='test-fetch-tags'),
     re_path(r'^test/queue/?', views.test_queue_video, name='test-queue-video'),
     re_path(r'^test/video/?', views.make_video, name='test-make-video'),
     re_path(r'^test/(?P<project_id>\d+)/duration.html?$', views.estimate_video_duration, name='test-video-duration'),

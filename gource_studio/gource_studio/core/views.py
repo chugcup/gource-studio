@@ -29,6 +29,7 @@ from .utils import (
     add_background_audio,   #(video_path, audio_path, loop=True):
     analyze_gource_log,     #(data):
     download_git_log,       #(url, branch="master"):
+    download_git_tags,      #(url, branch="master"):
     estimate_gource_video_duration,
     generate_gource_video,  #(log_data, video_size='1280x720', framerate=60, gource_options={}):
     get_video_duration,     #(video_path):
@@ -618,7 +619,7 @@ def fetch_log(request):
         sample_url = "https://github.com/acaudwell/Gource"
         response = "Use <code>?url=...</code> to request log."
         response += "<br /><br />"
-        response += f"Sample: <a href=\"/?url={sample_url}\">{sample_url}</a>"
+        response += f"Sample: <a href=\"/test/log/?url={sample_url}\">{sample_url}</a>"
         return HttpResponse(response)
 
     try:
@@ -642,6 +643,31 @@ def fetch_log(request):
         analyze_time = time.monotonic() - post_time
         response += f"<b>Time Taken:</b> {total_time:.3f} sec (+ {test_time:.3f} test / {analyze_time:.3f} process)<br /><hr />"
         response += f"<pre>{log_data}</pre>"
+    except urllib.error.URLError as e:
+        response = f'URL/HTTP error: {e.reason}'
+    except Exception as e:
+        logging.exception("Uncaught exception")
+        response = f'Server error: [{e.__class__.__name__}] {e}'
+    return HttpResponse(response)
+
+
+def fetch_tags(request):
+    response = ''
+    user_url = request.GET.get('url', None)
+    if user_url is None:
+        sample_url = "https://github.com/acaudwell/Gource"
+        response = "Use <code>?url=...</code> to request tags."
+        response += "<br /><br />"
+        response += f"Sample: <a href=\"/test/tags/?url={sample_url}\">{sample_url}</a>"
+        return HttpResponse(response)
+
+    try:
+        content = test_http_url(user_url)
+        tags_list = download_git_tags(user_url, branch="master")
+        response = f"<b>URL:</b> <a href=\"{user_url}\" target=\"_blank\">{user_url}</a><br />"
+        response += f"<b>Tags List:</b><br />"
+        for timestamp, tag_name in tags_list:
+            response += f"+ [{timestamp}] <span style=\"padding-left:12px\">{tag_name}</span><br />"
     except urllib.error.URLError as e:
         response = f'URL/HTTP error: {e.reason}'
     except Exception as e:

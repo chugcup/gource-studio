@@ -148,6 +148,62 @@ def download_git_log(url, branch="master"):
     raise RuntimeError("Unexpected end")
 
 
+def download_git_tags(url, branch="master"):
+    """
+    Retrieve list of tags from  Git repository URL.
+
+    Returns [(timestamp, name)]
+    """
+    if not re.match(r'https?:\/\/', url):
+        raise ValueError("URL must be a valid HTTP resource")
+
+    tempdir = tempfile.mkdtemp(prefix="gource_")
+    print(f"DOWNLOAD TEMPDIR = {tempdir}")
+    try:
+        tempdir_path = Path(tempdir)
+        destdir = tempdir_path / 'vcs_source'
+        ## 1 - Clone repository locally (as minimal as possible)
+        cmd = [get_git(), 'clone', '--quiet', '--filter=blob:none', '--no-checkout',
+               '--single-branch',
+               '--branch', branch,
+               url, str(destdir)]
+        p1 = subprocess.Popen(cmd, cwd=str(tempdir_path),
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p1.wait(timeout=60)     # 60 seconds
+        if p1.returncode:
+            # Error
+            _stdout, _stderr = p1.communicate()
+            raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
+
+
+        #git tag --list --format='%(creatordate:iso8601)|%(refname:short)'
+        cmd = [get_git(), 'tag',
+               '--list',
+               '--format=%(creatordate:iso8601)|%(refname:short)']
+        p2 = subprocess.Popen(cmd, cwd=str(destdir),
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p2.wait(timeout=60)
+        if p2.returncode:
+            # Error
+            _stdout, _stderr = p2.communicate()
+            raise RuntimeError(f"[{p2.returncode}] Error: {_stderr}")
+
+        tags_output = p2.communicate()[0].decode('utf-8')
+        tags_list = []
+        for line in tags_output.strip().split('\n'):
+            timestamp, _, tag_name = line.partition('|')
+            tags_list.append(
+                (timestamp, tag_name)
+            )
+        return tags_list
+
+    finally:
+        shutil.rmtree(tempdir)
+
+    raise RuntimeError("Unexpected end")
+
+
+
 def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars=None, default_avatar=None, gource_options=None):
     # Input validation
     if video_size not in VIDEO_OPTIONS:

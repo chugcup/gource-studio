@@ -186,9 +186,25 @@
     </div>
   </div>
   </div>
-</div>
+  <div class="tab-pane" id="project-captions-pane" role="tabpanel">
+    <hr />
+    <div class="float-right">
+      <button class="btn btn-success save-project-captions-btn"><i class="fa fa-disk"></i> Save</button>
+    </div>
+    <h5>Video Captions</h5>
+    <div class="row justify-content-center">
+        <div class="col-12">
+            <div id="project-captions-container">
+                <div id="project-captions-list"></div>
+                <button class="btn btn-primary add-caption-btn"><i class="fa fa-plus"></i> Add Caption</button>
+            </div>
         </div>
-      </div>
+    </div>
+
+  </div>
+  </div>
+  </div>
+</div>
 
       <div class="col-1">
         <!-- Nav sidebar -->
@@ -198,6 +214,9 @@
           </li>
           <li class="nav-item">
             <a class="nav-link" href="#project-settings-pane" data-toggle="tab" role="tab">Settings</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
           </li>
           <li class="nav-item">
               <a class="nav-link" href="{% url 'project-avatars' project.id %}">Avatars</a>
@@ -421,6 +440,18 @@
     $('body').on('click', '.edit-audio-file', function(e) {
         $(e.currentTarget).hide();
         $('#project_build_audio_file_form').show();
+    });
+
+    let gource_caption_template = _.template(''
+      +'<div class="form-group gource-caption-container" style="display:flex; width:100%;">'
+      +  '<input type="date" class="form-control form-control-sm" style="width:150px; font-size:12px; line-height:32px;" placeholder="YYYY-MM-DD HH:mm:ss" />'
+      +  '<input type="text" class="form-control form-control-sm" style="width:400px; font-size:12px; line-height:32px;" placeholder="Message" />'
+      +'</div>');
+
+    $('body').on('click', '.add-caption-btn', function(e) {
+        $('#project-captions-list').append(
+            gource_caption_template({})
+        );
     });
 
     $(document).ready(function() {
