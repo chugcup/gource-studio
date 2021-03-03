@@ -329,6 +329,47 @@ def add_background_audio(video_path, audio_path, loop=True):
     return video_path
 
 
+def remove_background_audio(video_path):
+    """
+    Remux video with audio track removed.
+    """
+    if not os.path.isfile(video_path):
+        raise ValueError(f"File not found: {video_path}")
+
+    tempdir = tempfile.mkdtemp(prefix="gource_")
+    save_file = None
+    try:
+        cmd1_out = Path(tempdir) / 'output_nosound.mp4'
+
+        # Use `-vcodec copy` to avoid reencoding video
+        #     `-an` disables audio stream selection
+        #ffmpeg -i input.mp4 -vcodec copy -an output.mp4
+        cmd1 = [get_ffmpeg(),
+                '-i', video_path,
+                '-vcodec', 'copy',
+                '-an',
+                cmd1_out
+        ]
+        p1 = subprocess.Popen(cmd1, cwd=str(tempdir),
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p1.wait(timeout=FFMPEG_TIMEOUT)
+        if p1.returncode:
+            # Error
+            _stdout, _stderr = p1.communicate()
+            raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
+
+        save_file = cmd1_out
+
+    finally:
+        if save_file:
+            final_path = f'/tmp/{int(time.time())}.mp4'
+            shutil.move(save_file, final_path)
+            video_path = final_path
+        shutil.rmtree(tempdir)
+
+    return video_path
+
+
 def get_video_duration(video_path):
     "Query duration of video file"
     if not os.path.isfile(video_path):

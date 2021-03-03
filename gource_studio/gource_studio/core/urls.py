@@ -11,6 +11,7 @@ urlpatterns = [
     re_path(r'^projects/?$', views.projects, name='projects'),
     # - By ID
     re_path(r'^projects/(?P<project_id>\d+)/?$', views.project_details, name='project-details'),
+    re_path(r'^projects/(?P<project_id>\d+)/actions/?$', views.project_actions, name='project-actions'),
     re_path(r'^projects/(?P<project_id>\d+)/avatars/?$', views.project_avatars, name='project-avatars'),
     #re_path(r'^projects/(?P<project_id>\d+)/avatars/(?P<avatar_id>\d+)/?$', views.project_avatar_details, name='project-avatar-details'),
     re_path(r'^projects/(?P<project_id>\d+)/avatars/upload/?$', views.project_avatar_upload, name='project-avatar-upload'),

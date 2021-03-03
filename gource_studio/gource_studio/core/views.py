@@ -26,12 +26,14 @@ from .constants import VIDEO_OPTIONS, GOURCE_OPTIONS, GOURCE_OPTIONS_LIST
 from .models import Project, ProjectBuild, ProjectBuildOption, ProjectOption, ProjectUserAvatar, UserAvatar
 from .tasks import generate_gource_build
 from .utils import (
+    add_background_audio,   #(video_path, audio_path, loop=True):
     analyze_gource_log,     #(data):
     download_git_log,       #(url, branch="master"):
     estimate_gource_video_duration,
     generate_gource_video,  #(log_data, video_size='1280x720', framerate=60, gource_options={}):
     get_video_duration,     #(video_path):
     get_video_thumbnail,    #(video_path, width=512, secs=None, percent=None):
+    remove_background_audio,#(video_path):
     test_http_url,          #(url):
     validate_project_url,   #(url):
 )
@@ -93,7 +95,7 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
         is_latest_build = build.id == project.latest_build.id
     else:
         build = project.latest_build
-        project_options = build.options.all()
+        project_options = build.options.all() if build else []
         is_latest_build = True
 
     # Allow for deleting build
@@ -163,6 +165,58 @@ def edit_project(request, project_id=None, project_slug=None):
             logging.error(f"Invalid 'gource_options' provided: {data['gource_options']}")
     response = {"error": False, "message": "Project saved successfully."}
     return HttpResponse(json.dumps(response), status=201, content_type="application/json")
+
+
+@csrf_protect
+def project_actions(request, project_id=None, project_slug=None):
+    "Project Actions view"
+    if project_id:
+        project = get_object_or_404(Project, **{'id': project_id})
+    elif project_slug:
+        project = get_object_or_404(Project, **{'project_slug': project_slug})
+    if request.method not in ['POST']:
+        return HttpResponseRedirect(f'/projects/{project.id}/')
+
+    data = json.loads(request.body)
+    logging.error(request.POST)
+    logging.error(data)
+    if 'action' not in data:
+        response = {"error": True, "message": "Missing 'action' field."}
+        return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+    if data['action'] not in ['remix_audio']:
+        response = {"error": True, "message": "Invalid 'action' value."}
+        return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+
+    # Process actions
+    if data['action'] == 'remix_audio':
+        if not project.latest_build or not project.latest_build.content:
+            response = {"error": True, "message": "No existing build video to remix."}
+            return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+
+        # Add background audio (optional)
+        build = project.latest_build
+        video_path = build.content.path
+        try:
+            if project.build_audio:
+                # Add new audio
+                audio_path = project.build_audio.path
+                if os.path.isfile(audio_path):
+                    logging.info("Beginning audio mixing...")
+                    video_path = add_background_audio(video_path, audio_path, loop=True)
+            else:
+                # Remove audio
+                video_path = remove_background_audio(video_path)
+            # Save video content
+            build.size = os.path.getsize(video_path)
+            logging.info("Saving video (%s bytes)...", build.size)
+            build.content.delete()
+            with open(video_path, 'rb') as f:
+                build.content.save('video.mp4', File(f))
+            response = {"error": False, "message": "Video mixed successfully."}
+        except Exception as e:
+            logging.exception("Failed to mix background audio")
+            response = {"error": True, "message": "Error: {str(e)}"}
+    return HttpResponse(json.dumps(response), status=201 if not response['error'] else 400, content_type="application/json")
 
 
 def project_builds(request, project_id=None, project_slug=None):

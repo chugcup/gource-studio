@@ -142,17 +142,22 @@
             </select>
           </div>
 
+          {% if project.build_audio %}
+          <div class="float-right">
+            <button class="btn btn-xs btn-success remix-audio-btn">Remix Audio</button>
+          </div>
+          {% endif %}
           <div class="form-group">
             <b>Background Audio:</b>
           {% if project.build_audio %}
             {{ project.build_audio_name }}
-          {% else %}
-            <form method="POST" action="{% url 'project-audio-upload' project.id %}" class="form-inline" enctype="multipart/form-data">
+            <a class="btn btn-link edit-audio-file"><i class="fa fa-pencil"></i></a>
+          {% endif %}
+            <form id="project_build_audio_file_form" method="POST" action="{% url 'project-audio-upload' project.id %}" class="form-inline" enctype="multipart/form-data"{% if project.build_audio %} style="display:none"{% endif %}>
                 <input id="project_build_audio_file" class="form-control form-control-file form-control-sm" type="file" name="build_audio" style="display:inline-block; width:auto;"/>
                 <button type="submit" class="btn btn-primary btn-sm">Upload</button>
                 {% csrf_token %}
             </form>
-          {% endif %}
           </div>
         </div>
       </div>
@@ -291,6 +296,44 @@
         });
     });
 
+    $('body').on('click', '.remix-audio-btn', function() {
+        let post_data = {
+            'action': 'remix_audio',
+        };
+        $('.remix-audio-btn').attr({disabled: true})
+                             .prepend('<i class="fa fa-spin fa-spinner"></i> ');
+        $.ajax({
+            url: "/projects/{{project.id}}/actions/",
+            method: 'POST',
+            data: JSON.stringify(post_data),
+            contentType: "application/json",
+            dataType: "json",
+            beforeSend: function(xhr) {
+                // Attach CSRF Token
+                xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+            },
+            success: function(data, textStatus, xhr) {
+                // TODO show success message
+                console.log("Options saved successfully.");
+                $('.remix-audio-btn').attr({disabled: false}).find('.fa').remove();
+                $('.remix-audio-btn').prepend('<i class="fa fa-check"></i>');
+            },
+            error: function(xhr, textStatus, err) {
+                // Error
+                console.log("Save error: "+err, xhr);
+                $('.remix-audio-btn').attr({disabled: false}).find('.fa').remove();
+                $('.remix-audio-btn').prepend('<i class="fa fa-times"></i>');
+            },
+            complete: function(xhr, textStatus) {
+                setTimeout(function() {
+                    $('.remix-audio-btn').attr({disabled: false})
+                                         .find('.fa').remove();
+                }, 1500);
+            }
+        });
+
+    });
+
     function addGourceOption($option, value, readonly) {
         let option_default = $option.attr('data-default');
         if (!_.isUndefined(value)) {
@@ -373,6 +416,11 @@
     $('body').on('change', '.gource-option-container input.form-control', function(e) {
         console.log('value change', e);
         refreshGourceDuration();
+    });
+
+    $('body').on('click', '.edit-audio-file', function(e) {
+        $(e.currentTarget).hide();
+        $('#project_build_audio_file_form').show();
     });
 
     $(document).ready(function() {
