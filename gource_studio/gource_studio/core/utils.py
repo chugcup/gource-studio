@@ -137,10 +137,17 @@ def download_git_log(url, branch="master"):
         else:
             commit_hash, commit_subject = _stdout.decode('utf-8').split(':', 1)
 
+        ## 4 - Retrieve list of tags
+        tags_list = []
+        try:
+            tags_list = retrieve_tags_from_git_repo(destdir_git)
+        except Exception as e:
+            logging.error("Error retrieving tags from Git repo: ", str(e))
+
         # Return result
         with destlog.open() as f:
             data = f.read()
-        return data, commit_hash, commit_subject
+        return data, commit_hash, commit_subject, tags_list
 
     finally:
         shutil.rmtree(tempdir)
@@ -150,7 +157,7 @@ def download_git_log(url, branch="master"):
 
 def download_git_tags(url, branch="master"):
     """
-    Retrieve list of tags from  Git repository URL.
+    Retrieve list of tags from Git repository URL.
 
     Returns [(timestamp, name)]
     """
@@ -175,27 +182,7 @@ def download_git_tags(url, branch="master"):
             _stdout, _stderr = p1.communicate()
             raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
 
-
-        #git tag --list --format='%(creatordate:iso8601)|%(refname:short)'
-        cmd = [get_git(), 'tag',
-               '--list',
-               '--format=%(creatordate:iso8601)|%(refname:short)']
-        p2 = subprocess.Popen(cmd, cwd=str(destdir),
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        p2.wait(timeout=60)
-        if p2.returncode:
-            # Error
-            _stdout, _stderr = p2.communicate()
-            raise RuntimeError(f"[{p2.returncode}] Error: {_stderr}")
-
-        tags_output = p2.communicate()[0].decode('utf-8')
-        tags_list = []
-        for line in tags_output.strip().split('\n'):
-            timestamp, _, tag_name = line.partition('|')
-            tags_list.append(
-                (timestamp, tag_name)
-            )
-        return tags_list
+        return retrieve_tags_from_git_repo(str(destdir))
 
     finally:
         shutil.rmtree(tempdir)
@@ -203,8 +190,42 @@ def download_git_tags(url, branch="master"):
     raise RuntimeError("Unexpected end")
 
 
+def retrieve_tags_from_git_repo(repo_path):
+    """
+    Retrieve list of tags from a local Git repository folder.
 
-def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars=None, default_avatar=None, gource_options=None):
+    Returns [(timestamp, name)]
+    """
+    if not os.path.isdir(repo_path):
+        raise ValueError(f"Invalid Git repo path: {repo_path}")
+
+    #git tag --list --format='%(creatordate:iso8601)|%(refname:short)'
+    cmd = [get_git(), 'tag',
+           '--list',
+           '--format=%(creatordate:iso8601)|%(refname:short)']
+    p1 = subprocess.Popen(cmd, cwd=repo_path,
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p1.wait(timeout=60)
+    if p1.returncode:
+        # Error
+        _stdout, _stderr = p1.communicate()
+        raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
+
+    tags_output = p1.communicate()[0].decode('utf-8')
+    tags_list = []
+    ISO_PATTERN = '%Y-%m-%d %H:%M:%S %z'
+    for line in tags_output.strip().split('\n'):
+        timestamp, _, tag_name = line.partition('|')
+        tags_list.append(
+            (datetime.strptime(timestamp, ISO_PATTERN), tag_name)
+        )
+    return tags_list
+
+
+def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars=None, default_avatar=None, captions=None, gource_options=None):
+    """
+    Create a new Gource video using provided options.
+    """
     # Input validation
     if video_size not in VIDEO_OPTIONS:
         raise ValueError(f'Invalid video size: {video_size}')
@@ -213,8 +234,15 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
     if not isinstance(gource_options, dict):
         raise ValueError(f"Argument 'gource_options' must be a dict: {gource_options}")
 
-    seconds_per_day = gource_options.pop('seconds-per-day', 0.5)
-    auto_skip_seconds = gource_options.pop('auto-skip-seconds', 3)
+    if captions is not None:
+        if not os.path.isfile(captions):
+            raise ValueError(f"Path to 'captions' file not found: {captions}")
+
+    # Add some sane defaults if omitted
+    if 'seconds-per-day' not in gource_options:
+        gource_options['seconds-per-day'] = '0.5'
+    #if 'auto-skip-seconds' not in gource_options:
+    #    gource_options['auto-skip-seconds'] = '3'
 
     tempdir = tempfile.mkdtemp(prefix="gource_")
     print(f"VIDEO TEMPDIR = {tempdir}")
@@ -237,18 +265,23 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
                 '--highlight-users',
                 '--user-scale', '3',
                 '--dir-name-depth', '4',
-                '--seconds-per-day', str(seconds_per_day),
-                '--auto-skip-seconds', str(auto_skip_seconds),
                 '--bloom-multiplier', '0.5',
                 '--disable-input',
                 '--no-vsync',
         ]
+
+        # - Add custom settings
+        for option_name, option_value in gource_options.items():
+            cmd += [f'--{option_name}', option_value]
 
         # - Add avatar settings (if provided)
         if avatars:
             cmd += ['--user-image-dir', avatars]
         if default_avatar:
             cmd += ['--default-user-image', default_avatar]
+        # - Add captions file
+        if captions:
+            cmd += ['--caption-file', captions]
 
         # - Add resolution options
         cmd += [f'-{video_size}',

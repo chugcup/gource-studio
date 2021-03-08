@@ -90,8 +90,11 @@ def generate_gource_build(build_id):
         for option in build.options.all():
             if option.name in GOURCE_OPTIONS:
                 gource_options[option.name] = option.value
+        captions_path = None
+        if build.project_captions:
+            captions_path = build.project_captions.path
         #final_path = generate_gource_video(log_data, avatars=avatar_dir, gource_options={'--seconds-per-day': 0.01})
-        final_path = generate_gource_video(log_data, avatars=avatar_dir, gource_options=gource_options)
+        final_path = generate_gource_video(log_data, avatars=avatar_dir, captions=captions_path, gource_options=gource_options)
         process_time = time.monotonic() - start_time
         logger.info("Processing time: %s sec", process_time)
         build.duration = int(get_video_duration(final_path))

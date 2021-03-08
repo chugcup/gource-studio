@@ -1,4 +1,6 @@
 from datetime import datetime
+import re
+from django.core.validators import RegexValidator
 from django.utils import dateparse
 
 # 16:9 video options
@@ -37,6 +39,20 @@ def position_parser(value):
     if value == 'random':
         return 'random'
     return float(value)
+
+def length_validator(value, min_length=None, max_length=None):
+    if min_length is not None:
+        if len(value) < min_length:
+            raise ValueError(f"Value must be at least {min_length} characters")
+    if max_length is not None:
+        if len(value) > max_length:
+            raise ValueError(f"Value cannot exceed {max_length} characters")
+
+def validate_length(min_length=None, max_length=None):
+    "Factory to run min/max length validation"
+    def _do_validate(value):
+        return length_validator(value, min_length=min_length, max_length=max_length)
+    return _do_validate
 
 
 # Gource options (that can be modified)
@@ -94,7 +110,40 @@ GOURCE_OPTIONS = {
         'description': "Stop (exit) after a specified number of seconds.",
         'parser': float,
         'validator': validate_range(min_value=1)
-    }
+    },
+    # Captions
+    'caption-size': {
+        'label': 'Caption Size',
+        'type': 'int',
+        'description': "Caption font size (1-100).",
+        'parser': int,
+        'default': 25,  # ???
+        'validator': validate_range(min_value=1, max_value=100)
+    },
+    'caption-colour': {
+        'label': 'Caption Colour',
+        'type': 'str',
+        'description': "Caption colour (in RRGGBB hex).",
+        'parser': str,
+        'default': 'FFFFFF',
+        'validator': RegexValidator('^[0-9A-F]{6}$', message="Invalid RRGGBB hex value")
+    },
+    'caption-duration': {
+        'label': 'Caption Duration',
+        'type': 'float',
+        'description': "Caption duration (in seconds).",
+        'parser': float,
+        'default': 10.0,
+        'validator': validate_range(min_value=0.5)
+    },
+    'caption-offset': {
+        'label': 'Caption Offset',
+        'type': 'int',
+        'description': "Caption horizontal (x) offset (0 to center captions).",
+        'parser': int,
+        'default': 0,
+        #'validator': validate_range(min_value=0)   # Can be negative?
+    },
 }
 
 def _make_option(key, value_dict):

@@ -23,7 +23,7 @@ from django.views.static import serve
 ssl._create_default_https_context = ssl._create_unverified_context
 
 from .constants import VIDEO_OPTIONS, GOURCE_OPTIONS, GOURCE_OPTIONS_LIST
-from .models import Project, ProjectBuild, ProjectBuildOption, ProjectOption, ProjectUserAvatar, UserAvatar
+from .models import Project, ProjectBuild, ProjectBuildOption, ProjectCaption, ProjectOption, ProjectUserAvatar, UserAvatar
 from .tasks import generate_gource_build
 from .utils import (
     add_background_audio,   #(video_path, audio_path, loop=True):
@@ -96,8 +96,9 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
         is_latest_build = build.id == project.latest_build.id
     else:
         build = project.latest_build
-        project_options = build.options.all() if build else []
+        project_options = build.options.all() if build else project.options.all()
         is_latest_build = True
+    project_captions = project.captions.all().order_by('timestamp')
 
     # Allow for deleting build
     if build_id and request.method == 'DELETE':
@@ -112,6 +113,10 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
             json.dumps(opt.to_dict()) for opt in project_options
         ],
         'gource_options': GOURCE_OPTIONS_LIST,
+        'project_captions': project_captions,
+        'project_captions_json': [
+            json.dumps(cpt.to_dict()) for cpt in project_captions
+        ],
         'build': build,
         'is_latest_build': is_latest_build,
     }
@@ -184,11 +189,12 @@ def project_actions(request, project_id=None, project_slug=None):
     if 'action' not in data:
         response = {"error": True, "message": "Missing 'action' field."}
         return HttpResponse(json.dumps(response), status=400, content_type="application/json")
-    if data['action'] not in ['remix_audio']:
+    if data['action'] not in ['remix_audio', 'load_captions_from_tags']:
         response = {"error": True, "message": "Invalid 'action' value."}
         return HttpResponse(json.dumps(response), status=400, content_type="application/json")
 
     # Process actions
+    # + 'remix_audio' - Add/strip audio from existing video file
     if data['action'] == 'remix_audio':
         if not project.latest_build or not project.latest_build.content:
             response = {"error": True, "message": "No existing build video to remix."}
@@ -217,6 +223,29 @@ def project_actions(request, project_id=None, project_slug=None):
         except Exception as e:
             logging.exception("Failed to mix background audio")
             response = {"error": True, "message": "Error: {str(e)}"}
+
+    # + 'load_captions_from_tags' - Populate captions from project's tags
+    elif data['action'] == 'load_captions_from_tags':
+        try:
+            content = test_http_url(project.project_url)
+            tags_list = download_git_tags(project.project_url, branch=project.project_branch)
+            for timestamp, tag_name in tags_list:
+                captions_added = 0
+                try:
+                    caption, created = ProjectCaption.objects.get_or_create(
+                        project=project,
+                        timestamp=timestamp,
+                        text=tag_name
+                    )
+                    if created:
+                        captions_added += 1
+                except Exception as e:
+                    logging.error("Failed to load caption: %s", str(e))
+            response = {"error": False, "message": "Tags loaded successfully."}
+        except Exception as e:
+            logging.exception("Failed to retrieve project tags")
+            response = {"error": True, "message": "Error: {str(e)}"}
+
     return HttpResponse(json.dumps(response), status=201 if not response['error'] else 400, content_type="application/json")
 
 
@@ -411,7 +440,7 @@ def project_queue_build(request, project_id=None, project_slug=None):
         if str(refetch_log) in ['t', 'true', '1']:
             # Download latest VCS branch; generate Gource log
             content = test_http_url(user_url)
-            log_data, log_hash, log_subject = download_git_log(user_url, branch=project.project_branch)
+            log_data, log_hash, log_subject, tags_list = download_git_log(user_url, branch=project.project_branch)
             project.project_log_commit_hash = log_hash
             project.project_log_commit_preview = log_subject
             # Get time/author from last entry
@@ -445,6 +474,12 @@ def project_queue_build(request, project_id=None, project_slug=None):
         if build_options:
             ProjectBuildOption.objects.bulk_create(build_options)
 
+        # Save captions to file prior to build
+        captions = project.generate_captions_file()
+        if captions is not None:
+            captions_data = "\n".join(captions)
+            build.project_captions.save('captions.txt', ContentFile(captions_data))
+
         # Send to background worker
         generate_gource_build.delay(build.id)
 
@@ -464,9 +499,7 @@ def new_project(request):
     "New Project page"
     # Save a new project
     if request.method == 'POST':
-        print(f"##### {request.POST}")
         data = json.loads(request.body)
-        print(f"##### {data}")
         for field in ['project_url', 'project_vcs', 'project_branch']:
             if field not in data:
                 response = {"error": True, "message": f"[ERROR] Missing required field: {field}"}
@@ -507,7 +540,7 @@ def new_project(request):
         # Download initial project data
         try:
             if project_vcs == 'git':
-                log_data, log_hash, log_subject = download_git_log(project_url, branch=project_branch)
+                log_data, log_hash, log_subject, tags_list = download_git_log(project_url, branch=project_branch)
             elif project_vcs == 'hg':
                 # TODO
                 response = {"error": True, "message": f"[ERROR] Mercurial download not supported"}
@@ -536,6 +569,22 @@ def new_project(request):
             latest_commit = log_data.splitlines()[-1].split('|')
             project.project_log_commit_time = make_aware(datetime.utcfromtimestamp(int(latest_commit[0])))
         project.save()
+
+        # Load initial ProjectCaptions from VCS tags
+        if 'load_captions_from_tags' in data and data['load_captions_from_tags']:
+            try:
+                for timestamp, tag_name in tags_list:
+                    try:
+                        caption, created = ProjectCaption.objects.get_or_create(
+                            project=project,
+                            timestamp=timestamp,
+                            text=tag_name
+                        )
+                    except Exception as ex:
+                        logging.error("Failed to load caption: %s", str(ex))
+            except Exception as e:
+                logging.error("Failed to retrieve project tags: %s", str(e))
+
         # Save new Gource log content
         project.project_log.save('gource.log', ContentFile(log_data))
         response = {"error": False, "message": "Project saved successfully.",
@@ -628,7 +677,7 @@ def fetch_log(request):
         test_time = time.monotonic() - start_time
 
         start_time = time.monotonic()
-        log_data, log_hash, log_subject = download_git_log(user_url, branch="master")
+        log_data, log_hash, log_subject, tags_list = download_git_log(user_url, branch="master")
         log_time = time.monotonic() - start_time
         total_time = time.monotonic() - start_time
         post_time = time.monotonic()
@@ -707,7 +756,7 @@ def test_queue_video(request):
     try:
         # Download latest VCS branch; generate Gource log
         content = test_http_url(user_url)
-        log_data, log_hash, log_subject = download_git_log(user_url, branch=project.project_branch)
+        log_data, log_hash, log_subject, tags_list = download_git_log(user_url, branch=project.project_branch)
         project.project_log_commit_hash = log_hash
         project.project_log_commit_preview = log_subject
         # Get time/author from last entry
@@ -761,7 +810,7 @@ def make_video(request):
     try:
         start_time = time.monotonic()
         content = test_http_url(user_url)
-        log_data, log_hash, log_subject = download_git_log(user_url, branch="master")
+        log_data, log_hash, log_subject, tags_list = download_git_log(user_url, branch="master")
         project.project_log_commit_hash = log_hash
         project.project_log_commit_preview = log_subject
         # Get time/author from last entry

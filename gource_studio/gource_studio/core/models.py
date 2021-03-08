@@ -84,6 +84,19 @@ class Project(models.Model):
         with open(self.project_log.path, 'r') as f:
             return analyze_gource_log(f.read())
 
+    def generate_captions_file(self):
+        """
+        Return a new string containing "captions" file content from current captions.
+
+        Returns None if no captions defined.
+        """
+        caption_lines = []
+        for pcaption in self.captions.all().order_by('timestamp'):
+            caption_lines.append(pcaption.to_text())
+        if not caption_lines:
+            return None
+        return caption_lines
+
 
 class ProjectOption(models.Model):
     """
@@ -120,7 +133,7 @@ class ProjectCaption(models.Model):
 
     """
     project = models.ForeignKey(Project, related_name='captions', on_delete=models.CASCADE)
-    timestamp = models.DateTimeField(null=False, unique=True)
+    timestamp = models.DateTimeField(null=False)
     text = models.CharField(max_length=255)
 
     class Meta:
@@ -128,6 +141,16 @@ class ProjectCaption(models.Model):
 
     def __str__(self):
         return self.text
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp.isoformat(),
+            "text": self.text,
+        }
+
+    def to_text(self):
+        return f"{int(self.timestamp.timestamp())}|{self.text}"
 
 
 def get_video_build_path(instance, filename):
@@ -141,6 +164,9 @@ def get_video_thumbnail_path(instance, filename):
 
 def get_build_project_log_path(instance, filename):
     return f'projects/{instance.project_id}/builds/{instance.id}/gource.log'
+
+def get_build_project_captions_path(instance, filename):
+    return f'projects/{instance.project_id}/builds/{instance.id}/captions.txt'
 
 def get_build_stdout_path(instance, filename):
     return f'projects/{instance.project_id}/builds/{instance.id}/stdout.log'
@@ -166,6 +192,7 @@ class ProjectBuild(models.Model):
 
     project_branch = models.CharField(max_length=255, default='master')
     project_log = models.FileField(upload_to=get_build_project_log_path, blank=True, null=True)
+    project_captions = models.FileField(upload_to=get_build_project_captions_path, blank=True, null=True)
 
     # Video/thumbnail data
     content = models.FileField(upload_to=get_video_build_path, blank=True, null=True)

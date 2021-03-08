@@ -74,6 +74,11 @@
         <input type="text" id="project-branch-input" name="project_branch" class="form-control" value="master" />
     </div>
     <br />
+    <div class="form-check">
+        <input type="checkbox" id="project-initial-captions-from-tags" class="form-check-input" checked="checked" />
+        <label for="project-initial-captions-from-tags" class="form-check-label">Load Captions From Tags</label>
+    </div>
+    <br />
     <div class="text-center">
         <button id="save-project-btn" class="btn btn-lg btn-success">
             Create Project
@@ -132,6 +137,7 @@
         let project_url = ($('#project-url-input').val() || "").trim();
         let project_vcs = ($('#project-vcs-select').val() || "").trim();
         let project_branch = ($('#project-branch-input').val() || "").trim();
+        let load_initial_tags = $('#project-initial-captions-from-tags').is(':checked');
 
         // Clear errors
         $('.is-invalid').removeClass('is-invalid');
@@ -159,6 +165,9 @@
             'project_vcs': project_vcs,
             'project_branch': project_branch,
         };
+        if (load_initial_tags) {
+            post_data['load_captions_from_tags'] = true;
+        }
         console.log('POST DATA: ',post_data);
         $('#save-project-btn').attr({disabled: true});
         $.ajax({

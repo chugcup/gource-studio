@@ -20,6 +20,10 @@
     body {
       padding-top: 56px;
     }
+    #gource-settings-container .form-group,
+    #project-captions-list .form-group {
+        margin-bottom: 0;
+    }
   </style>
 
 </head>
@@ -189,14 +193,16 @@
   <div class="tab-pane" id="project-captions-pane" role="tabpanel">
     <hr />
     <div class="float-right">
+      <button class="btn btn-primary load-captions-from-project-tags-btn"><i class="fa fa-tag"></i> Add Project Tags</button>
       <button class="btn btn-success save-project-captions-btn"><i class="fa fa-disk"></i> Save</button>
     </div>
     <h5>Video Captions</h5>
+    <div class="clearfix"></div>
     <div class="row justify-content-center">
         <div class="col-12">
             <div id="project-captions-container">
                 <div id="project-captions-list"></div>
-                <button class="btn btn-primary add-caption-btn"><i class="fa fa-plus"></i> Add Caption</button>
+                <button class="btn btn-primary add-caption-btn" style="margin-top:1rem"><i class="fa fa-plus"></i> Add Caption</button>
             </div>
         </div>
     </div>
@@ -246,6 +252,7 @@
   <script src="/static/js/jquery.min.js"></script>
   <script src="/static/js/bootstrap.bundle.min.js"></script>
   <script src="/static/js/underscore-min.js"></script>
+  <script src="/static/js/dayjs.min.js"></script>
   <script type="text/javascript">
     let IS_LATEST_BUILD = {{ is_latest_build|lower }};
 
@@ -442,15 +449,52 @@
         $('#project_build_audio_file_form').show();
     });
 
+    $('body').on('click', '.load-captions-from-project-tags-btn', function(e) {
+        var post_data = {
+            'action': 'load_captions_from_tags',
+        };
+        $('.load-captions-from-project-tags-btn').attr({disabled: true})
+                             .find('i.fa').removeClass('fa-tag fa-times fa-check')
+                                          .addClass('fa-spinner fa-spin');
+        $.ajax({
+            url: "/projects/{{project.id}}/actions/",
+            method: 'POST',
+            data: JSON.stringify(post_data),
+            contentType: "application/json",
+            dataType: "json",
+            beforeSend: function(xhr) {
+                // Attach CSRF Token
+                xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+            },
+            success: function(data, textStatus, xhr) {
+                $('.load-captions-from-project-tags-btn').attr({disabled: false})
+                                     .find('i.fa').removeClass('fa-tag fa-times fa-check fa-spinner fa-spin')
+                                                  .addClass('fa-check');
+                // TODO show success message
+                window.location.reload();
+            },
+            error: function(xhr, textStatus, err) {
+                // Error
+                $('.load-captions-from-project-tags-btn').attr({disabled: false})
+                                     .find('i.fa').removeClass('fa-tag fa-times fa-check fa-spinner fa-spin')
+                                                  .addClass('fa-times');
+            }
+        });
+
+    });
+
     let gource_caption_template = _.template(''
       +'<div class="form-group gource-caption-container" style="display:flex; width:100%;">'
-      +  '<input type="date" class="form-control form-control-sm" style="width:150px; font-size:12px; line-height:32px;" placeholder="YYYY-MM-DD HH:mm:ss" />'
-      +  '<input type="text" class="form-control form-control-sm" style="width:400px; font-size:12px; line-height:32px;" placeholder="Message" />'
+      +  '<input type="date" class="form-control form-control-sm" style="width:150px; font-size:12px; line-height:32px;" placeholder="YYYY-MM-DD HH:mm:ss" value="<%- caption_timestamp %>" />'
+      +  '<input type="text" class="form-control form-control-sm" style="width:400px; font-size:12px; line-height:32px;" placeholder="Message" value="<%- caption_text %>" />'
       +'</div>');
 
     $('body').on('click', '.add-caption-btn', function(e) {
         $('#project-captions-list').append(
-            gource_caption_template({})
+            gource_caption_template({
+                caption_timestamp: "",
+                caption_text: "",
+            })
         );
     });
 
@@ -481,11 +525,31 @@
             }
         });
         refreshGourceDuration();
+
+        let init_project_captions = [
+        {% for caption_json in project_captions_json %}
+            {{ caption_json|safe }},
+        {% endfor %}
+        ];
+
+        _.each(init_project_captions, function(item) {
+            console.log(item);
+            let $selector = $('#project-captions-list');
+            let djs_timestamp = dayjs(item.timestamp);
+            $selector.append(
+                gource_caption_template({
+                    caption_timestamp: djs_timestamp.format('YYYY-MM-DD'),
+                    caption_text: item.text,
+                })
+            );
+        });
+
         if (!IS_LATEST_BUILD) {
             // Remove selectable options
             let $selector = $('#project-gource-options-container');
             $selector.remove();
         }
+
     });
   </script>
 
