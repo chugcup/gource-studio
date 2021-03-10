@@ -11,7 +11,8 @@ from django import forms
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.paginator import Paginator
-from django.db.models import Exists, Max, OuterRef
+from django.db.models import Exists, Max, OuterRef, Value
+from django.db.models.functions import Coalesce, Greatest
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.utils import dateparse
@@ -66,10 +67,16 @@ def projects(request):
     "Projects page"
     sort_key = request.GET.get('sort_key', None)
     if sort_key not in ['id']:
-        sort_key = 'latest_build_time'  # Default
+        sort_key = 'latest_activity_time'   # Default
+        #sort_key = 'latest_build_time'  # Default
     context = {
         'projects': Project.objects.prefetch_related('builds')\
-                                   .annotate(latest_build_time=Max('builds__completed_at'))\
+                                   .annotate(
+                                       latest_build_time=Coalesce(Max('builds__completed_at'), Value('1970-01-01 00:00:00'))
+                                   )\
+                                   .annotate(
+                                       latest_activity_time=Greatest('created_at', 'latest_build_time')
+                                   )\
                                    .order_by(f'-{sort_key}'),
     }
     # Pagination
@@ -495,6 +502,7 @@ def project_queue_build(request, project_id=None, project_slug=None):
     return HttpResponse(response)
 
 
+@csrf_protect
 def new_project(request):
     "New Project page"
     # Save a new project
@@ -531,10 +539,11 @@ def new_project(request):
             pass
 
         # Test that URL is reachable
+        # NOTE: some domains don't support HEAD/OPTIONS requests...
         try:
             test_http_url(project_url)
         except Exception as e:
-            response = {"error": True, "message": f"[ERROR] {str(e)}"}
+            response = {"error": True, "message": f"[ERROR][TEST] {str(e)}"}
             return HttpResponse(json.dumps(response), status=400, content_type="application/json")
 
         # Download initial project data
