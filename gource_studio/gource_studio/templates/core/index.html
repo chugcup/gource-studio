@@ -9,6 +9,12 @@
 
   <title>Gource Studio - Generate Video Timelines of Software Projects</title>
 
+  <!--[if IE]><link rel="shortcut icon" href="/static/img/favicon.ico"><![endif]-->
+  <!-- Touch Icons - iOS and Android 2.1+ 180x180 pixels in size. -->
+  <link rel="apple-touch-icon-precomposed" href="/static/img/favicon.png">
+  <!-- Firefox, Chrome, Safari, IE 11+ and Opera. 196x196 pixels in size. -->
+  <link rel="icon" href="/static/img/favicon.png">
+
   <!-- Bootstrap core CSS -->
   <link href="/static/css/bootstrap.min.css" rel="stylesheet">
 
@@ -27,7 +33,10 @@
   <!-- Navigation -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
     <div class="container">
-      <a class="navbar-brand">Gource Studio</a>
+      <span class="navbar-brand">
+        <img class="navbar-logo" src="/static/img/topbar-logo.png" alt="Logo" />
+        <span>Gource Studio</span>
+      </span>
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -56,6 +65,9 @@
     <!-- Jumbotron Header -->
     <header class="jumbotron my-4">
       <h1 class="display-3">Your Project in Bloom!</h1>
+      <div class="float-right d-none d-lg-block">
+        <img src="/static/img/gource-studio-logo.png" alt="Main Logo" style="width:150px"/>
+      </div>
       <p class="lead">
           Gource Studio helps create stunning videos of your software development projects.
           <br />
@@ -64,6 +76,7 @@
           </div>
       </p>
       <a href="{% url 'new-project' %}" class="btn btn-primary btn-lg">Get Started</a>
+      <div class="clearfix"></div>
     </header>
 
     <h3>Latest Builds</h3>
