@@ -176,6 +176,33 @@ def edit_project(request, project_id=None, project_slug=None):
             ProjectOption.objects.bulk_create(new_options)
         else:
             logging.error(f"Invalid 'gource_options' provided: {data['gource_options']}")
+
+    # Project Captions list
+    if 'captions' in data:
+        if isinstance(data['captions'], list):
+            new_captions = []
+            for idx, caption in enumerate(data['captions']):
+                if not isinstance(caption, dict):
+                    # TODO error or log?
+                    continue
+                try:
+                    timestamp = make_aware(dateparse.parse_datetime(caption['timestamp']))
+                    caption_text = caption['text']
+                    new_captions.append(
+                        ProjectCaption(project=project, timestamp=timestamp, text=caption_text)
+                    )
+                except Exception as e:
+                    logging.exception(f"Gource caption error [{idx}]")
+                    response = {"error": True, "message": f"Gource caption error: [{idx}]"}
+                    return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+            # Delete old options
+            # TODO merge/prune
+            project.captions.all().delete()
+            # Add new set
+            ProjectCaption.objects.bulk_create(new_captions)
+        else:
+            logging.error(f"Invalid 'captions' list provided: {data['captions']}")
+
     response = {"error": False, "message": "Project saved successfully."}
     return HttpResponse(json.dumps(response), status=201, content_type="application/json")
 

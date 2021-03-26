@@ -41,6 +41,17 @@
     .bootstrap-datetimepicker-widget table th {
         padding: .5em 0;
     }
+    #project-captions-list {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    #project-captions-list input.gource-caption-datetimepicker {
+        border-radius: .2rem 0 0 .2rem;
+        background: #F9F9F9;
+    }
+    #project-captions-list input.gource-caption-text {
+        border-radius: 0 .2rem .2rem 0;
+    }
   </style>
 
 </head>
@@ -485,13 +496,70 @@
                                                   .addClass('fa-times');
             }
         });
-
     });
+
+    // Save captions
+    $('body').on('click', '.save-project-captions-btn', function(e) {
+        let captions_list = [];
+        let error_captions = [];
+        $('#project-captions-list .gource-caption-container').each(function(idx, container) {
+            let caption_dt = $(container).find('.gource-caption-datetimepicker').val();
+            //let caption_dt = $(container).find('.gource-caption-datetimepicker').data('DateTimePicker').viewDate();
+            let caption_text = $(container).find('.gource-caption-text').val();
+            if (!caption_dt && !caption_text) {
+                return;     // Skip completely empty
+            } else if (!caption_dt || !caption_text) {
+                // Mark error
+                error_captions.push(container);
+                return;
+            }
+            captions_list.push({
+                timestamp: caption_dt,
+                text: caption_text
+            });
+        });
+        if (error_captions.length > 0) {
+            _.each(error_captions, function(container) {
+                $(container).addClass('form-error');
+            });
+            return;
+        }
+        var post_data = {
+            captions: captions_list
+        };
+        $('.save-project-captions-btn').attr({disabled: true})
+                             .find('i.fa').removeClass('fa-tag fa-times fa-check')
+                                          .addClass('fa-spinner fa-spin');
+        $.ajax({
+            url: "/projects/{{project.id}}/edit/",
+            method: 'POST',
+            data: JSON.stringify(post_data),
+            contentType: "application/json",
+            dataType: "json",
+            beforeSend: function(xhr) {
+                // Attach CSRF Token
+                xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+            },
+            success: function(data, textStatus, xhr) {
+                $('.save-project-captions-btn').attr({disabled: false})
+                                 .find('i.fa').removeClass('fa-tag fa-times fa-check fa-spinner fa-spin')
+                                              .addClass('fa-check');
+                // TODO show success message
+            },
+            error: function(xhr, textStatus, err) {
+                // Error
+                $('.save-project-captions-btn').attr({disabled: false})
+                                 .find('i.fa').removeClass('fa-tag fa-times fa-check fa-spinner fa-spin')
+                                              .addClass('fa-times');
+            }
+        });
+    });
+
 
     let gource_caption_template = _.template(''
       +'<div class="form-group gource-caption-container" style="display:flex; width:100%;">'
       +  '<input type="text" class="form-control form-control-sm gource-caption-datetimepicker" style="width:150px; font-size:12px; line-height:32px;" placeholder="YYYY-MM-DD HH:mm:ss" value="<%- caption_timestamp %>" />'
-      +  '<input type="text" class="form-control form-control-sm" style="width:400px; font-size:12px; line-height:32px;" placeholder="Message" value="<%- caption_text %>" />'
+      +  '<input type="text" class="form-control form-control-sm gource-caption-text" style="width:400px; font-size:12px; line-height:32px;" placeholder="Message" value="<%- caption_text %>" />'
       +'</div>');
 
     $('body').on('click', '.add-caption-btn', function(e) {
