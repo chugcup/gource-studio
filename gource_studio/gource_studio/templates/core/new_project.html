@@ -16,7 +16,7 @@
   <link rel="icon" href="/static/img/favicon.png">
 
   <!-- Bootstrap core CSS -->
-  <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/css/lib/bootstrap.min.css" rel="stylesheet">
 
   <!-- Custom styles for this template -->
   <link href="/static/css/custom.css" rel="stylesheet">
@@ -106,28 +106,10 @@
   </footer>
 
   <!-- Bootstrap core JavaScript -->
-  <script src="/static/js/jquery.min.js"></script>
-  <script src="/static/js/bootstrap.bundle.min.js"></script>
-
+  <script src="/static/js/lib/jquery.min.js"></script>
+  <script src="/static/js/lib/bootstrap.bundle.min.js"></script>
+  <script src="/static/js/utils.js"></script>
   <script type="text/javascript">
-    // https://docs.djangoproject.com/en/dev/ref/csrf/#ajax
-    // - See also: https://github.com/js-cookie/js-cookie/
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                // Does this cookie string begin with the name we want?
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-
       // Listen for VCS option changes
       $('body').on('change', '#project-vcs-select', function(e) {
           // Change 'branch' default input if VCS is changed
@@ -202,7 +184,6 @@
             }
         });
     });
-
 
   </script>
 </body>
