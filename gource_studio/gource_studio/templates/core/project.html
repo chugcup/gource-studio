@@ -41,6 +41,35 @@
     .bootstrap-datetimepicker-widget table th {
         padding: .5em 0;
     }
+    .nav-link.active {
+        font-weight: bold;
+    }
+
+    .nav-link > .fa.fa-external-link {
+        font-size: 0.75em;
+    }
+    .project-nav-topbar .nav-link.active {
+        border-bottom: 1px solid #CCCCCC;
+    }
+    .project-nav-topbar li.nav-item:not(:first-child) {
+        border-left: 1px solid #EEEEEE;
+    }
+    .project-nav-sidebar {
+        white-space: nowrap;
+    }
+    .project-nav-sidebar .nav-link.active::before {
+        content: "❮";
+        margin-left: -14px;
+        padding-right: 6px;
+    }
+    .project-video {
+        max-height: 80vh;
+        width: 100%;
+    }
+    .project-nav-topbar {
+        border-bottom: 1px solid #CCCCCC;
+        margin-bottom: 12px;
+    }
     #project-captions-list {
         max-height: 400px;
         overflow-y: auto;
@@ -92,7 +121,7 @@
   {% with latest_build=project.latest_build %}
   <div style="text-align:center; background:#000000;">
   {% if build.content %}
-    <video controls poster="{% url 'project-build-screenshot' project.id build.id %}" preload="metadata" style="max-height:80vh">
+    <video class="project-video" controls poster="{% url 'project-build-screenshot' project.id build.id %}" preload="metadata">
       <source src="{% url 'project-build-video' project.id build.id %}" type="video/mp4">
     </video>
   {% else %}
@@ -102,6 +131,28 @@
   {% endif %}
   </div>
   <div class="container">
+    <div class="row d-md-none">
+      <div class="col-12">
+        <!-- Nav topbar (mobile) -->
+        <ul class="project-nav-topbar nav justify-content-center">
+          <li class="nav-item">
+            <a class="nav-link active" href="#project-details-pane" data-toggle="tab" role="tab">Details</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#project-settings-pane" data-toggle="tab" role="tab">Settings</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
+          </li>
+          <li class="nav-item">
+              <a class="nav-link" href="{% url 'project-avatars' project.id %}">Avatars <i class="fa fa-external-link"></i></a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'project-builds' project.id %}">Builds <i class="fa fa-external-link"></i></a>
+          </li>
+        </ul>
+      </div>
+    </div>
     <div class="row">
       <div class="col-1"></div>
 
@@ -244,8 +295,8 @@
 </div>
 
       <div class="col-1">
-        <!-- Nav sidebar -->
-        <ul class="nav flex-column" id="project-nav-tabs" role="tablist">
+        <!-- Nav sidebar (desktop) -->
+        <ul class="project-nav-sidebar nav flex-column d-none d-md-block" id="project-nav-tabs" role="tablist">
           <li class="nav-item">
             <a class="nav-link active" href="#project-details-pane" data-toggle="tab" role="tab">Details</a>
           </li>
@@ -256,10 +307,10 @@
             <a class="nav-link" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
           </li>
           <li class="nav-item">
-              <a class="nav-link" href="{% url 'project-avatars' project.id %}">Avatars</a>
+              <a class="nav-link" href="{% url 'project-avatars' project.id %}">Avatars <i class="fa fa-external-link"></i></a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'project-builds' project.id %}">Builds</a>
+            <a class="nav-link" href="{% url 'project-builds' project.id %}">Builds <i class="fa fa-external-link"></i></a>
           </li>
         </ul>
       </div>

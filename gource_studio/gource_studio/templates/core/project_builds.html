@@ -23,6 +23,28 @@
   <!-- Custom styles for this template -->
   <link href="/static/css/custom.css" rel="stylesheet">
 
+  <style type="text/css">
+    .project-build-status-container {
+        display: flex;
+        flex-wrap: nowrap;
+    }
+    .project-build-status-container > .status-container {
+        flex-basis: 7rem;
+        flex-grow: 1;
+        border-radius: .25rem 0 0 .25rem;
+    }
+    .project-build-status-container > .content-container {
+        flex-basis: 0;
+        flex-grow: 999;
+        border-left: 1px solid rgba(0,0,0,0.125);
+        overflow: auto;
+    }
+    .project-build-status-container > .content-container .card-header {
+        padding:.25rem 1.25rem;
+    }
+  </style>
+
+
 </head>
 <body>
 
@@ -79,27 +101,26 @@
   <div class="container">
     <div class="row text-center">
     {% for build in page_obj %}
-      <div class="col-lg-12 col-md-12 mb-12">
-        <div class="card mb-3">
-          <div class="row no-gutters">
+      <div class="project-build-panel col-lg-12 col-md-12 mb-12">
+        <div class="project-build-status card mb-3">
+          <div class="project-build-status-container">
           {% if build.status == "pending" %}
-            <div class="col-md-1 bg-light"
+            <div class="status-container bg-light">
           {% elif build.status == "queued" %}
-            <div class="col-md-1 bg-light"
+            <div class="status-container bg-light">
           {% elif build.status == "running" %}
-            <div class="col-md-1 bg-primary text-white"
+            <div class="status-container bg-primary text-white">
           {% elif build.status == "completed" %}
-            <div class="col-md-1 bg-success text-white"
+            <div class="status-container bg-success text-white">
           {% elif build.status == "error" %}
-            <div class="col-md-1 bg-danger text-white"
+            <div class="status-container bg-danger text-white">
           {% endif %}
-                 style="border-radius: .25rem 0 0 .25rem">
-                <div class="" style="line-height:73px">
+              <div class="" style="line-height:73px">
                 {{ build.status|capfirst }}
               </div>
             </div>
-            <div class="col-md-11" style="border-left: 1px solid rgba(0,0,0,0.125)">
-              <div class="card-header" style="padding:.25rem 1.25rem;">
+            <div class="content-container">
+              <div class="card-header">
                 <h5 class="card-title text-left" style="margin-bottom:0">
                   <small class="float-right">
                     {{ build.created_at }}

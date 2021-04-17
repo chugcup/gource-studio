@@ -3,8 +3,16 @@
  * Copyright 2013-2020 Start Bootstrap
  * Licensed under MIT (https://github.com/StartBootstrap/startbootstrap-heroic-features/blob/master/LICENSE)
  */
+html, body {
+    height: 100%;
+}
 body {
   padding-top: 75px;
+  display: flex;
+  flex-direction: column;
+}
+footer {
+    flex-grow: 1;
 }
 
 .navbar-brand {
