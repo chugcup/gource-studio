@@ -1,8 +1,9 @@
 billiard
 celery
-Django
+Django>=3.2
 django-filter
 djangorestframework
+Markdown
 Pillow
 pydub
 pytz

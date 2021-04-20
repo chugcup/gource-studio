@@ -1,0 +1,182 @@
+from rest_framework.reverse import reverse
+from rest_framework import serializers
+
+from ..models import (
+    Project,
+    ProjectBuild,
+    ProjectBuildOption,
+    ProjectCaption,
+    ProjectOption,
+    ProjectUserAvatar,
+    ProjectUserAvatarAlias,
+    UserAvatar,
+    UserAvatarAlias,
+)
+
+
+class ProjectLogSerializer(serializers.Serializer):
+    """Serializes `project_log_*` fields to separate object"""
+    url = serializers.SerializerMethodField()
+    updated_at = serializers.DateTimeField(source='project_log_updated_at', allow_null=True)
+    commit_time = serializers.DateTimeField(source='project_log_commit_time', allow_null=True)
+    commit_hash = serializers.CharField(source='project_log_commit_hash', allow_null=True)
+    commit_preview = serializers.CharField(source='project_log_commit_preview', allow_null=True)
+
+    def get_url(self, obj):
+        if obj.project_log:
+            return reverse('api-project-log-download', args=[obj.pk], request=self.context.get('request'))
+        return None
+
+    class Meta:
+        model = Project
+        fields = ('commit_hash', 'commit_preview', 'commit_time', 'updated_at', 'url')
+
+
+class ProjectSerializer(serializers.HyperlinkedModelSerializer):
+    url = serializers.SerializerMethodField()
+    project_log = ProjectLogSerializer(source='*')
+    options = serializers.SerializerMethodField('get_options_url')
+    builds = serializers.SerializerMethodField('get_builds_url')
+    avatars = serializers.SerializerMethodField('get_avatars_url')
+    captions = serializers.SerializerMethodField('get_captions_url')
+    build_audio = serializers.SerializerMethodField('get_build_audio_url')
+
+    def get_url(self, obj):
+        return reverse('api-project-detail', args=[obj.pk], request=self.context.get('request'))
+
+    def get_options_url(self, obj):
+        return reverse('api-project-options-list', args=[obj.pk], request=self.context.get('request'))
+
+    def get_builds_url(self, obj):
+        return reverse('api-project-builds-byproject-list', args=[obj.pk], request=self.context.get('request'))
+
+    def get_avatars_url(self, obj):
+        return reverse('api-project-useravatars-list', args=[obj.pk], request=self.context.get('request'))
+
+    def get_captions_url(self, obj):
+        return reverse('api-project-captions-list', args=[obj.pk], request=self.context.get('request'))
+
+    def get_build_audio_url(self, obj):
+        if obj.build_audio:
+            return reverse('api-project-build-audio-download', args=[obj.pk], request=self.context.get('request'))
+        return None
+
+    class Meta:
+        model = Project
+        fields = ('id', 'name', 'project_url', 'project_branch', 'project_vcs',
+                  'project_log', 'build_title', 'build_logo',
+                  'build_audio', 'build_audio_name',
+                  'options', 'builds', 'captions', 'avatars',
+                  'created_at', 'updated_at', 'url')
+
+
+class ProjectBuildSerializer(serializers.HyperlinkedModelSerializer):
+    url = serializers.SerializerMethodField()
+    project_log = serializers.SerializerMethodField('get_project_log_url')
+    options = serializers.SerializerMethodField('get_options_url')
+    content = serializers.SerializerMethodField('get_content_url')
+    #content_size = serializers.IntegerField(source='size', allow_null=True)
+    content_size = serializers.IntegerField(allow_null=True)
+    screenshot = serializers.SerializerMethodField('get_screenshot_url')
+    thumbnail = serializers.SerializerMethodField('get_thumbnail_url')
+
+    def get_url(self, obj):
+        return reverse('api-project-build-detail', args=[obj.project_id, obj.pk], request=self.context.get('request'))
+
+    def get_project_log_url(self, obj):
+        if obj.project_log:
+            return reverse('api-project-build-project-log-download', args=[obj.project_id, obj.pk], request=self.context.get('request'))
+        return None
+
+    def get_content_url(self, obj):
+        if obj.content:
+            return reverse('api-project-build-content-download', args=[obj.project_id, obj.pk], request=self.context.get('request'))
+        return None
+
+    def get_screenshot_url(self, obj):
+        if obj.screenshot:
+            return reverse('api-project-build-screenshot-download', args=[obj.project_id, obj.pk], request=self.context.get('request'))
+        return None
+
+    def get_thumbnail_url(self, obj):
+        if obj.thumbnail:
+            return reverse('api-project-build-thumbnail-download', args=[obj.project_id, obj.pk], request=self.context.get('request'))
+        return None
+
+    def get_options_url(self, obj):
+        return reverse('api-project-build-options-list', args=[obj.project_id, obj.pk], request=self.context.get('request'))
+
+    class Meta:
+        model = ProjectBuild
+        fields = ('id', 'project_id', 'project_branch',
+                  'status',
+                  'error_description',
+                  'content',
+                  'content_size',
+                  'duration',
+                  'screenshot',
+                  'thumbnail',
+                  'project_log',
+                  'options',
+                  'queued_at',
+                  'running_at',
+                  'completed_at',
+                  'errored_at',
+                  'url')
+
+
+class ProjectOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectOption
+        fields = ('name', 'value', 'value_type')
+
+
+class ProjectBuildOptionSerializer(ProjectOptionSerializer):
+    class Meta:
+        model = ProjectBuildOption
+        fields = ('name', 'value', 'value_type')
+
+
+class ProjectCaptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectCaption
+        fields = ('timestamp', 'text')
+
+
+class UserAvatarAliasSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserAvatarAlias
+        fields = ('name',)
+
+
+class ProjectUserAvatarAliasSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectUserAvatarAlias
+        fields = ('name',)
+
+
+class UserAvatarSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField('get_image_url')
+    aliases = UserAvatarAliasSerializer(many=True)
+
+    def get_image_url(self, obj):
+        if obj.image:
+            return reverse('api-useravatar-image-download', args=[obj.pk], request=self.context.get('request'))
+        return None
+
+    class Meta:
+        model = UserAvatar
+        fields = ('name', 'image', 'aliases')
+
+
+class ProjectUserAvatarSerializer(UserAvatarSerializer):
+    aliases = ProjectUserAvatarAliasSerializer(many=True)
+
+    def get_image_url(self, obj):
+        if obj.image:
+            return reverse('api-project-useravatar-image-download', args=[obj.project_id, obj.pk], request=self.context.get('request'))
+        return None
+
+    class Meta:
+        model = ProjectUserAvatar
+        fields = ('name', 'image', 'aliases')

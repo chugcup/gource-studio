@@ -11,7 +11,7 @@ from django import forms
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.paginator import Paginator
-from django.db.models import Exists, Max, OuterRef, Value
+from django.db.models import DateTimeField, Exists, Max, OuterRef, Value
 from django.db.models.functions import Coalesce, Greatest
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
@@ -72,7 +72,7 @@ def projects(request):
     context = {
         'projects': Project.objects.prefetch_related('builds')\
                                    .annotate(
-                                       latest_build_time=Coalesce(Max('builds__completed_at'), Value('1970-01-01 00:00:00'))
+                                       latest_build_time=Coalesce(Max('builds__completed_at'), Value('1970-01-01 00:00:00', output_field=DateTimeField()))
                                    )\
                                    .annotate(
                                        latest_activity_time=Greatest('created_at', 'latest_build_time')

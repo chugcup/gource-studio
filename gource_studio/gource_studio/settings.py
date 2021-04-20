@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -60,7 +61,7 @@ TEMPLATES = [
         'DIRS': [
             Path(__file__).resolve().parent / "templates",
         ],
-        'APP_DIRS': False,
+        'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
@@ -84,6 +85,9 @@ DATABASES = {
         'NAME': BASE_DIR / 'app.db',
     }
 }
+
+# Configure automatic PK field (Django 3.2+)
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # Password validation
@@ -129,6 +133,21 @@ STATICFILES_DIRS = [
 
 MEDIA_ROOT = Path(__file__).resolve().parent / "media"
 
+# Django REST Framework options
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
+    ],
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.NamespaceVersioning',
+    # - Pagination
+    #'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'DEFAULT_PAGINATION_CLASS': 'gource_studio.utils.rest_framework.CustomPageNumberPagination',
+    'PAGE_SIZE': 20,
+    # - Searching
+    'SEARCH_PARAM': 'q',
+    # - Sort order
+    #'ORDERING_PARAM': 'ordering',   # Default
+}
 
 # Celery Configuration Options
 CELERY_TIMEZONE = "UTC"

@@ -66,6 +66,9 @@ class Project(models.Model):
     def __str__(self):
         return self.name
 
+    def get_absolute_url(self):
+        return reverse('project-detail', [self.pk])
+
     @property
     def latest_build(self):
         return self.get_latest_build()
@@ -115,6 +118,9 @@ class ProjectOption(models.Model):
     def __str__(self):
         return '{0}={1}'.format(self.name, self.value)
 
+    #def get_absolute_url(self):
+    #    return reverse('project-detail', [self.pk])
+
     def to_dict(self):
         return {
             "name": self.name,
@@ -141,6 +147,9 @@ class ProjectCaption(models.Model):
 
     def __str__(self):
         return self.text
+
+    #def get_absolute_url(self):
+    #    return reverse('project-detail', [self.pk])
 
     def to_dict(self):
         return {
@@ -199,7 +208,7 @@ class ProjectBuild(models.Model):
     screenshot = models.ImageField(upload_to=get_video_screenshot_path, blank=True, null=True)
     thumbnail = models.ImageField(upload_to=get_video_thumbnail_path, blank=True, null=True)
     duration = models.PositiveIntegerField(null=True)
-    size = models.PositiveIntegerField(null=True)
+    size = models.PositiveIntegerField(null=True)   # Cached copy of `.content_size`
 
     # Timestamps
     queued_at = models.DateTimeField(null=True)
@@ -220,6 +229,9 @@ class ProjectBuild(models.Model):
     def __str__(self):
         return self.created_at.isoformat()
 
+    def get_absolute_url(self):
+        return reverse('project-build-detail', [self.project_id, self.pk])
+
     @property
     def video_url(self):
         return reverse('project-build-video', [self.project_id, self.pk])
@@ -231,6 +243,12 @@ class ProjectBuild(models.Model):
     @property
     def thumbnail_url(self):
         return reverse('project-build-thumbnail', [self.project_id, self.pk])
+
+    @property
+    def content_size(self):
+        if self.content:
+            return os.path.getsize(self.content.path)
+        return None
 
     ## Status transition methods
 
@@ -285,6 +303,7 @@ class ProjectBuild(models.Model):
             return (self.errored_at - self.running_at).total_seconds()
         return None
 
+
 class ProjectBuildOption(models.Model):
     """
     Individual Gource option used for project build
@@ -302,6 +321,9 @@ class ProjectBuildOption(models.Model):
 
     def __str__(self):
         return '{0}={1}'.format(self.name, self.value)
+
+    #def get_absolute_url(self):
+    #    return reverse('project-detail', [self.pk])
 
     def to_dict(self):
         return {
@@ -329,6 +351,9 @@ class UserAvatar(models.Model):
 
     def __str__(self):
         return self.name
+
+    #def get_absolute_url(self):
+    #    return reverse('project-detail', [self.pk])
 
     @property
     def aliases_count(self):
@@ -367,6 +392,9 @@ class ProjectUserAvatar(models.Model):
 
     def __str__(self):
         return self.name
+
+    #def get_absolute_url(self):
+    #    return reverse('project-detail', [self.pk])
 
     @property
     def aliases_count(self):
