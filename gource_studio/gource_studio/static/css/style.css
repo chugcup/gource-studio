@@ -7,10 +7,14 @@ html, body {
     height: 100%;
 }
 body {
-  padding-top: 75px;
-  display: flex;
-  flex-direction: column;
+    padding-top: 75px;
+    display: flex;
+    flex-direction: column;
 }
+body.min-padding {
+    padding-top: 56px;
+}
+
 footer {
     flex-grow: 1;
 }

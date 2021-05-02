@@ -8,6 +8,7 @@ import time
 import urllib
 
 from django import forms
+from django.conf import settings
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.paginator import Paginator
@@ -40,6 +41,8 @@ from .utils import (
     validate_project_url,   #(url):
 )
 
+SITE_NAME = settings.SITE_NAME
+
 
 #############################################################################
 ##  Main Views
@@ -52,6 +55,8 @@ def index(request):
     # - Subquery filter removes any projects without a successful build
     # TODO: sort by latest build
     context = {
+        'document_title': f'{SITE_NAME} - Generate Video Timelines of Software Projects',
+        'nav_page': '',
         'projects': Project.objects.prefetch_related('builds')\
                                    .annotate(latest_build_time=Max('builds__completed_at'))\
                                    .filter(
@@ -70,6 +75,8 @@ def projects(request):
         sort_key = 'latest_activity_time'   # Default
         #sort_key = 'latest_build_time'  # Default
     context = {
+        'document_title': f'Projects - {SITE_NAME}',
+        'nav_page': 'projects',
         'projects': Project.objects.prefetch_related('builds')\
                                    .annotate(
                                        latest_build_time=Coalesce(Max('builds__completed_at'), Value('1970-01-01 00:00:00', output_field=DateTimeField()))
@@ -114,6 +121,9 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
         return HttpResponseRedirect(f'/projects/{project.id}/')
 
     context = {
+        'document_title': f'Project - {SITE_NAME}',
+        'nav_page': 'projects',
+        'body_min_padding': True,
         'project': project,
         'project_options': project_options,
         'project_options_json': [
@@ -290,6 +300,8 @@ def project_builds(request, project_id=None, project_slug=None):
     elif project_slug:
         project = get_object_or_404(Project, **{'project_slug': project_slug})
     context = {
+        'document_title': f'Project Builds - {SITE_NAME}',
+        'nav_page': 'projects',
         'project': project,
         'builds': ProjectBuild.objects.select_related('project')\
                                      .filter(project=project)\
@@ -626,13 +638,18 @@ def new_project(request):
         response = {"error": False, "message": "Project saved successfully.",
                     "data": {"id": project.id}}
         return HttpResponse(json.dumps(response), status=201, content_type="application/json")
-    context = {}
+    context = {
+        'document_title': f'New Project - {SITE_NAME}',
+        'nav_page': 'new',
+    }
     return render(request, 'core/new_project.html', context)
 
 
 def avatars(request):
     "Global avatars page"
     context = {
+        'document_title': f'Avatars - {SITE_NAME}',
+        'nav_page': '',
         'avatars': UserAvatar.objects.prefetch_related('aliases')\
                                      .order_by('name'),
         'page_view': 'avatars',
@@ -659,6 +676,8 @@ def project_avatars(request, project_id=None, project_slug=None):
         project_data = {}
     contributors_list = project_data.get('users', [])
     context = {
+        'document_title': f'Project Avatars - {SITE_NAME}',
+        'nav_page': 'projects',
         'project': project,
         'contributors': contributors_list,
         'avatars': ProjectUserAvatar.objects.prefetch_related('aliases')\
@@ -677,6 +696,8 @@ def project_avatars(request, project_id=None, project_slug=None):
 def build_queue(request):
     "Build Queue page"
     context = {
+        'document_title': f'Build Queue - {SITE_NAME}',
+        'nav_page': 'queue',
         'builds': ProjectBuild.objects.select_related('project')\
                                      .order_by('-id'),
     }
@@ -690,7 +711,10 @@ def build_queue(request):
 
 def about(request):
     "About page"
-    context = {}
+    context = {
+        'document_title': f'About - {SITE_NAME}',
+        'nav_page': 'about',
+    }
     return render(request, 'core/about.html', context)
 
 

@@ -30,6 +30,8 @@ ALLOWED_HOSTS = []
 
 # Application definition
 
+SITE_NAME = 'Gource Studio'
+
 INSTALLED_APPS = [
     'gource_studio.core.apps.CoreConfig',
     'django.contrib.admin',
@@ -68,6 +70,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'gource_studio.core.context_processors.app_request_default',
             ],
         },
     },
