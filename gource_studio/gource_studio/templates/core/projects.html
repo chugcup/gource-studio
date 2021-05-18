@@ -3,14 +3,14 @@
 {% block content %}
   <div class="container">
     <h3 class="float-left" style="margin-right:40px">Projects List</h3>
-    <div class="projects-search-container" style="display:inline-block; width: 600px;">
+    <form action="{% url 'projects' %}" method="GET" class="projects-search-container" style="display:inline-block; width: 600px;">
       <div class="input-group">
-        <input type="text" class="form-control projects-search" placeholder="Name, URL, ..." value="" />
+        <input type="text" name="search" class="form-control projects-search" placeholder="Name, URL, ..." value="{{ search|default_if_none:"" }}" />
         <div class="input-group-append">
           <button class="btn btn-default btn-outline-secondary" type="button">Search</button>
         </div>
       </div>
-    </div>
+    </form>
     <hr />
   </div>
 
@@ -45,7 +45,13 @@
       {% endwith %}
     {% empty %}
       <div class="col-lg-12 col-md-12 col-sm-12">
-          <h5 class="text-center text-muted"><i>No projects yet</i></h5>
+          <h5 class="text-center text-muted">
+          {% if search %}
+            <i>No projects found</i>
+          {% else %}
+            <i>No projects yet</i>
+          {% endif %}
+          </h5>
       </div>
     {% endfor %}
     </div>

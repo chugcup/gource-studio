@@ -25,7 +25,15 @@
 
 {% block content %}
   <div class="container">
-    <h3>Build Queue</h3>
+    <h3 class="float-left" style="margin-right:40px">Build Queue</h3>
+    <form action="{% url 'build-queue' %}" method="GET" class="build-queue-search-container" style="display:inline-block; width: 600px;">
+      <div class="input-group">
+        <input type="text" name="search" class="form-control build-queue-search" placeholder="Name, URL, ..." value="{{ search|default_if_none:"" }}" />
+        <div class="input-group-append">
+          <button class="btn btn-default btn-outline-secondary" type="button">Search</button>
+        </div>
+      </div>
+    </form>
     <hr />
   </div>
 
@@ -77,7 +85,13 @@
       </div>
     {% empty %}
       <div class="col-lg-12 col-md-12 col-sm-12">
-        <h5 class="text-center text-muted"><i>No builds yet</i></h5>
+        <h5 class="text-center text-muted">
+        {% if search %}
+          <i>No builds found</i>
+        {% else %}
+          <i>No builds yet</i>
+        {% endif %}
+        </h5>
       </div>
     {% endfor %}
     </div>

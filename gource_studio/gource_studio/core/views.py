@@ -12,7 +12,7 @@ from django.conf import settings
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.paginator import Paginator
-from django.db.models import DateTimeField, Exists, Max, OuterRef, Value
+from django.db.models import DateTimeField, Exists, Max, OuterRef, Q, Value
 from django.db.models.functions import Coalesce, Greatest
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
@@ -74,17 +74,24 @@ def projects(request):
     if sort_key not in ['id']:
         sort_key = 'latest_activity_time'   # Default
         #sort_key = 'latest_build_time'  # Default
+    queryset = Project.objects.prefetch_related('builds')\
+                      .annotate(
+                        latest_build_time=Coalesce(
+                            Max('builds__completed_at'),
+                            Value('1970-01-01 00:00:00', output_field=DateTimeField())
+                        )
+                      )\
+                      .annotate(
+                        latest_activity_time=Greatest('created_at', 'latest_build_time')
+                      )
+    search = request.GET.get('search', None)
+    if search:
+        queryset = queryset.filter(Q(name__icontains=search)|Q(project_url__contains=search))
     context = {
         'document_title': f'Projects - {SITE_NAME}',
         'nav_page': 'projects',
-        'projects': Project.objects.prefetch_related('builds')\
-                                   .annotate(
-                                       latest_build_time=Coalesce(Max('builds__completed_at'), Value('1970-01-01 00:00:00', output_field=DateTimeField()))
-                                   )\
-                                   .annotate(
-                                       latest_activity_time=Greatest('created_at', 'latest_build_time')
-                                   )\
-                                   .order_by(f'-{sort_key}'),
+        'projects': queryset.order_by(f'-{sort_key}'),
+        'search': search,
     }
     # Pagination
     paginator = Paginator(context['projects'], 10)
@@ -491,8 +498,8 @@ def project_queue_build(request, project_id=None, project_slug=None):
     try:
         if str(refetch_log) in ['t', 'true', '1']:
             # Download latest VCS branch; generate Gource log
-            content = test_http_url(user_url)
-            log_data, log_hash, log_subject, tags_list = download_git_log(user_url, branch=project.project_branch)
+            content = test_http_url(project.project_url)
+            log_data, log_hash, log_subject, tags_list = download_git_log(project.project_url, branch=project.project_branch)
             project.project_log_commit_hash = log_hash
             project.project_log_commit_preview = log_subject
             # Get time/author from last entry
@@ -701,11 +708,15 @@ def project_avatars(request, project_id=None, project_slug=None):
 
 def build_queue(request):
     "Build Queue page"
+    queryset = ProjectBuild.objects.select_related('project')
+    search = request.GET.get('search', None)
+    if search:
+        queryset = queryset.filter(Q(project__name__icontains=search)|Q(project__project_url__contains=search))
     context = {
         'document_title': f'Build Queue - {SITE_NAME}',
         'nav_page': 'queue',
-        'builds': ProjectBuild.objects.select_related('project')\
-                                     .order_by('-id'),
+        'builds': queryset.order_by('-id'),
+        'search': search,
     }
     # Pagination
     paginator = Paginator(context['builds'], 10)
