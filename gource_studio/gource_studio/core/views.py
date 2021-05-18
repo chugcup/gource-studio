@@ -24,7 +24,7 @@ from django.views.static import serve
 # Ignore SSL verification
 ssl._create_default_https_context = ssl._create_unverified_context
 
-from .constants import VIDEO_OPTIONS, GOURCE_OPTIONS, GOURCE_OPTIONS_LIST
+from .constants import VIDEO_OPTIONS, GOURCE_OPTIONS, GOURCE_OPTIONS_LIST, GOURCE_OPTIONS_JSON
 from .models import Project, ProjectBuild, ProjectBuildOption, ProjectCaption, ProjectOption, ProjectUserAvatar, UserAvatar
 from .tasks import generate_gource_build
 from .utils import (
@@ -105,12 +105,15 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
     build = None
     is_latest_build = True
     if build_id is not None:
+        # Explicit build being referenced
         build = get_object_or_404(ProjectBuild, **{'project_id': project.id, 'id': build_id})
-        project_options = project.options.all()
+        # project_options = project.options.all()
+        project_options = build.options.all() if build else project.options.all()
         is_latest_build = build.id == project.latest_build.id
     else:
+        # Latest build/view
         build = project.latest_build
-        project_options = build.options.all() if build else project.options.all()
+        project_options = project.options.all()
         is_latest_build = True
     project_captions = project.captions.all().order_by('timestamp')
 
@@ -130,6 +133,9 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
             json.dumps(opt.to_dict()) for opt in project_options
         ],
         'gource_options': GOURCE_OPTIONS_LIST,
+        'gource_options_json': [
+            json.dumps(opt) for opt in GOURCE_OPTIONS_JSON
+        ],
         'project_captions': project_captions,
         'project_captions_json': [
             json.dumps(cpt.to_dict()) for cpt in project_captions

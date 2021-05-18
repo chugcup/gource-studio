@@ -151,6 +151,21 @@ def _make_option(key, value_dict):
     value_dict['name'] = key
     return value_dict
 
+def option_to_dict(key):
+    "Convert to object suitable for JSON serialization"
+    opt = GOURCE_OPTIONS[key]
+    return {
+        'name': key,
+        'label': opt['label'],
+        'type': opt['type'],
+        'description': opt['description'],
+        'placeholder': opt.get('placeholder', None),
+        'default': opt.get('default', None),
+    }
+
 GOURCE_OPTIONS_LIST = [
     _make_option(k, v) for k, v in GOURCE_OPTIONS.items()
+]
+GOURCE_OPTIONS_JSON = [
+    option_to_dict(k) for k, v in GOURCE_OPTIONS.items()
 ]

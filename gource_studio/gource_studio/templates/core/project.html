@@ -198,39 +198,58 @@
       </div>
     </div>
     <div class="clearfix"></div>
-    <div id="gource-settings-container"></div>
-
-  <div id="project-gource-options-container" class="form-group gource-option-container" style="display:flex; width:100%;">
-    <div class="input-group" style="width:305px">
-      <select id="gource-new-option-selector" class="form-control form-control-sm">
-        <option value="">-- Choose a Setting --</option>
-      {% for gource_opt in gource_options %}
-        <option value="{{ gource_opt.name }}" data-description="{{ gource_opt.description }}" data-placeholder="{{ gource_opt.placeholder }}" {% if gource_opt.default is not None %} data-default="{{ gource_opt.default }}"{% endif %}>{{ gource_opt.label }}</option>
-      {% endfor %}
-      </select>
-      <div class="input-group-append">
-        <button id="add-gource-option-btn" class="btn btn-primary btn-sm"><i class="fa fa-plus"></i> Add Option</button>
+    <div id="gource-settings-region">
+      <div id="gource-settings-container">
+          <gource-option-edit v-for="option in options_selected"
+                              v-on:remove-gource-option="removeOption(option.name)"
+                              v-on:change:value="updateValue(option, $event)"
+                              v-bind:key="option.name"
+                              v-bind="option"></gource-option-edit>
+      </div>
+      <div id="project-gource-options-container" class="form-group gource-option-container" style="display:flex; width:100%;">
+        <div class="input-group" style="width:305px">
+          <select id="gource-new-option-selector" class="form-control form-control-sm">
+            <option value="">-- Choose a Setting --</option>
+            <option is="gource-option-select"
+                    v-for="option in options_available"
+                    v-bind:key="option.name"
+                    v-bind="option"></option>
+          </select>
+          <div class="input-group-append">
+            <button id="add-gource-option-btn" class="btn btn-primary btn-sm"><i class="fa fa-plus"></i> Add Option</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-  </div>
-  <div class="tab-pane" id="project-captions-pane" role="tabpanel">
-    <hr />
-    <div class="float-right">
-      <button class="btn btn-primary load-captions-from-project-tags-btn"><i class="fa fa-tag"></i> Add Project Tags</button>
-      <button class="btn btn-success save-project-captions-btn"><i class="fa fa-disk"></i> Save</button>
-    </div>
-    <h5>Video Captions</h5>
-    <div class="clearfix"></div>
-    <div class="row justify-content-center">
+  <div id="project-captions-pane" class="tab-pane" role="tabpanel">
+    <div id="project-captions-region">
+      <hr />
+      <div class="float-right">
+        <button class="btn btn-primary load-captions-from-project-tags-btn"><i class="fa fa-tag"></i> Add Project Tags</button>
+        <button class="btn btn-success save-project-captions-btn"><i class="fa fa-disk"></i> Save</button>
+      </div>
+      <h5>Video Captions</h5>
+      <div class="clearfix"></div>
+      <div class="row justify-content-center">
         <div class="col-12">
-            <div id="project-captions-container">
-                <div id="project-captions-list"></div>
-                <button class="btn btn-primary add-caption-btn" style="margin-top:1rem"><i class="fa fa-plus"></i> Add Caption</button>
+          <div id="project-captions-container">
+            <div id="project-captions-list">
+              <project-caption-edit
+                    v-for="caption in captions_list"
+                    v-on:remove-caption="removeOption(caption.id)"
+                    v-on:change-timestamp:timestamp="updateTimestamp(caption, $event)"
+                    v-on:change-text:text="updateTimestamp(caption, $event)"
+                    v-bind:key="caption.id"
+                    v-bind="caption"></project-caption-edit>
             </div>
+            <button class="btn btn-primary add-caption-btn" style="margin-top:1rem">
+              <i class="fa fa-plus"></i> Add Caption
+            </button>
+          </div>
         </div>
+      </div>
     </div>
-
   </div>
   </div>
   </div>
@@ -266,9 +285,8 @@
 {% endblock %}
 
 {% block page_js %}
+  {% verbatim %}
   <script type="text/javascript">
-    let IS_LATEST_BUILD = {{ is_latest_build|lower }};
-
     // Save settings
     // NOTE: Background Audio saved separately
     $('body').on('click', '.save-project-settings-btn', function(e) {
@@ -287,7 +305,7 @@
         };
         $('.save-project-settings-btn').attr({disabled: true});
         $.ajax({
-            url: "/projects/{{project.id}}/edit/",
+            url: "/projects/"+PROJECT_ID+"/edit/",
             method: 'POST',
             data: JSON.stringify(post_data),
             contentType: "application/json",
@@ -324,7 +342,7 @@
         $('.remix-audio-btn').attr({disabled: true})
                              .prepend('<i class="fa fa-spin fa-spinner"></i> ');
         $.ajax({
-            url: "/projects/{{project.id}}/actions/",
+            url: "/projects/"+PROJECT_ID+"/actions/",
             method: 'POST',
             data: JSON.stringify(post_data),
             contentType: "application/json",
@@ -355,48 +373,91 @@
 
     });
 
-    function addGourceOption($option, value, readonly) {
-        let option_default = $option.attr('data-default');
-        if (!_.isUndefined(value)) {
-          option_default = value;
-        }
-        if (!readonly) {
-            $('#gource-settings-container').append(
-                gource_option_template({
-                    name: $option.val(),
-                    label: $option.text(),
-                    value: option_default ? option_default : "",
-                    placeholder: $option.attr('data-placeholder'),
-                    description: $option.attr('data-description'),
-                })
-            );
-        } else {
-            $('#gource-settings-container').append(
-                _.template('<div><b><%- label %>:</b> <%- value %></div>')({
-                    label: $option.text(),
-                    value: option_default ? option_default : "",
-                })
-            );
-        }
-        $option.remove();
-    }
-
-    function refreshGourceDuration() {
-        let VALID_FIELDS = ["seconds-per-day", "auto-skip-seconds"];
-        let gource_options = {};
-        $('.gource-option-container').each(function(idx, e) {
-            let $input = $(e).find('input');
-            console.log('!!! ',e, $input);
-            if ($input.length > 0 && $input.attr('name')) {
-                if (_.contains(VALID_FIELDS, $input.attr('name'))) {
-                    gource_options[$input.attr('name')] = $input.val();
+    // Gource settings container
+    let settings_container = new Vue({
+        el: '#gource-settings-region',
+        data: {
+            options_selected: [],
+            options_available: [],
+        },
+        methods: {
+            loadAvailable: function(available_list) {
+                console.log('loadAvailable: ',available_list);
+                _.each(available_list, function(item) {
+                    this.options_available.push(item);
+                }, this);
+            },
+            addOption: function(name, value, skip_duration) {
+                console.log('addOption', name, value, skip_duration);
+                let new_option = _.findWhere(this.options_available, {name: name});
+                if (!new_option) {
+                    console.log("Invalid option: "+name);
+                    return;
                 }
+                // Set value (if provided)
+                if (!_.isUndefined(value) && !_.isNull(value)) {
+                    new_option.value = value;
+                } else if (new_option.hasOwnProperty('default')) {
+                    console.log(' - setting default');
+                    new_option.value = new_option.default;
+                } else {
+                    new_option.value = "";
+                }
+                console.log('new_option = ',new_option);
+                // Add to selected list
+                this.options_selected.push(new_option);
+                // Remove from available list
+                this.options_available = _.filter(this.options_available, function(item) { return item.name != name; });
+                if (!skip_duration) {
+                    refreshGourceDuration(new_option.name);
+                }
+            },
+            removeOption: function(name, skip_duration) {
+                console.log('removeOption', name, skip_duration);
+                let target_option = _.findWhere(this.options_selected, {name: name});
+                if (!target_option) {
+                    console.log("Invalid option: "+name);
+                    return;
+                }
+                // Remove 'value' property
+                delete target_option.value;
+
+                // Remove from selected list
+                this.options_selected = _.filter(this.options_selected, function(item) { return item.name != name; });
+                // Re-add to available list
+                this.options_available.push(target_option);
+                // Re-sort according to initial display 'index'
+                this.options_available = _.sortBy(this.options_available, 'index');
+                if (!skip_duration) {
+                    refreshGourceDuration(target_option.name);
+                }
+            },
+            updateValue: function(option, value) {
+                option.value = value;
+                refreshGourceDuration(option.name);
+            },
+        },
+    });
+
+    // Recalculate estimated video duration based on entered settings
+    function refreshGourceDuration(changed_field) {
+        let VALID_FIELDS = ["seconds-per-day", "auto-skip-seconds"];
+        if (!_.isUndefined(changed_field)) {
+            if (!VALID_FIELDS.includes(changed_field)) {
+                //console.log("Unaffected field changed.  Skipping...");
+                return;
             }
-        });
+        }
+        let gource_options = {};
+        _.each(settings_container.options_selected, function(item) {
+            if (VALID_FIELDS.includes(item.name)) {
+                gource_options[item.name] = item.value;
+            }
+        }, this);
         console.log(' ==> ',gource_options);
 
         $.ajax({
-            url: "/test/{{project.id}}/duration/",
+            url: "/test/"+PROJECT_ID+"/duration/",
             method: 'GET',
             data: gource_options,
             contentType: "application/json",
@@ -413,15 +474,39 @@
         });
     }
 
-    let gource_option_template = _.template(''
-      +'<div class="form-group gource-option-container" style="display:flex; width:100%;">'
-      +  '<div title="<%- name %>" style="width:130px; font-size:12px; line-height:32px; text-align:right; padding-right:8px">'
-      +    '<b><%- label %>:</b>'
-      +  '</div>'
-      +  '<div style="flex:1">'
-      +    '<input class="form-control form-control-sm" name="<%- name %>" type="text" value="<%- value %>"<% if (placeholder) { %> placeholder="<%- placeholder %>"<% } %> style="width:200px" />'
-      +  '</div>'
-      +'</div>');
+    // ---- OPTIONS
+    // ---------------------------------------
+
+    Vue.component('gource-option-edit', {
+        props: {
+            'name': String,
+            'label': String,
+            'value': [String, Number],
+            'placeholder': String,
+            'description': String
+        },
+        template: `
+          <div class="form-group form-inline gource-option-container" style="display:flex; width:100%;">
+            <div :title="name" style="width:130px; font-size:12px; line-height:32px; text-align:right; padding-right:8px">
+              <b>{{ label }}:</b>
+            </div>
+            <div style="flex:1">
+              <input class="form-control form-control-sm" :name="name" type="text" :value="value" v-on:input="$emit('input:value', $event.target.value)" v-on:change="$emit('change:value', $event.target.value)" :placeholder="placeholder" style="width:200px" />
+              <span class="gource-option-remove text-danger" v-on:click="$emit('remove-gource-option')" style="padding-left:12px; cursor:pointer;"><i class="fa fa-times"></i></span>
+            </div>
+          </div>
+        `
+    });
+    Vue.component('gource-option-select', {
+        props: {
+            name: String,
+            label: String,
+            default: [String, Number],
+            placeholder: String,
+            description: String
+        },
+        template: '<option :value="name">{{ label }}</option>'
+    });
 
     $('body').on('click', '#add-gource-option-btn', function(e) {
         let $selector = $('#gource-new-option-selector');
@@ -430,18 +515,76 @@
         if ($option.length === 0) { return false; }
 
         // Pluck from <select> and add to section
-        addGourceOption($option);
-        refreshGourceDuration();
+        settings_container.addOption($option.val());
+//        refreshGourceDuration();
     });
 
-    $('body').on('change', '.gource-option-container input.form-control', function(e) {
-        console.log('value change', e);
-        refreshGourceDuration();
-    });
+//    $('body').on('change', '.gource-option-container input.form-control', function(e) {
+//        console.log('value change', e);
+//        refreshGourceDuration();
+//    });
 
     $('body').on('click', '.edit-audio-file', function(e) {
         $(e.currentTarget).hide();
         $('#project_build_audio_file_form').show();
+    });
+
+    // ---- CAPTIONS
+    // ---------------------------------------
+
+    // Project captions container
+    let captions_container = new Vue({
+        el: '#project-captions-region',
+        data: {
+            captions_list: [],
+        },
+        methods: {
+            addOption: function(id, timestamp, text) {
+                console.log('addOption', id, timestamp, text);
+                // Add to selected list
+                this.captions_list.push({
+                    id: id,
+                    timestamp: timestamp,
+                    text: text
+                });
+            },
+            removeOption: function(id) {
+                console.log('removeOption', id);
+                let target_caption = _.findWhere(this.captions_list, {id: id});
+                if (!target_caption) {
+                    console.log("Invalid caption: "+id);
+                    return;
+                }
+                // Remove from selected list
+                this.captions_list = _.filter(this.captions_list, function(item) { return item.id != id; });
+            },
+            updateTimestamp: function(caption, timestamp) {
+                caption.timestamp = timestamp;
+            },
+            updateText: function(caption, text) {
+                caption.text = text;
+            },
+        },
+    });
+
+    Vue.component('project-caption-edit', {
+        props: {
+            'id': [String, Number],
+            'timestamp': String,
+            'text': String,
+        },
+        mounted: function() {
+            $(this.$el.querySelector('.gource-caption-datetimepicker')).datetimepicker({
+                format: 'YYYY-MM-DD HH:mm:ss',
+            });
+        },
+        template: `
+          <div class="form-group form-inline gource-caption-container" style="display:flex; width:100%;">
+            <input type="text" class="form-control form-control-sm gource-caption-datetimepicker" style="width:150px; font-size:12px; line-height:32px;" placeholder="YYYY-MM-DD HH:mm:ss" :value="timestamp" v-on:input="$emit('input:timestamp', $event.target.value)" v-on:change="$emit('change:timestamp', $event.target.value)" />
+            <input type="text" class="form-control form-control-sm gource-caption-text" style="width:400px; font-size:12px; line-height:32px;" placeholder="Message" :value="text" v-on:input="$emit('input:text', $event.target.value)" v-on:change="$emit('change:text', $event.target.value)" />
+            <span class="project-caption-remove text-danger" v-on:click="$emit('remove-caption')" style="padding-left:12px; cursor:pointer;"><i class="fa fa-times"></i></span>
+          </div>
+        `
     });
 
     $('body').on('click', '.load-captions-from-project-tags-btn', function(e) {
@@ -452,7 +595,7 @@
                              .find('i.fa').removeClass('fa-tag fa-times fa-check')
                                           .addClass('fa-spinner fa-spin');
         $.ajax({
-            url: "/projects/{{project.id}}/actions/",
+            url: "/projects/"+PROJECT_ID+"/actions/",
             method: 'POST',
             data: JSON.stringify(post_data),
             contentType: "application/json",
@@ -510,7 +653,7 @@
                              .find('i.fa').removeClass('fa-tag fa-times fa-check')
                                           .addClass('fa-spinner fa-spin');
         $.ajax({
-            url: "/projects/{{project.id}}/edit/",
+            url: "/projects/"+PROJECT_ID+"/edit/",
             method: 'POST',
             data: JSON.stringify(post_data),
             contentType: "application/json",
@@ -542,6 +685,8 @@
       +'</div>');
 
     $('body').on('click', '.add-caption-btn', function(e) {
+        captions_container.addOption('tmp-'+_.random(0, 999999));
+        /*
         let $dtpicker = $(gource_caption_template({
             caption_timestamp: "",
             caption_text: "",
@@ -549,45 +694,46 @@
         $('#project-captions-list').append($dtpicker);
         $dtpicker.find('.gource-caption-datetimepicker').datetimepicker({
             format: 'YYYY-MM-DD HH:mm:ss',
-        });
+        });*/
     });
-
+  </script>
+  {% endverbatim %}
+  <script type="text/javascript">
+    let PROJECT_ID = {{ project.id }};
+    let IS_LATEST_BUILD = {{ is_latest_build|lower }};
     $(document).ready(function() {
-        let init_gource_options = [
-        {% for option_json in project_options_json %}
-            {{ option_json|safe }},
-        {% endfor %}
+        // Load all available build options for Gource
+        let gource_options = [{% for gource_opt in gource_options_json %}
+            {{ gource_opt|safe }},{% endfor %}
         ];
+        // Apply 'index' property to each item to retain order for later sorts
+        _.each(gource_options, function(item, idx) {
+            item.index = idx;
+        }, this);
+
+        // Load current build options
+        let init_gource_options = [{% for option_json in project_options_json %}
+            {{ option_json|safe }},{% endfor %}
+        ];
+        settings_container.loadAvailable(gource_options);
 
         _.each(init_gource_options, function(item) {
-            console.log(item);
-            let $selector = $('#gource-new-option-selector');
-            if ($selector.length === 0) {
-                console.log("Selector not found.");
-                return false;
-            }
-            let $option = $selector.find('option[value="'+item.name+'"]');
-            if ($option.length === 0) {
-                console.log("Option not found.");
-                return false;
-            }
-
-            if (IS_LATEST_BUILD) {
-                addGourceOption($option, item.value);
-            } else {
-                addGourceOption($option, item.value, true);
-            }
+            console.log("Initial setting: ", item);
+            settings_container.addOption(item.name, item.value, true);
         });
         refreshGourceDuration();
 
-        let init_project_captions = [
-        {% for caption_json in project_captions_json %}
-            {{ caption_json|safe }},
-        {% endfor %}
+        let init_project_captions = [{% for caption_json in project_captions_json %}
+            {{ caption_json|safe }},{% endfor %}
         ];
 
         _.each(init_project_captions, function(item) {
-            console.log(item);
+            //console.log(item);
+            let moment_timestamp = moment(item.timestamp);
+            item.timestamp = moment_timestamp.format('YYYY-MM-DD HH:mm:ss');
+            captions_container.captions_list.push(item);
+            return;
+            /*
             let $selector = $('#project-captions-list');
             let moment_timestamp = moment(item.timestamp);
             let $dtpicker = $(gource_caption_template({
@@ -598,6 +744,7 @@
             $dtpicker.find('.gource-caption-datetimepicker').datetimepicker({
                 format: 'YYYY-MM-DD HH:mm:ss',
             });
+            */
         });
 
         if (!IS_LATEST_BUILD) {
@@ -605,7 +752,6 @@
             let $selector = $('#project-gource-options-container');
             $selector.remove();
         }
-
     });
   </script>
 {% endblock %}
