@@ -25,7 +25,8 @@ except (ImportError, ModuleNotFoundError):
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# Not recommended to leave this in production
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition

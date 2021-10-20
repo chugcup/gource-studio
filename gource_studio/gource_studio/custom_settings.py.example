@@ -1,0 +1,13 @@
+TIME_ZONE = 'US/Eastern'
+CELERY_TIMEZONE = "US/Eastern"
+
+# Whitelist of web domains that projects can be pulled from
+PROJECT_DOMAINS = [
+    'bitbucket.org',
+    'github.com',
+    'gitlab.com',
+]
+
+ALLOWED_HOSTS = ['*']
+
+DEBUG = True
