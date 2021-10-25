@@ -1,5 +1,13 @@
 {% extends 'core/base.html' %}
 
+{% block page_css %}
+  <style type="text/css">
+    .card-text .latest-project-build > em {
+        padding-right: 8px;
+    }
+  </style>
+{% endblock %}
+
 {% block content %}
   <div class="container">
     <h3 class="float-left" style="margin-right:40px">Projects List</h3>
@@ -45,10 +53,10 @@
               </div>
               <div class="card-body">
                 <p class="card-text">
-                    <small class="float-right">
+                    <small class="latest-project-build float-right">
                         <b>Latest Build:</b>
-                        <br />
                     {% if latest_build and latest_build.completed_at %}
+                        <br />
                         {{ latest_build.completed_at }}
                     {% else %}
                         <em class="text-muted">N/A</em>

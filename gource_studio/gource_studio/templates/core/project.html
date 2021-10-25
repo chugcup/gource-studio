@@ -112,6 +112,17 @@
         width: 100%;
         margin-top: 12px;
     }
+    .project-links-container .input-group {
+        padding-bottom: 12px;
+    }
+    .project-links-container .input-group .form-control[readonly] {
+        background-color: #FFFFFF;
+    }
+    .project-links-container .input-group-prepend .input-group-text {
+        font-size: 12px;
+        width: 120px;
+        justify-content: flex-end;
+    }
   </style>
 {% endblock %}
 
@@ -202,6 +213,33 @@
               <b>Last Updated:</b> {{ build.created_at|date:"M j, Y H:i:s T" }}
             {% endif %}
             </div>
+          </div>
+
+          <hr />
+
+          <div class="project-links-container row">
+            <h5>Links:</h5>
+            <div class="input-group input-group-sm">
+                <div class="input-group-prepend">
+                    <span class="input-group-text">Project Link</span>
+                </div>
+                <input id="project-video-link" class="form-control" type="text" value="{{ request.scheme }}://{{ request.META.HTTP_HOST }}{% url 'project-details' project.id %}" readonly />
+                <div class="input-group-append" title="Copy to clipboard">
+                    <button class="btn btn-outline-secondary copy-clipboard-url" type="button"><i class="fa fa-clipboard"></i></span>
+                </div>
+            </div>
+
+            {% if build.content %}
+            <div class="input-group input-group-sm">
+                <div class="input-group-prepend">
+                    <span class="input-group-text">Direct Video Link</span>
+                </div>
+                <input id="project-video-direct-link" class="form-control" type="text" value="{{ request.scheme }}://{{ request.META.HTTP_HOST }}{% url 'project-build-video' project.id build.id %}" readonly />
+                <div class="input-group-append" title="Copy to clipboard">
+                    <button class="btn btn-outline-secondary copy-clipboard-url" type="button"><i class="fa fa-clipboard"></i></span>
+                </div>
+            </div>
+            {% endif %}
           </div>
           {% if latest_build and build.id != latest_build.id %}
           <div class="row justify-content-center text-center">
@@ -768,6 +806,38 @@
         $dtpicker.find('.gource-caption-datetimepicker').datetimepicker({
             format: 'YYYY-MM-DD HH:mm:ss',
         });*/
+    });
+
+    // Button to copy URL to clipboard
+    // - Copies content of previous <input> sibling of parent <div>
+    $('body').on('click', '.copy-clipboard-url', function(e) {
+        let $input = $(e.currentTarget).parent().prev('input');
+        if (!$input.length) { return; }
+        let copyrange = document.createRange();
+        copyrange.selectNode($input[0]);
+        window.getSelection().addRange(copyrange);
+        let message = "";
+        try {
+            let successful = document.execCommand('copy');
+            if (successful) {
+                message = "Link copied to clipboard";
+            } else {
+                message = "Could not copy to clipboard";
+            }
+        } catch (err) {
+            message = "Could not copy to clipboard";
+        }
+        window.getSelection().removeAllRanges();
+        // Flash tooltip
+        $(e.currentTarget).tooltip({title: message, trigger: 'manual'}).tooltip('show');
+        setTimeout(function() {
+            $(e.currentTarget).tooltip('hide');
+            setTimeout(function() {
+                $(e.currentTarget).tooltip('dispose');
+            }, 500);
+            $(e.currentTarget).removeAttr('title');
+        }, 1500);
+
     });
 
     // Queue build handler

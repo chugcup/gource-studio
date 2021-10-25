@@ -116,7 +116,7 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
         build = get_object_or_404(ProjectBuild, **{'project_id': project.id, 'id': build_id})
         # project_options = project.options.all()
         project_options = build.options.all() if build else project.options.all()
-        is_latest_build = build.id == project.latest_build.id
+        is_latest_build = build.id == project.latest_build.id if project.latest_build else False
     else:
         # Latest build/view
         build = project.latest_build
@@ -334,7 +334,15 @@ def project_build_screenshot(request, project_id=None, project_slug=None, build_
         project = get_object_or_404(Project, **{'id': project_id})
     elif project_slug:
         project = get_object_or_404(Project, **{'project_slug': project_slug})
-    build = get_object_or_404(ProjectBuild, **{'project_id': project.id, 'id': build_id})
+    else:
+        get_object_or_404(Project, **{'id': None})  # Force 404
+    # Get by specific build # (or latest build)
+    if build_id is not None:
+        build = get_object_or_404(ProjectBuild, **{'project_id': project.id, 'id': build_id})
+    else:
+        build = project.latest_build
+        if build is None:
+            get_object_or_404(ProjectBuild, **{'id': None}) # Force 404
     filepath = build.screenshot.path
     return serve(request, os.path.basename(filepath), os.path.dirname(filepath))
 
@@ -345,7 +353,15 @@ def project_build_thumbnail(request, project_id=None, project_slug=None, build_i
         project = get_object_or_404(Project, **{'id': project_id})
     elif project_slug:
         project = get_object_or_404(Project, **{'project_slug': project_slug})
-    build = get_object_or_404(ProjectBuild, **{'project_id': project.id, 'id': build_id})
+    else:
+        get_object_or_404(Project, **{'id': None})  # Force 404
+    # Get by specific build # (or latest build)
+    if build_id is not None:
+        build = get_object_or_404(ProjectBuild, **{'project_id': project.id, 'id': build_id})
+    else:
+        build = project.latest_build
+        if build is None:
+            get_object_or_404(ProjectBuild, **{'id': None}) # Force 404
     filepath = build.thumbnail.path
     return serve(request, os.path.basename(filepath), os.path.dirname(filepath))
 
@@ -356,7 +372,15 @@ def project_build_video(request, project_id=None, project_slug=None, build_id=No
         project = get_object_or_404(Project, **{'id': project_id})
     elif project_slug:
         project = get_object_or_404(Project, **{'project_slug': project_slug})
-    build = get_object_or_404(ProjectBuild, **{'project_id': project.id, 'id': build_id})
+    else:
+        get_object_or_404(Project, **{'id': None})  # Force 404
+    # Get by specific build # (or latest build)
+    if build_id is not None:
+        build = get_object_or_404(ProjectBuild, **{'project_id': project.id, 'id': build_id})
+    else:
+        build = project.latest_build
+        if build is None:
+            get_object_or_404(ProjectBuild, **{'id': None}) # Force 404
     filepath = build.content.path
     return serve(request, os.path.basename(filepath), os.path.dirname(filepath))
 
