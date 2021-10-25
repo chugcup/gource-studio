@@ -266,7 +266,7 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
                 '--user-scale', '2',
                 '--dir-name-depth', '4',
                 '--bloom-multiplier', '0.5',
-                '--disable-input',
+                #'--disable-input',
                 '--no-vsync',
         ]
 

@@ -1,26 +1,6 @@
 {% extends 'core/base.html' %}
 
 {% block page_css %}
-  <style type="text/css">
-    .project-build-status-container {
-        display: flex;
-        flex-wrap: nowrap;
-    }
-    .project-build-status-container > .status-container {
-        flex-basis: 7rem;
-        flex-grow: 1;
-        border-radius: .25rem 0 0 .25rem;
-    }
-    .project-build-status-container > .content-container {
-        flex-basis: 0;
-        flex-grow: 999;
-        border-left: 1px solid rgba(0,0,0,0.125);
-        overflow: auto;
-    }
-    .project-build-status-container > .content-container .card-header {
-        padding:.25rem 1.25rem;
-    }
-  </style>
 {% endblock %}
 
 {% block content %}
@@ -42,7 +22,7 @@
     {% for build in page_obj %}
       <div class="project-build-panel col-lg-12 col-md-12 mb-12">
         <div class="project-build-status card mb-3">
-          <div class="project-build-status-container">
+          <div class="project-build-status-container project-item-container">
           {% if build.status == "pending" %}
             <div class="status-container bg-light">
           {% elif build.status == "queued" %}
@@ -65,7 +45,11 @@
                     {{ build.created_at }}
                   </small>
                   <a href="{% url 'project-details' build.project.id %}">
+                  {% if build.project.name %}
                     {{ build.project.name }}
+                  {% else %}
+                    <em class="text-muted">No Name</em>
+                  {% endif %}
                   </a>
                   <small>
                   {% if build.id != latest_build.id %}

@@ -18,7 +18,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.utils import dateparse
 from django.utils.timezone import make_aware, now as utc_now
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.static import serve
 
 # Ignore SSL verification
@@ -101,7 +101,7 @@ def projects(request):
     return render(request, 'core/projects.html', context)
 
 
-@csrf_protect
+@ensure_csrf_cookie
 def project_details(request, project_id=None, project_slug=None, build_id=None):
     "Project Details page"
     if project_id:
@@ -153,7 +153,7 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
     return render(request, 'core/project.html', context)
 
 
-@csrf_protect
+@ensure_csrf_cookie
 def edit_project(request, project_id=None, project_slug=None):
     "Edit Project Settings view"
     if project_id:
@@ -230,7 +230,7 @@ def edit_project(request, project_id=None, project_slug=None):
     return HttpResponse(json.dumps(response), status=201, content_type="application/json")
 
 
-@csrf_protect
+@ensure_csrf_cookie
 def project_actions(request, project_id=None, project_slug=None):
     "Project Actions view"
     if project_id:
@@ -399,7 +399,7 @@ class UploadAvatarForm(forms.Form):
     name = forms.CharField(max_length=255)
     image = forms.ImageField()
 
-@csrf_protect
+@ensure_csrf_cookie
 def avatar_upload(request):
     "Upload a new avatar"
     if request.method == 'POST':
@@ -421,7 +421,7 @@ def avatar_upload(request):
     return HttpResponseRedirect('/avatars/')
 
 
-@csrf_protect
+@ensure_csrf_cookie
 def project_avatar_upload(request, project_id=None, project_slug=None):
     "Upload a new project avatar"
     if project_id:
@@ -452,7 +452,7 @@ def project_avatar_upload(request, project_id=None, project_slug=None):
 class UploadAudioForm(forms.Form):
     build_audio = forms.FileField()
 
-@csrf_protect
+@ensure_csrf_cookie
 def project_audio_upload(request, project_id=None, project_slug=None):
     "Upload a new project audio file (MP3)"
     if project_id:
@@ -479,7 +479,7 @@ def project_audio_upload(request, project_id=None, project_slug=None):
     return HttpResponseRedirect(f'/projects/{project.id}/')
 
 
-@csrf_protect
+@ensure_csrf_cookie
 def project_queue_build(request, project_id=None, project_slug=None):
     if project_id:
         project = get_object_or_404(Project, **{'id': project_id})
@@ -554,7 +554,7 @@ def project_queue_build(request, project_id=None, project_slug=None):
     return HttpResponse(response)
 
 
-@csrf_protect
+@ensure_csrf_cookie
 def new_project(request):
     "New Project page"
     # Save a new project
@@ -576,6 +576,7 @@ def new_project(request):
             return HttpResponse(json.dumps(response), status=400, content_type="application/json")
 
         # Validate URL string (and domain)
+        project_url = project_url.rstrip()
         try:
             validate_project_url(project_url)
         except Exception as e:
@@ -583,12 +584,12 @@ def new_project(request):
             return HttpResponse(json.dumps(response), status=400, content_type="application/json")
 
         # Check that project does not exist (identified by URL)
-        try:
-            Project.objects.get(project_url=project_url)
-            response = {"error": True, "message": f"[ERROR] Project already exists matching that URL"}
-            return HttpResponse(json.dumps(response), status=400, content_type="application/json")
-        except Project.DoesNotExist:
-            pass
+#        try:
+#            Project.objects.get(project_url=project_url)
+#            response = {"error": True, "message": f"[ERROR] Project already exists matching that URL"}
+#            return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+#        except Project.DoesNotExist:
+#            pass
 
         # Test that URL is reachable
         # NOTE: some domains don't support HEAD/OPTIONS requests...
@@ -613,7 +614,7 @@ def new_project(request):
             response = {"error": True, "message": f"[ERROR] {str(e)}"}
             return HttpResponse(json.dumps(response), status=400, content_type="application/json")
 
-        project_name = os.path.basename(project_url).rstrip('/')
+        project_name = os.path.basename(project_url.rstrip('/'))
         project = Project(
             name=project_name,
             project_url=project_url,

@@ -37,7 +37,13 @@
           {% endif %}
           </a>
           <div class="card-body">
-              <h4 class="card-title">{{ project.name }}</h4>
+              <h4 class="card-title">
+              {% if project.name %}
+                {{ project.name }}
+              {% else %}
+                <em class="text-muted">No Name</em>
+              {% endif %}
+              </h4>
               <p class="card-text"><!-- Card Text --></p>
           </div>
           <div class="card-footer">

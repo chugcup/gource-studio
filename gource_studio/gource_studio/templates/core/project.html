@@ -2,9 +2,16 @@
 
 {% block page_css %}
   <style type="text/css">
+    #gource-settings-container .form-group {
+        min-width: 400px;
+    }
     #gource-settings-container .form-group,
     #project-captions-list .form-group {
         margin-bottom: 0;
+    }
+    #gource-settings-container .form-group .form-control,
+    #project-captions-list .form-group .form-control {
+        display: inline-block;
     }
     .bootstrap-datetimepicker-widget {
         font-size: 0.8em;
@@ -32,43 +39,94 @@
     .project-nav-sidebar {
         white-space: nowrap;
     }
+    .project-nav-sidebar .nav-item {
+        width: 100px;
+    }
     .project-nav-sidebar .nav-link.active::before {
         content: "❮";
         margin-left: -14px;
         padding-right: 6px;
     }
+    .project-nav-sidebar .nav-item.separator {
+        margin-left: 10px;
+        width: 80px;
+        border-bottom: 1px solid #DDDDDD;
+    }
+    .project-video-container {
+        text-align: center;
+        background: #000000;
+    }
+    .project-video-container .project-video-empty {
+        max-height: 80vh;
+        height: 600px;
+        color: #FFFFFF;
+        vertical-align: middle;
+        padding: 230px 0;
+        line-height: 36px;
+    }
     .project-video {
         max-height: 80vh;
         width: 100%;
+    }
+    .project-video-container .queue-project-build-btn {
+        opacity: 0.6;
+    }
+    .project-video-container .queue-project-build-btn:hover {
+        opacity: 1.0;
     }
     .project-nav-topbar {
         border-bottom: 1px solid #CCCCCC;
         margin-bottom: 12px;
     }
     #project-captions-list {
-        max-height: 400px;
+        min-width: 400px;
+        max-height: 600px;
         overflow-y: auto;
     }
     #project-captions-list input.gource-caption-datetimepicker {
         border-radius: .2rem 0 0 .2rem;
         background: #F9F9F9;
+        width: 150px;
+        font-size: 12px;
+        line-height: 32px;
     }
     #project-captions-list input.gource-caption-text {
         border-radius: 0 .2rem .2rem 0;
+        width: 70%;
+        min-width: 200px;
+        font-size: 12px;
+        line-height: 32px;
+    }
+  @media(max-width: 993px) {
+    #project-captions-list input.gource-caption-text {
+        width: 50%;
+    }
+  }
+  @media(max-width: 751px) {
+    #project-captions-list input.gource-caption-text {
+        width: 40%;
+    }
+  }
+    #project-gource-options-container {
+        display: flex;
+        width: 100%;
+        margin-top: 12px;
     }
   </style>
 {% endblock %}
 
 {% block content %}
   {% with latest_build=project.latest_build %}
-  <div style="text-align:center; background:#000000;">
+  <div class="project-video-container">
   {% if build.content %}
     <video class="project-video" controls poster="{% url 'project-build-screenshot' project.id build.id %}" preload="metadata">
       <source src="{% url 'project-build-video' project.id build.id %}" type="video/mp4">
     </video>
   {% else %}
-    <div style="max-height:80vh;height:600px;color:#FFFFFF;vertical-align:middle;line-height:600px">
+    <div class="project-video-empty">
         No video available.
+        <br />
+        <button class="btn btn-sm btn-primary queue-project-build-btn" type="button">Build Now</button>
     </div>
   {% endif %}
   </div>
@@ -170,11 +228,6 @@
             </select>
           </div>
 
-          {% if project.build_audio %}
-          <div class="float-right">
-            <button class="btn btn-xs btn-success remix-audio-btn">Remix Audio</button>
-          </div>
-          {% endif %}
           <div class="form-group">
             <b>Background Audio:</b>
           {% if project.build_audio %}
@@ -186,6 +239,11 @@
                 <button type="submit" class="btn btn-primary btn-sm">Upload</button>
                 {% csrf_token %}
             </form>
+          {% if project.build_audio %}
+          <div>
+            <button class="btn btn-sm btn-success remix-audio-btn">Remix Audio</button>
+          </div>
+          {% endif %}
           </div>
         </div>
       </div>
@@ -202,11 +260,12 @@
       <div id="gource-settings-container">
           <gource-option-edit v-for="option in options_selected"
                               v-on:remove-gource-option="removeOption(option.name)"
+                              v-on:view-gource-option-info="viewOptionInfo(option.name)"
                               v-on:change:value="updateValue(option, $event)"
                               v-bind:key="option.name"
                               v-bind="option"></gource-option-edit>
       </div>
-      <div id="project-gource-options-container" class="form-group gource-option-container" style="display:flex; width:100%;">
+      <div id="project-gource-options-container" class="form-group gource-option-container">
         <div class="input-group" style="width:305px">
           <select id="gource-new-option-selector" class="form-control form-control-sm">
             <option value="">-- Choose a Setting --</option>
@@ -267,6 +326,7 @@
           <li class="nav-item">
             <a class="nav-link" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
           </li>
+          <li class="nav-item separator"></li>
           <li class="nav-item">
               <a class="nav-link" href="{% url 'project-avatars' project.id %}">Avatars <i class="fa fa-external-link"></i></a>
           </li>
@@ -412,6 +472,16 @@
                     refreshGourceDuration(new_option.name);
                 }
             },
+            viewOptionInfo: function(name) {
+                console.log('viewOptionInfo', name);
+                let target_option = _.findWhere(this.options_selected, {name: name});
+                if (!target_option) {
+                    console.log("Invalid option: "+name);
+                    return;
+                }
+                // Open popover with setting information
+                console.log(target_option);
+            },
             removeOption: function(name, skip_duration) {
                 console.log('removeOption', name, skip_duration);
                 let target_option = _.findWhere(this.options_selected, {name: name});
@@ -483,7 +553,8 @@
             'label': String,
             'value': [String, Number],
             'placeholder': String,
-            'description': String
+            'description': String,
+            'description_help': String
         },
         template: `
           <div class="form-group form-inline gource-option-container" style="display:flex; width:100%;">
@@ -492,6 +563,7 @@
             </div>
             <div style="flex:1">
               <input class="form-control form-control-sm" :name="name" type="text" :value="value" v-on:input="$emit('input:value', $event.target.value)" v-on:change="$emit('change:value', $event.target.value)" :placeholder="placeholder" style="width:200px" />
+              <span class="gource-option-info" v-on:click="$emit('view-gource-option-info')" style="padding-left:12px; cursor:pointer;" data-toggle="popover" data-trigger="hover" data-placement="top"><i class="fa fa-info-circle"></i></span>
               <span class="gource-option-remove text-danger" v-on:click="$emit('remove-gource-option')" style="padding-left:12px; cursor:pointer;"><i class="fa fa-times"></i></span>
             </div>
           </div>
@@ -503,7 +575,8 @@
             label: String,
             default: [String, Number],
             placeholder: String,
-            description: String
+            description: String,
+            description_help: String
         },
         template: '<option :value="name">{{ label }}</option>'
     });
@@ -580,8 +653,8 @@
         },
         template: `
           <div class="form-group form-inline gource-caption-container" style="display:flex; width:100%;">
-            <input type="text" class="form-control form-control-sm gource-caption-datetimepicker" style="width:150px; font-size:12px; line-height:32px;" placeholder="YYYY-MM-DD HH:mm:ss" :value="timestamp" v-on:input="$emit('input:timestamp', $event.target.value)" v-on:change="$emit('change:timestamp', $event.target.value)" />
-            <input type="text" class="form-control form-control-sm gource-caption-text" style="width:400px; font-size:12px; line-height:32px;" placeholder="Message" :value="text" v-on:input="$emit('input:text', $event.target.value)" v-on:change="$emit('change:text', $event.target.value)" />
+            <input type="text" class="form-control form-control-sm gource-caption-datetimepicker" placeholder="YYYY-MM-DD HH:mm:ss" :value="timestamp" v-on:input="$emit('input:timestamp', $event.target.value)" v-on:change="$emit('change:timestamp', $event.target.value)" />
+            <input type="text" class="form-control form-control-sm gource-caption-text" placeholder="Message" :value="text" v-on:input="$emit('input:text', $event.target.value)" v-on:change="$emit('change:text', $event.target.value)" />
             <span class="project-caption-remove text-danger" v-on:click="$emit('remove-caption')" style="padding-left:12px; cursor:pointer;"><i class="fa fa-times"></i></span>
           </div>
         `
@@ -695,6 +768,26 @@
         $dtpicker.find('.gource-caption-datetimepicker').datetimepicker({
             format: 'YYYY-MM-DD HH:mm:ss',
         });*/
+    });
+
+    // Queue build handler
+    $('body').on('click', '.queue-project-build-btn', function(e) {
+        $.ajax({
+            url: "/projects/"+PROJECT_ID+"/queue/",
+            method: 'POST',
+            beforeSend: function(xhr) {
+                // Attach CSRF Token
+                xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+            },
+            success: function(data, textStatus, xhr) {
+                // Redirect/reload
+                window.location = '/projects/'+PROJECT_ID+'/builds/';
+            },
+            error: function(xhr, textStatus, err) {
+                // Error
+                console.log("Queue error: "+err, xhr);
+            }
+        });
     });
   </script>
   {% endverbatim %}
