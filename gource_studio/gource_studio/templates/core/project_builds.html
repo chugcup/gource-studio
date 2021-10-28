@@ -9,8 +9,8 @@
   <div class="container">
     <div class="float-right">
       <button class="btn btn-primary queue-project-build-btn" title="Queue a new video build">
-          <i class="fa fa-plus"></i>
-          Queue Build
+        <i class="fa fa-plus"></i>
+        Queue Build
       </button>
     </div>
     <h3>
@@ -72,20 +72,20 @@
                 </div>
                 <p class="card-text" style="font-size:12px; text-align:left;">
                 {% if build.error_description %}
-                    {{ build.error_description }}
+                  {{ build.error_description }}
                 {% else %}
-                    {% if build.duration %}
-                    <b>Duration:</b>
-                    {{ build.duration|duration }}
-                    {% endif %}
-                    {% if build.size %}
-                    <b style="margin-left:20px">Size:</b>
-                    <span title="{{ build.size }} bytes">{{ build.size|filesizeformat }}</span>
-                    {% endif %}
+                  {% if build.duration %}
+                  <b>Duration:</b>
+                  {{ build.duration|duration }}
+                  {% endif %}
+                  {% if build.size %}
+                  <b style="margin-left:20px">Size:</b>
+                  <span title="{{ build.size }} bytes">{{ build.size|filesizeformat }}</span>
+                  {% endif %}
                 {% endif %}
                 {% if build.completed_at %}
-                    <br />
-                    <b>Build Time:</b> {{ build.get_build_duration|duration }}
+                  <br />
+                  <b>Build Time:</b> {{ build.get_build_duration|duration }}
                 {% endif %}
                 </p>
               </div>
@@ -112,9 +112,9 @@
                 {% endif %}
                 {% for i in page_obj.paginator.page_range %}
                   {% if page_obj.number == i %}
-                    <li class="page-item active"><span class="page-link">{{ i }} <span class="sr-only">(current)</span></span></li>
+                  <li class="page-item active"><span class="page-link">{{ i }} <span class="sr-only">(current)</span></span></li>
                   {% else %}
-                    <li><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+                  <li><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
                   {% endif %}
                 {% endfor %}
                 {% if page_obj.has_next %}

@@ -5,42 +5,43 @@
     <h2 class="text-center">New Project</h2>
     <label for="project-url-input" style="font-weight:bold">Project URL:</label>
     <div class="input-group">
-        <div class="input-group-prepend">
-            <select id="project-vcs-select" class="form-control" name="project_vcs" style="width: 120px; border-radius: .25rem 0 0 .25rem">
-                <option value="git">Git</option>
-                <option value="hg">Mercurial</option>
-            </select>
-            <!--
-            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
-            <div class="dropdown-menu">
-                <a class="dropdown-item">Git</a>
-                <a class="dropdown-item">Mercurial</a>
-            </div>
-            -->
-        </div>
-        <input type="text" id="project-url-input" name="project_url" class="form-control" placeholder="http://..." />
+      <div class="input-group-prepend">
+        <select id="project-vcs-select" class="form-control" name="project_vcs" style="width: 120px; border-radius: .25rem 0 0 .25rem">
+            <option value="git">Git</option>
+            <option value="hg">Mercurial</option>
+        </select>
+        <!--
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
+          <div class="dropdown-menu">
+            <a class="dropdown-item">Git</a>
+            <a class="dropdown-item">Mercurial</a>
+          </div>
+        -->
+      </div>
+      <input type="text" id="project-url-input" name="project_url" class="form-control" placeholder="http://..." />
     </div>
     <br />
     <div class="input-group" style="width:400px">
-        <div class="input-group-prepend">
-            <div class="input-group-text text-right" style="display:inline-block;width: 120px">Branch:</div>
-        </div>
-        <input type="text" id="project-branch-input" name="project_branch" class="form-control" value="master" />
+      <div class="input-group-prepend">
+        <div class="input-group-text text-right" style="display:inline-block;width: 120px">Branch:</div>
+      </div>
+      <input type="text" id="project-branch-input" name="project_branch" class="form-control" value="master" />
     </div>
     <br />
     <div class="form-check">
-        <input type="checkbox" id="project-initial-captions-from-tags" class="form-check-input" checked="checked" />
-        <label for="project-initial-captions-from-tags" class="form-check-label">Load Captions From Tags</label>
+      <input type="checkbox" id="project-initial-captions-from-tags" class="form-check-input" checked="checked" />
+      <label for="project-initial-captions-from-tags" class="form-check-label">Load Captions From Tags</label>
     </div>
     <br />
     <div class="text-center">
-        <button id="save-project-btn" class="btn btn-lg btn-success">
-            Create Project
-        </button>
+      <button id="save-project-btn" class="btn btn-lg btn-success">
+        Create Project
+      </button>
     </div>
     <br />
   </div>
 {% endblock %}
+
 {% block page_js %}
   <script type="text/javascript">
       // Listen for VCS option changes

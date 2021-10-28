@@ -41,7 +41,7 @@
             <div class="content-container">
               <div class="card-header">
                 <h5 class="card-title text-left" style="margin-bottom:0">
-                 <small class="float-right">
+                  <small class="float-right">
                     {{ build.created_at }}
                   </small>
                   <a href="{% url 'project-details' build.project.id %}">
@@ -60,7 +60,7 @@
               </div>
               <div class="card-body" style="padding:10px">
                 <p class="card-text" style="font-size:12px; text-align:left;">
-                {% if build.error_description %}{{ build.error_description }}{% endif %}
+                  {% if build.error_description %}{{ build.error_description }}{% endif %}
                 </p>
               </div>
             </div>
@@ -82,30 +82,30 @@
 
     <div class="row">
       <div class="col-lg-12 col-md-12 col-sm-12">
-          <nav aria-label="Build Queue pages">
-            {% if page_obj.has_other_pages %}
-              <ul class="pagination" style="align-items: center; justify-content:center">
-                {% if page_obj.has_previous %}
-                  <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>
-                {% else %}
-                  <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
-                {% endif %}
-                {% for i in page_obj.paginator.page_range %}
-                  {% if page_obj.number == i %}
-                    <li class="page-item active"><span class="page-link">{{ i }} <span class="sr-only">(current)</span></span></li>
-                  {% else %}
-                    <li><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
-                  {% endif %}
-                {% endfor %}
-                {% if page_obj.has_next %}
-                  <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>
-                {% else %}
-                  <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
-                {% endif %}
-              </ul>
+        <nav aria-label="Build Queue pages">
+          {% if page_obj.has_other_pages %}
+          <ul class="pagination" style="align-items: center; justify-content:center">
+          {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+          {% endif %}
+          {% for i in page_obj.paginator.page_range %}
+            {% if page_obj.number == i %}
+            <li class="page-item active"><span class="page-link">{{ i }} <span class="sr-only">(current)</span></span></li>
+            {% else %}
+            <li><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
             {% endif %}
-            </nav>
-        </div>
+          {% endfor %}
+          {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+          {% endif %}
+          </ul>
+          {% endif %}
+        </nav>
+      </div>
     </div>
     <br />
   </div>

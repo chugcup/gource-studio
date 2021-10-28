@@ -2,7 +2,6 @@ from datetime import datetime
 import json
 import logging
 import os
-import re
 import ssl
 import time
 import urllib
@@ -18,13 +17,13 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.utils import dateparse
 from django.utils.timezone import make_aware, now as utc_now
-from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.static import serve
 
 # Ignore SSL verification
 ssl._create_default_https_context = ssl._create_unverified_context
 
-from .constants import VIDEO_OPTIONS, GOURCE_OPTIONS, GOURCE_OPTIONS_LIST, GOURCE_OPTIONS_JSON
+from .constants import GOURCE_OPTIONS, GOURCE_OPTIONS_LIST, GOURCE_OPTIONS_JSON
 from .models import Project, ProjectBuild, ProjectBuildOption, ProjectCaption, ProjectOption, ProjectUserAvatar, UserAvatar
 from .tasks import generate_gource_build
 from .utils import (
@@ -51,7 +50,7 @@ SITE_NAME = settings.SITE_NAME
 
 def index(request):
     "Landing page"
-    # Return latest 4 projects
+    # Return latest 8 projects
     # - Subquery filter removes any projects without a successful build
     # TODO: sort by latest build
     context = {

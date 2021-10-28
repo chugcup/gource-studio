@@ -10,11 +10,11 @@
         <img src="/static/img/gource-studio-logo.png" alt="Main Logo" style="width:150px"/>
       </div>
       <p class="lead">
-          Gource Studio helps create stunning videos of your software development projects.
-          <br />
-          <div style="font-size:90%">
+        Gource Studio helps create stunning videos of your software development projects.
+        <br />
+        <div style="font-size:90%">
           Built using <a href="https://gource.io" target="_blank">Gource</a>, <a href="https://ffmpeg.org" target="_blank">ffmpeg</a>, and other open source software.
-          </div>
+        </div>
       </p>
       <a href="{% url 'new-project' %}" class="btn btn-primary btn-lg">Get Started</a>
       <div class="clearfix"></div>
@@ -37,24 +37,24 @@
           {% endif %}
           </a>
           <div class="card-body">
-              <h4 class="card-title">
-              {% if project.name %}
-                {{ project.name }}
-              {% else %}
-                <em class="text-muted">No Name</em>
-              {% endif %}
-              </h4>
-              <p class="card-text"><!-- Card Text --></p>
+            <h4 class="card-title">
+            {% if project.name %}
+              {{ project.name }}
+            {% else %}
+              <em class="text-muted">No Name</em>
+            {% endif %}
+            </h4>
+            <p class="card-text"><!-- Card Text --></p>
           </div>
           <div class="card-footer">
-              <a href="{% url 'project-details' project.id %}" class="btn btn-primary">Watch Video</a>
+            <a href="{% url 'project-details' project.id %}" class="btn btn-primary">Watch Video</a>
           </div>
         </div>
       </div>
       {% endwith %}
     {% empty %}
       <div class="col-lg-12 col-md-12 col-sm-12">
-          <h5 class="text-center text-muted"><i>No projects yet</i></h5>
+        <h5 class="text-center text-muted"><i>No projects yet</i></h5>
       </div>
     {% endfor %}
     </div>

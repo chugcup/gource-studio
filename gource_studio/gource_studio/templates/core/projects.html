@@ -53,15 +53,15 @@
               </div>
               <div class="card-body">
                 <p class="card-text">
-                    <small class="latest-project-build float-right">
-                        <b>Latest Build:</b>
-                    {% if latest_build and latest_build.completed_at %}
-                        <br />
-                        {{ latest_build.completed_at }}
-                    {% else %}
-                        <em class="text-muted">N/A</em>
-                    {% endif %}
-                    </small>
+                  <small class="latest-project-build float-right">
+                    <b>Latest Build:</b>
+                  {% if latest_build and latest_build.completed_at %}
+                    <br />
+                    {{ latest_build.completed_at }}
+                  {% else %}
+                    <em class="text-muted">N/A</em>
+                  {% endif %}
+                  </small>
                 </p>
                 <!-- Card Text --></p>
               </div>
@@ -72,43 +72,43 @@
       {% endwith %}
     {% empty %}
       <div class="col-lg-12 col-md-12 col-sm-12">
-          <h5 class="text-center text-muted">
-          {% if search %}
-            <i>No projects found</i>
-          {% else %}
-            <i>No projects yet</i>
-          {% endif %}
-          </h5>
+        <h5 class="text-center text-muted">
+        {% if search %}
+          <i>No projects found</i>
+        {% else %}
+          <i>No projects yet</i>
+        {% endif %}
+        </h5>
       </div>
     {% endfor %}
     </div>
 
     <div class="row">
       <div class="col-lg-12 col-md-12 col-sm-12">
-          <nav aria-label="Project pages">
-            {% if page_obj.has_other_pages %}
-              <ul class="pagination" style="align-items: center; justify-content:center">
-                {% if page_obj.has_previous %}
-                  <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>
-                {% else %}
-                  <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
-                {% endif %}
-                {% for i in page_obj.paginator.page_range %}
-                  {% if page_obj.number == i %}
-                    <li class="page-item active"><span class="page-link">{{ i }} <span class="sr-only">(current)</span></span></li>
-                  {% else %}
-                    <li><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
-                  {% endif %}
-                {% endfor %}
-                {% if page_obj.has_next %}
-                  <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>
-                {% else %}
-                  <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
-                {% endif %}
-              </ul>
+        <nav aria-label="Project pages">
+        {% if page_obj.has_other_pages %}
+          <ul class="pagination" style="align-items: center; justify-content:center">
+            {% if page_obj.has_previous %}
+              <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
             {% endif %}
-            </nav>
-        </div>
+            {% for i in page_obj.paginator.page_range %}
+              {% if page_obj.number == i %}
+              <li class="page-item active"><span class="page-link">{{ i }} <span class="sr-only">(current)</span></span></li>
+              {% else %}
+              <li><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+              {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+              <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+            {% endif %}
+          </ul>
+        {% endif %}
+        </nav>
+      </div>
     </div>
     <!-- /.row -->
     <br />
