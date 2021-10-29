@@ -123,6 +123,9 @@
         width: 120px;
         justify-content: flex-end;
     }
+    .popover {
+        max-width: 300px;   /* default: 276px */
+    }
   </style>
 {% endblock %}
 
@@ -300,7 +303,6 @@
                 <div id="gource-settings-container">
                     <gource-option-edit v-for="option in options_selected"
                                         v-on:remove-gource-option="removeOption(option.name)"
-                                        v-on:view-gource-option-info="viewOptionInfo(option.name)"
                                         v-on:change:value="updateValue(option, $event)"
                                         v-bind:key="option.name"
                                         v-bind="option"></gource-option-edit>
@@ -315,7 +317,7 @@
                               v-bind="option"></option>
                     </select>
                     <div class="input-group-append">
-                      <button id="add-gource-option-btn" class="btn btn-primary btn-sm"><i class="fa fa-plus"></i> Add Option</button>
+                      <button id="add-gource-option-btn" class="btn btn-primary btn-sm"><i class="fa fa-plus"></i> Add Setting</button>
                     </div>
                   </div>
                 </div>
@@ -324,7 +326,7 @@
             <div id="project-captions-pane" class="tab-pane" role="tabpanel">
               <div id="project-captions-region">
                 <hr />
-                <div class="float-right">
+                <div class="project-caption-actions float-right">
                   <button class="btn btn-primary load-captions-from-project-tags-btn"><i class="fa fa-tag"></i> Add Project Tags</button>
                   <button class="btn btn-success save-project-captions-btn"><i class="fa fa-disk"></i> Save</button>
                 </div>
@@ -503,6 +505,9 @@
                 } else {
                     new_option.value = "";
                 }
+                new_option.can_edit = IS_LATEST_BUILD;  // Readonly (TODO: check permissions)
+                new_option.popover_id = "gource-option-popover-"+new_option.name;
+                new_option.value_default = new_option.default;  // Alias to avoid JS keyword
                 console.log('new_option = ',new_option);
                 // Add to selected list
                 this.options_selected.push(new_option);
@@ -511,16 +516,6 @@
                 if (!skip_duration) {
                     refreshGourceDuration(new_option.name);
                 }
-            },
-            viewOptionInfo: function(name) {
-                console.log('viewOptionInfo', name);
-                let target_option = _.findWhere(this.options_selected, {name: name});
-                if (!target_option) {
-                    console.log("Invalid option: "+name);
-                    return;
-                }
-                // Open popover with setting information
-                console.log(target_option);
             },
             removeOption: function(name, skip_duration) {
                 console.log('removeOption', name, skip_duration);
@@ -589,12 +584,15 @@
 
     Vue.component('gource-option-edit', {
         props: {
-            'name': String,
-            'label': String,
-            'value': [String, Number],
-            'placeholder': String,
-            'description': String,
-            'description_help': String
+            name: String,
+            label: String,
+            value: [String, Number],
+            value_default: [String, Number],
+            placeholder: String,
+            description: String,
+            description_help: String,
+            popover_id: String,
+            can_edit: Boolean
         },
         template: `
           <div class="form-group form-inline gource-option-container" style="display:flex; width:100%;">
@@ -602,9 +600,15 @@
               <b>{{ label }}:</b>
             </div>
             <div style="flex:1">
-              <input class="form-control form-control-sm" :name="name" type="text" :value="value" v-on:input="$emit('input:value', $event.target.value)" v-on:change="$emit('change:value', $event.target.value)" :placeholder="placeholder" style="width:200px" />
-              <span class="gource-option-info" v-on:click="$emit('view-gource-option-info')" style="padding-left:12px; cursor:pointer;" data-toggle="popover" data-trigger="hover" data-placement="top"><i class="fa fa-info-circle"></i></span>
-              <span class="gource-option-remove text-danger" v-on:click="$emit('remove-gource-option')" style="padding-left:12px; cursor:pointer;"><i class="fa fa-times"></i></span>
+              <input class="form-control form-control-sm" :name="name" type="text" :value="value" v-on:input="$emit('input:value', $event.target.value)" v-on:change="$emit('change:value', $event.target.value)" :placeholder="placeholder" style="width:200px" :readonly="!can_edit" />
+              <!--<span class="gource-option-info" v-on:click="$emit('view-gource-option-info')" style="padding-left:12px; cursor:pointer;" data-toggle="popover" data-trigger="hover" data-placement="top"><i class="fa fa-info-circle"></i></span>-->
+              <span :id="popover_id" style="padding-left:12px;"><i class="fa fa-info-circle"></i></span></span>
+              <b-popover :target="popover_id" triggers="hover">
+                <p class="popover-setting-description">{{ description }}</p>
+                <p class="popover-setting-description-help" style="font-size:12px">{{ description_help }}</p>
+                <p v-if="value_default" class="popover-setting-default"><b>Default:</b> {{ value_default }}</p>
+              </b-popover>
+              <span class="gource-option-remove text-danger" v-if="can_edit" v-on:click="$emit('remove-gource-option')" style="padding-left:12px; cursor:pointer;" title="Delete this setting"><i class="fa fa-times"></i></span>
             </div>
           </div>
         `
@@ -613,10 +617,12 @@
         props: {
             name: String,
             label: String,
-            default: [String, Number],
+            value_default: [String, Number],
             placeholder: String,
             description: String,
-            description_help: String
+            description_help: String,
+            popover_id: String,
+            can_edit: Boolean
         },
         template: '<option :value="name">{{ label }}</option>'
     });
@@ -653,12 +659,13 @@
         },
         methods: {
             addOption: function(id, timestamp, text) {
-                console.log('addOption', id, timestamp, text);
+                console.log('[Caption] addOption', id, timestamp, text);
                 // Add to selected list
                 this.captions_list.push({
                     id: id,
                     timestamp: timestamp,
-                    text: text
+                    text: text,
+                    can_edit: IS_LATEST_BUILD,  // TODO check permissions
                 });
             },
             removeOption: function(id) {
@@ -682,9 +689,10 @@
 
     Vue.component('project-caption-edit', {
         props: {
-            'id': [String, Number],
-            'timestamp': String,
-            'text': String,
+            id: [String, Number],
+            timestamp: String,
+            text: String,
+            can_edit: Boolean
         },
         mounted: function() {
             $(this.$el.querySelector('.gource-caption-datetimepicker')).datetimepicker({
@@ -693,9 +701,9 @@
         },
         template: `
           <div class="form-group form-inline gource-caption-container" style="display:flex; width:100%;">
-            <input type="text" class="form-control form-control-sm gource-caption-datetimepicker" placeholder="YYYY-MM-DD HH:mm:ss" :value="timestamp" v-on:input="$emit('input:timestamp', $event.target.value)" v-on:change="$emit('change:timestamp', $event.target.value)" />
-            <input type="text" class="form-control form-control-sm gource-caption-text" placeholder="Message" :value="text" v-on:input="$emit('input:text', $event.target.value)" v-on:change="$emit('change:text', $event.target.value)" />
-            <span class="project-caption-remove text-danger" v-on:click="$emit('remove-caption')" style="padding-left:12px; cursor:pointer;"><i class="fa fa-times"></i></span>
+            <input type="text" class="form-control form-control-sm gource-caption-datetimepicker" placeholder="YYYY-MM-DD HH:mm:ss" :value="timestamp" v-on:input="$emit('input:timestamp', $event.target.value)" v-on:change="$emit('change:timestamp', $event.target.value)" :readonly="!can_edit" />
+            <input type="text" class="form-control form-control-sm gource-caption-text" placeholder="Message" :value="text" v-on:input="$emit('input:text', $event.target.value)" v-on:change="$emit('change:text', $event.target.value)" :readonly="!can_edit" />
+            <span class="project-caption-remove text-danger" v-if="can_edit" v-on:click="$emit('remove-caption')" style="padding-left:12px; cursor:pointer;" title="Delete this caption"><i class="fa fa-times"></i></span>
           </div>
         `
     });
@@ -750,7 +758,7 @@
             }
             captions_list.push({
                 timestamp: caption_dt,
-                text: caption_text
+                text: caption_text,
             });
         });
         if (error_captions.length > 0) {
@@ -896,6 +904,7 @@
             //console.log(item);
             let moment_timestamp = moment(item.timestamp);
             item.timestamp = moment_timestamp.format('YYYY-MM-DD HH:mm:ss');
+            item.can_edit = IS_LATEST_BUILD;    // TODO check permissions
             captions_container.captions_list.push(item);
             return;
             /*
@@ -914,8 +923,16 @@
 
         if (!IS_LATEST_BUILD) {
             // Remove selectable options
-            let $selector = $('#project-gource-options-container');
-            $selector.remove();
+            // - Add Setting
+            $('#project-gource-options-container').remove();
+            // - Save Settings
+            $('.save-project-settings-btn').remove();
+            // - Edit Audio File
+            $('.edit-audio-file').remove();
+            // - Add/Save Captions
+            $('.add-caption-btn').remove();
+            $('.project-caption-actions').remove()
+
         }
     });
   </script>

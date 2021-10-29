@@ -62,7 +62,7 @@ GOURCE_OPTIONS = {
         'label': 'Seconds Per Day',
         'type': 'float',
         'description': "Speed of simulation in seconds per day.",
-        'description_help': "The main setting to adjust when determining video length.  For most projects this should be lower than 0.5.",
+        'description_help': "This is the main setting to adjust when determining video length.  Lower means a shorter video, and for most projects this should be less than 0.5.",
         'default': 1.0,
         'parser': float,
         'validator': validate_range(min_value=0),

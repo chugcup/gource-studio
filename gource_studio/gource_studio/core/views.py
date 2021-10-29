@@ -168,6 +168,9 @@ def edit_project(request, project_id=None, project_slug=None):
     data = json.loads(request.body)
     logging.error(request.POST)
     logging.error(data)
+
+    # TODO: 'video_size'
+
     if 'gource_options' in data:
         if isinstance(data['gource_options'], dict):
             new_options = []

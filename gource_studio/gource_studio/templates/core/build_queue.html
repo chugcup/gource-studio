@@ -44,7 +44,11 @@
                   <small class="float-right">
                     {{ build.created_at }}
                   </small>
+                {% if build.id == build.project.latest_build.id %}
                   <a href="{% url 'project-details' build.project.id %}">
+                {% else %}
+                  <a href="{% url 'project-build-details' build.project.id build.id %}">
+                {% endif %}
                   {% if build.project.name %}
                     {{ build.project.name }}
                   {% else %}
@@ -52,7 +56,7 @@
                   {% endif %}
                   </a>
                   <small>
-                  {% if build.id != latest_build.id %}
+                  {% if build.id != build.project.latest_build.id %}
                     (Build ID = {{build.id}})
                   {% endif %}
                   </small>
