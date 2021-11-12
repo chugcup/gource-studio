@@ -7,6 +7,7 @@ from ..models import (
     ProjectBuildOption,
     ProjectCaption,
     ProjectOption,
+    ProjectMember,
     ProjectUserAvatar,
     ProjectUserAvatarAlias,
     UserAvatar,
@@ -32,6 +33,37 @@ class ProjectLogSerializer(serializers.Serializer):
         fields = ('commit_hash', 'commit_preview', 'commit_time', 'updated_at', 'url')
 
 
+class ProjectMemberSerializer(serializers.HyperlinkedModelSerializer):
+    project = serializers.SerializerMethodField('get_project_url')
+    project_id = serializers.PrimaryKeyRelatedField(source='project', read_only=True)
+    user = serializers.SerializerMethodField()
+    date_added = serializers.DateTimeField(read_only=True)
+    added_by = serializers.SerializerMethodField()
+
+    def get_project_url(self, obj):
+        return reverse('api-project-detail', args=[obj.project_id], request=self.context.get('request'))
+
+    def get_user(self, obj):
+        return {
+            "id": obj.user.id,
+            "username": obj.user.username
+        }
+
+    def get_added_by(self, obj):
+        if obj.added_by is None:
+            return None
+        return {
+            "id": obj.added_by.id,
+            "username": obj.added_by.username
+        }
+
+    class Meta:
+        model = ProjectMember
+        fields = ('project', 'project_id', 'user', 'role',
+                  'date_added', 'added_by')
+
+
+
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     url = serializers.SerializerMethodField()
     project_log = ProjectLogSerializer(source='*')
@@ -39,6 +71,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     builds = serializers.SerializerMethodField('get_builds_url')
     avatars = serializers.SerializerMethodField('get_avatars_url')
     captions = serializers.SerializerMethodField('get_captions_url')
+    members = serializers.SerializerMethodField('get_members_url')
     build_audio = serializers.SerializerMethodField('get_build_audio_url')
 
     def get_url(self, obj):
@@ -56,6 +89,9 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     def get_captions_url(self, obj):
         return reverse('api-project-captions-list', args=[obj.pk], request=self.context.get('request'))
 
+    def get_members_url(self, obj):
+        return reverse('api-project-members-list', args=[obj.pk], request=self.context.get('request'))
+
     def get_build_audio_url(self, obj):
         if obj.build_audio:
             return reverse('api-project-build-audio-download', args=[obj.pk], request=self.context.get('request'))
@@ -67,7 +103,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                   'project_log', 'build_title', 'build_logo',
                   'build_audio', 'build_audio_name',
                   'options', 'builds', 'captions', 'avatars',
-                  'created_at', 'updated_at', 'url')
+                  'is_public', 'created_at', 'updated_at', 'url')
 
 
 class ProjectBuildSerializer(serializers.HyperlinkedModelSerializer):

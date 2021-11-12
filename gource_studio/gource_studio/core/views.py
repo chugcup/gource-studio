@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import logging
 import os
@@ -8,13 +8,14 @@ import urllib
 
 from django import forms
 from django.conf import settings
+from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.paginator import Paginator
-from django.db.models import DateTimeField, Exists, Max, OuterRef, Q, Value
+from django.db.models import DateTimeField, Exists, Max, OuterRef, Prefetch, Q, Subquery, Value
 from django.db.models.functions import Coalesce, Greatest
 from django.http import HttpResponse, HttpResponseRedirect
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, render, redirect
 from django.utils import dateparse
 from django.utils.timezone import make_aware, now as utc_now
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -43,26 +44,88 @@ from .utils import (
 SITE_NAME = settings.SITE_NAME
 
 
+def _get_project_permissions(project, actor):
+    # There's gotta be a simpler way...
+    perms = {}
+    # Determine CRUD actions
+    for action in ['view', 'edit', 'delete']:
+        perms[action] = project.check_permission(actor, action)
+    # Determine 'role'
+    if actor.is_superuser or actor == project.created_by:
+        perms['role'] = 'maintainer'
+    elif not actor.is_anonymous:
+        member = project.members.filter(user=actor).first()
+        if member:
+            perms['role'] = member.role
+    return perms
+
+
 #############################################################################
 ##  Main Views
 #############################################################################
+
+
+def login(request):
+    "User Login"
+    if request.user.is_authenticated:
+        return redirect('index')
+
+    if request.method == 'POST':
+        username = request.POST['username']
+        password = request.POST['password']
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            auth_login(request, user)
+            # Redirect to a success page.
+            return redirect('index')
+            #return render(request, 'core/login.html', context)
+        else:
+            # Return an 'invalid login' error message.
+            context = {
+                'document_title': f'Login - {SITE_NAME}',
+                'nav_page': '',
+                'error': 'Invalid username/password',
+            }
+            return render(request, 'core/login.html', context)
+
+    context = {
+        'document_title': f'Login - {SITE_NAME}',
+        'nav_page': '',
+    }
+    return render(request, 'core/login.html', context)
+
+
+def logout(request):
+    "User Logout"
+    auth_logout(request)
+    # Allow for redirecting back to same page (via Referer)
+    referer = request.META.get("HTTP_REFERER")
+    if referer:
+        # Clean the Referer value by scrubbing everything but 'path' and 'query'
+        ref_safe = urllib.parse.urlparse(referer)
+        next_path = ref_safe.path
+        if ref_safe.query:
+            next_path = f"{next_path}?{ref_safe.query}"
+        return redirect(next_path)
+    # Fallback to home page
+    return redirect('index')
 
 
 def index(request):
     "Landing page"
     # Return latest 8 projects
     # - Subquery filter removes any projects without a successful build
-    # TODO: sort by latest build
-    context = {
-        'document_title': f'{SITE_NAME} - Generate Video Timelines of Software Projects',
-        'nav_page': '',
-        'projects': Project.objects.prefetch_related('builds')\
+    projects_list = Project.objects.filter_permissions(request.user)\
+                                   .with_latest_build()\
                                    .annotate(latest_build_time=Max('builds__completed_at'))\
                                    .filter(
                                        Exists(ProjectBuild.objects.filter(project=OuterRef('pk'))\
                                                                   .exclude(content=''))
-                                   )\
-                                   .order_by('-latest_build_time')[:8],
+                                   )
+    context = {
+        'document_title': f'{SITE_NAME} - Generate Video Timelines of Software Projects',
+        'nav_page': '',
+        'projects': projects_list.order_by('-latest_build_time')[:8],
     }
     return render(request, 'core/index.html', context)
 
@@ -73,7 +136,8 @@ def projects(request):
     if sort_key not in ['id']:
         sort_key = 'latest_activity_time'   # Default
         #sort_key = 'latest_build_time'  # Default
-    queryset = Project.objects.prefetch_related('builds')\
+    queryset = Project.objects.filter_permissions(request.user)\
+                      .with_latest_build()\
                       .annotate(
                         latest_build_time=Coalesce(
                             Max('builds__completed_at'),
@@ -103,10 +167,11 @@ def projects(request):
 @ensure_csrf_cookie
 def project_details(request, project_id=None, project_slug=None, build_id=None):
     "Project Details page"
+    queryset = Project.objects.filter_permissions(request.user)
     if project_id:
-        project = get_object_or_404(Project, **{'id': project_id})
+        project = get_object_or_404(queryset, **{'id': project_id})
     elif project_slug:
-        project = get_object_or_404(Project, **{'project_slug': project_slug})
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
 
     build = None
     is_latest_build = True
@@ -134,6 +199,7 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
         'nav_page': 'projects',
         'body_min_padding': True,
         'project': project,
+        'project_permissions': _get_project_permissions(project, request.user),
         'project_options': project_options,
         'project_options_json': [
             json.dumps(opt.to_dict()) for opt in project_options
@@ -148,6 +214,7 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
         ],
         'build': build,
         'is_latest_build': is_latest_build,
+        'user_can_edit': project.check_permission(request.user, 'edit')
     }
     return render(request, 'core/project.html', context)
 
@@ -155,10 +222,11 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
 @ensure_csrf_cookie
 def edit_project(request, project_id=None, project_slug=None):
     "Edit Project Settings view"
+    queryset = Project.objects.filter_permissions(request.user)
     if project_id:
-        project = get_object_or_404(Project, **{'id': project_id})
+        project = get_object_or_404(queryset, **{'id': project_id})
     elif project_slug:
-        project = get_object_or_404(Project, **{'project_slug': project_slug})
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
     if request.method not in ['POST', 'PUT', 'PATCH']:
         return HttpResponseRedirect(f'/projects/{project.id}/')
 
@@ -235,10 +303,11 @@ def edit_project(request, project_id=None, project_slug=None):
 @ensure_csrf_cookie
 def project_actions(request, project_id=None, project_slug=None):
     "Project Actions view"
+    queryset = Project.objects.filter_permissions(request.user)
     if project_id:
-        project = get_object_or_404(Project, **{'id': project_id})
+        project = get_object_or_404(queryset, **{'id': project_id})
     elif project_slug:
-        project = get_object_or_404(Project, **{'project_slug': project_slug})
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
     if request.method not in ['POST']:
         return HttpResponseRedirect(f'/projects/{project.id}/')
 
@@ -310,17 +379,20 @@ def project_actions(request, project_id=None, project_slug=None):
 
 def project_builds(request, project_id=None, project_slug=None):
     "Project Builds page"
+    queryset = Project.objects.filter_permissions(request.user)
     if project_id:
-        project = get_object_or_404(Project, **{'id': project_id})
+        project = get_object_or_404(queryset, **{'id': project_id})
     elif project_slug:
-        project = get_object_or_404(Project, **{'project_slug': project_slug})
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
     context = {
         'document_title': f'Project Builds - {SITE_NAME}',
         'nav_page': 'projects',
         'project': project,
+        'project_permissions': _get_project_permissions(project, request.user),
         'builds': ProjectBuild.objects.select_related('project')\
                                      .filter(project=project)\
                                      .order_by('-id'),
+        'user_can_edit': project.check_permission(request.user, 'edit')
     }
     # Pagination
     paginator = Paginator(context['builds'], 10)
@@ -332,10 +404,11 @@ def project_builds(request, project_id=None, project_slug=None):
 
 def project_build_screenshot(request, project_id=None, project_slug=None, build_id=None):
     "Project Build screenshot"
+    queryset = Project.objects.filter_permissions(request.user)
     if project_id:
-        project = get_object_or_404(Project, **{'id': project_id})
+        project = get_object_or_404(queryset, **{'id': project_id})
     elif project_slug:
-        project = get_object_or_404(Project, **{'project_slug': project_slug})
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
     else:
         get_object_or_404(Project, **{'id': None})  # Force 404
     # Get by specific build # (or latest build)
@@ -351,10 +424,11 @@ def project_build_screenshot(request, project_id=None, project_slug=None, build_
 
 def project_build_thumbnail(request, project_id=None, project_slug=None, build_id=None):
     "Project Build thumbnail"
+    queryset = Project.objects.filter_permissions(request.user)
     if project_id:
-        project = get_object_or_404(Project, **{'id': project_id})
+        project = get_object_or_404(queryset, **{'id': project_id})
     elif project_slug:
-        project = get_object_or_404(Project, **{'project_slug': project_slug})
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
     else:
         get_object_or_404(Project, **{'id': None})  # Force 404
     # Get by specific build # (or latest build)
@@ -370,10 +444,11 @@ def project_build_thumbnail(request, project_id=None, project_slug=None, build_i
 
 def project_build_video(request, project_id=None, project_slug=None, build_id=None):
     "Project Build video"
+    queryset = Project.objects.filter_permissions(request.user)
     if project_id:
-        project = get_object_or_404(Project, **{'id': project_id})
+        project = get_object_or_404(queryset, **{'id': project_id})
     elif project_slug:
-        project = get_object_or_404(Project, **{'project_slug': project_slug})
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
     else:
         get_object_or_404(Project, **{'id': None})  # Force 404
     # Get by specific build # (or latest build)
@@ -389,10 +464,11 @@ def project_build_video(request, project_id=None, project_slug=None, build_id=No
 
 def project_build_gource_log(request, project_id=None, project_slug=None, build_id=None):
     "Project (Build) Gource log"
+    queryset = Project.objects.filter_permissions(request.user)
     if project_id:
-        project = get_object_or_404(Project, **{'id': project_id})
+        project = get_object_or_404(queryset, **{'id': project_id})
     elif project_slug:
-        project = get_object_or_404(Project, **{'project_slug': project_slug})
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
 
     if build_id is not None:
         # Get build log
@@ -412,10 +488,11 @@ def avatar_image(request, avatar_id):
 
 def project_avatar_image(request, project_id=None, project_slug=None, avatar_id=None):
     "Project avatar image"
+    queryset = Project.objects.filter_permissions(request.user)
     if project_id:
-        project = get_object_or_404(Project, **{'id': project_id})
+        project = get_object_or_404(queryset, **{'id': project_id})
     elif project_slug:
-        project = get_object_or_404(Project, **{'project_slug': project_slug})
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
     avatar = get_object_or_404(ProjectUserAvatar, **{'project_id': project.id, 'id': avatar_id})
     filepath = avatar.image.path
     return serve(request, os.path.basename(filepath), os.path.dirname(filepath))
@@ -450,10 +527,11 @@ def avatar_upload(request):
 @ensure_csrf_cookie
 def project_avatar_upload(request, project_id=None, project_slug=None):
     "Upload a new project avatar"
+    queryset = Project.objects.filter_permissions(request.user)
     if project_id:
-        project = get_object_or_404(Project, **{'id': project_id})
+        project = get_object_or_404(queryset, **{'id': project_id})
     elif project_slug:
-        project = get_object_or_404(Project, **{'project_slug': project_slug})
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
 
     if request.method == 'POST':
         form = UploadAvatarForm(request.POST, request.FILES)
@@ -481,10 +559,11 @@ class UploadAudioForm(forms.Form):
 @ensure_csrf_cookie
 def project_audio_upload(request, project_id=None, project_slug=None):
     "Upload a new project audio file (MP3)"
+    queryset = Project.objects.filter_permissions(request.user)
     if project_id:
-        project = get_object_or_404(Project, **{'id': project_id})
+        project = get_object_or_404(queryset, **{'id': project_id})
     elif project_slug:
-        project = get_object_or_404(Project, **{'project_slug': project_slug})
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
 
     if request.method == 'POST':
         form = UploadAudioForm(request.POST, request.FILES)
@@ -507,10 +586,11 @@ def project_audio_upload(request, project_id=None, project_slug=None):
 
 @ensure_csrf_cookie
 def project_queue_build(request, project_id=None, project_slug=None):
+    queryset = Project.objects.filter_permissions(request.user)
     if project_id:
-        project = get_object_or_404(Project, **{'id': project_id})
+        project = get_object_or_404(queryset, **{'id': project_id})
     elif project_slug:
-        project = get_object_or_404(Project, **{'project_slug': project_slug})
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
 
     # Determine if project log should be re-downloaded
     refetch_log = request.GET.get('refetch_log', None)
@@ -583,6 +663,9 @@ def project_queue_build(request, project_id=None, project_slug=None):
 @ensure_csrf_cookie
 def new_project(request):
     "New Project page"
+    if not request.user.is_authenticated:
+        return HttpResponse(json.dumps({"error": True, "message": "You must have an account to create a project."}), status=403, content_type="application/json")
+
     # Save a new project
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -645,7 +728,8 @@ def new_project(request):
             name=project_name,
             project_url=project_url,
             project_vcs=project_vcs,
-            project_branch=project_branch
+            project_branch=project_branch,
+            created_by=request.user
         )
         # Populate attributes from source download
         if log_hash:
@@ -693,6 +777,7 @@ def avatars(request):
         'avatars': UserAvatar.objects.prefetch_related('aliases')\
                                      .order_by('name'),
         'page_view': 'avatars',
+        'user_can_edit': not request.user.is_anonymous,
     }
     # Pagination
     paginator = Paginator(context['avatars'], 20)
@@ -704,10 +789,11 @@ def avatars(request):
 
 def project_avatars(request, project_id=None, project_slug=None):
     "Project avatars page"
+    queryset = Project.objects.filter_permissions(request.user)
     if project_id:
-        project = get_object_or_404(Project, **{'id': project_id})
+        project = get_object_or_404(queryset, **{'id': project_id})
     elif project_slug:
-        project = get_object_or_404(Project, **{'project_slug': project_slug})
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
 
     try:
         project_data = project.analyze_log()
@@ -719,11 +805,13 @@ def project_avatars(request, project_id=None, project_slug=None):
         'document_title': f'Project Avatars - {SITE_NAME}',
         'nav_page': 'projects',
         'project': project,
+        'project_permissions': _get_project_permissions(project, request.user),
         'contributors': contributors_list,
         'avatars': ProjectUserAvatar.objects.prefetch_related('aliases')\
-                                                  .filter(project_id=project.id)\
-                                                  .order_by('name'),
+                                            .filter(project_id=project.id)\
+                                            .order_by('name'),
         'page_view': 'project_avatars',
+        'user_can_edit': project.check_permission(request.user, 'edit')
     }
     # Pagination
     paginator = Paginator(context['avatars'], 20)
@@ -736,6 +824,14 @@ def project_avatars(request, project_id=None, project_slug=None):
 def build_queue(request):
     "Build Queue page"
     queryset = ProjectBuild.objects.select_related('project')
+    queryset = queryset.prefetch_related(
+        Prefetch('project__builds', to_attr='_cached_latest_build',
+                 queryset=ProjectBuild.objects.exclude(content='').order_by('-created_at'))
+    )
+    # Filter by accessible projects
+    projects_list = Project.objects.filter_permissions(request.user)
+    queryset = queryset.filter(project__in=projects_list)
+    #queryset = queryset.filter(
     search = request.GET.get('search', None)
     if search:
         queryset = queryset.filter(Q(project__name__icontains=search)|Q(project__project_url__contains=search))
@@ -979,8 +1075,8 @@ def make_video(request):
 
 
 def estimate_project_duration(request, project_id):
-    response = ''
-    project = get_object_or_404(Project, **{'pk': project_id})
+    queryset = Project.objects.filter_permissions(request.user)
+    project = get_object_or_404(queryset, **{'pk': project_id})
     latest_build = project.latest_build
 
     with open(project.project_log.path, 'r') as f:
@@ -1011,7 +1107,6 @@ def estimate_project_duration(request, project_id):
         'auto-skip-seconds': ass,
     }
     duration = estimate_gource_video_duration(data, gource_options=gource_options)
-    from datetime import timedelta
     td_duration = str(timedelta(seconds=int(duration)))
     response = {
         "duration": duration,

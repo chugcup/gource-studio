@@ -1,10 +1,14 @@
 import os
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import models
 from django.urls import reverse
+from django.utils.functional import SimpleLazyObject
 from django.utils.timezone import make_aware, now as utc_now
 
+#from .managers import ProjectManager
+from .managers import ProjectQuerySet
 from .utils import (
     analyze_gource_log,     #(data):
 )
@@ -59,9 +63,13 @@ class Project(models.Model):
     build_audio = models.FileField(upload_to=get_build_audio_path, blank=True, null=True)
     build_audio_name = models.CharField(max_length=255, null=True)
 
+    # Determine if project is publicly-visible or restricted to project members
+    is_public = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='projects', on_delete=models.CASCADE, null=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='projects_created', on_delete=models.CASCADE, null=True)
+
+    objects = ProjectQuerySet.as_manager()
 
     def __str__(self):
         return self.name
@@ -74,6 +82,8 @@ class Project(models.Model):
         return self.get_latest_build()
 
     def get_latest_build(self):
+        if hasattr(self, '_cached_latest_build'):
+            return self._cached_latest_build[0]
         return self.builds.exclude(content='').order_by('-created_at').first()
 
     def analyze_log(self):
@@ -99,6 +109,43 @@ class Project(models.Model):
         if not caption_lines:
             return None
         return caption_lines
+
+    def check_permission(self, actor, action):
+        """
+        Return True/False if `User` can perform `action` on this project.
+
+        The "edit" and "delete" permissions checks the `ProjectMember` relation.
+        For "view", checks the `is_public` flag set on project.
+        """
+        if not isinstance(actor, (get_user_model(), SimpleLazyObject)):
+            raise ValueError(f"Invalid 'actor' instance: {type(actor)}")
+        action = str(action).lower()
+        if action not in ["view", "edit", "delete"]:
+            raise ValueError(f"Invalid 'action' given: {action}")
+
+        # Early short-circuit for superusers
+        if actor.is_superuser or actor == self.created_by:
+            return True
+        # Anonymous user check
+        elif actor.is_anonymous:
+            if action == 'view':
+                return self.is_public
+            return False
+
+        # Check each permission
+        # + "view" - View project (if not `is_public` set)
+        if action == 'view':
+            if not self.is_public:
+                return self.members.filter(user=actor).exists()
+            return True
+        # + "edit" - Create new builds, change settings, add captions/user aliases
+        elif action == 'edit':
+            return self.members.filter(user=actor, role__in=['developer', 'maintainer']).exists()
+        # + "delete" - Delete overall project
+        elif action == 'delete':
+            return self.members.filter(user=actor, role__in=['maintainer']).exists()
+
+        return ValueError(f"Invalid 'action' given: {action}")
 
 
 class ProjectOption(models.Model):
@@ -412,3 +459,27 @@ class ProjectUserAvatarAlias(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ProjectMember(models.Model):
+    """
+    Tracks per-project member rights that allows non-creators to manage project.
+    """
+    PROJECT_ROLES = [
+        ("developer", "Developer"),
+        ("maintainer", "Maintainer"),
+    ]
+
+    project = models.ForeignKey(Project, related_name="members", on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="projects", on_delete=models.CASCADE)
+    role = models.CharField(max_length=32, choices=PROJECT_ROLES, default="developer")
+
+    date_added = models.DateTimeField(auto_now=True)
+    added_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        ordering = ('-date_added',)
+        unique_together = ('project', 'user')
+
+    def __str__(self):
+        return self.user.username

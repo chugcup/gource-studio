@@ -25,6 +25,7 @@ urlpatterns = [
     re_path(r'^projects/(?P<project_id>\d+)/builds/(?P<project_build_id>\d+)/screenshot/download/?$', views.ProjectBuildScreenshotDownload.as_view(), name='api-project-build-screenshot-download'),
     re_path(r'^projects/(?P<project_id>\d+)/builds/(?P<project_build_id>\d+)/thumbnail/download/?$', views.ProjectBuildThumbnailDownload.as_view(), name='api-project-build-thumbnail-download'),
     re_path(r'^projects/(?P<project_id>\d+)/captions/?$', views.ProjectCaptionsList.as_view(), name='api-project-captions-list'),
+    re_path(r'^projects/(?P<project_id>\d+)/members/?$', views.ProjectMembersList.as_view(), name='api-project-members-list'),
     re_path(r'^projects/(?P<project_id>\d+)/options/?$', views.ProjectOptionsList.as_view(), name='api-project-options-list'),
     re_path(r'^projects/(?P<project_id>\d+)/project_log/download/?$', views.ProjectLogDownload.as_view(), name='api-project-log-download'),
 ]

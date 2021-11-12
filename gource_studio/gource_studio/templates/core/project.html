@@ -505,7 +505,7 @@
                 } else {
                     new_option.value = "";
                 }
-                new_option.can_edit = IS_LATEST_BUILD;  // Readonly (TODO: check permissions)
+                new_option.can_edit = !IS_READONLY;
                 new_option.popover_id = "gource-option-popover-"+new_option.name;
                 new_option.value_default = new_option.default;  // Alias to avoid JS keyword
                 console.log('new_option = ',new_option);
@@ -665,7 +665,7 @@
                     id: id,
                     timestamp: timestamp,
                     text: text,
-                    can_edit: IS_LATEST_BUILD,  // TODO check permissions
+                    can_edit: !IS_READONLY,
                 });
             },
             removeOption: function(id) {
@@ -873,7 +873,9 @@
   {% endverbatim %}
   <script type="text/javascript">
     let PROJECT_ID = {{ project.id }};
+    let CAN_USER_EDIT = {{ user_can_edit|lower }};
     let IS_LATEST_BUILD = {{ is_latest_build|lower }};
+    let IS_READONLY = !CAN_USER_EDIT || !IS_LATEST_BUILD;
     $(document).ready(function() {
         // Load all available build options for Gource
         let gource_options = [{% for gource_opt in gource_options_json %}
@@ -904,7 +906,7 @@
             //console.log(item);
             let moment_timestamp = moment(item.timestamp);
             item.timestamp = moment_timestamp.format('YYYY-MM-DD HH:mm:ss');
-            item.can_edit = IS_LATEST_BUILD;    // TODO check permissions
+            item.can_edit = !IS_READONLY;
             captions_container.captions_list.push(item);
             return;
             /*
@@ -921,7 +923,7 @@
             */
         });
 
-        if (!IS_LATEST_BUILD) {
+        if (IS_READONLY) {
             // Remove selectable options
             // - Add Setting
             $('#project-gource-options-container').remove();
@@ -929,10 +931,10 @@
             $('.save-project-settings-btn').remove();
             // - Edit Audio File
             $('.edit-audio-file').remove();
+            $('.remix-audio-btn').remove();
             // - Add/Save Captions
             $('.add-caption-btn').remove();
             $('.project-caption-actions').remove()
-
         }
     });
   </script>

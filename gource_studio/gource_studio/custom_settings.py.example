@@ -1,4 +1,4 @@
-TIME_ZONE = 'US/Eastern'
+TIME_ZONE = "US/Eastern"
 CELERY_TIMEZONE = "US/Eastern"
 
 # Whitelist of web domains that projects can be pulled from
@@ -11,3 +11,8 @@ PROJECT_DOMAINS = [
 ALLOWED_HOSTS = ['*']
 
 DEBUG = True
+
+#if DEBUG:
+#    INTERNAL_IPS = ["127.0.0.1"]
+#    INSTALLED_APPS += ['debug_toolbar']
+#    MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']

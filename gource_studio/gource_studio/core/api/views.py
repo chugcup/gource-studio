@@ -12,6 +12,7 @@ from ..models import (
     ProjectBuild,
     ProjectBuildOption,
     ProjectCaption,
+    ProjectMember,
     ProjectOption,
     ProjectUserAvatar,
     ProjectUserAvatarAlias,
@@ -23,6 +24,7 @@ from .serializers import (
     ProjectBuildSerializer,
     ProjectCaptionSerializer,
     ProjectLogSerializer,
+    ProjectMemberSerializer,
     ProjectOptionSerializer,
     ProjectSerializer,
     ProjectUserAvatarAliasSerializer,
@@ -95,6 +97,19 @@ class ProjectBuildAudioDownload(views.APIView):
     def get(self, request, *args, **kwargs):
         project = get_object_or_404(Project, **{'id': self.kwargs['project_id']})
         return _serve_file_field(request, project, 'build_audio')
+
+
+class ProjectMembersList(generics.ListAPIView):
+    """
+    Retrieve the current list of members for a project.
+    """
+    queryset = ProjectMember.objects.all()
+    serializer_class = ProjectMemberSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        project = get_object_or_404(Project, **{'id': self.kwargs['project_id']})
+        return super().get_queryset().filter(project=project)
 
 
 class ProjectOptionsList(generics.ListAPIView):

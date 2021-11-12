@@ -2,6 +2,7 @@ billiard
 celery
 Django>=3.2
 django-filter
+django-split-settings
 djangorestframework
 Markdown
 Pillow

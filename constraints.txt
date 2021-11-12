@@ -8,6 +8,7 @@ click-plugins==1.1.1
 click-repl==0.1.6
 Django==3.1.4
 django-filter==2.4.0
+django-split-settings==1.1.0
 djangorestframework==3.12.2
 kombu==5.0.2
 Pillow>=4

@@ -1,0 +1,30 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+  <div class="container">
+    <div class="row text-center">
+      <div class="col"></div>
+      <div class="col-lg-4 col-md-6 col-sm-8 col-8">
+        <form class="form-group" method="POST" action="/login/">
+          <div class="input-group">
+            <label for="username">Username:</label>
+            <input id="username" class="form-control" type="text" name="username" value="" tabindex="1" />
+          </div>
+          <div class="input-group">
+            <label for="password">Password:</label>
+            <input id="password" class="form-control" type="password" name="password" value="" tabindex="2" />
+          </div>
+          <br />
+          <button class="btn btn-primary" type="submit" tabindex="3">Login</button>
+          {% csrf_token %}
+        </form>
+      {% if error %}
+        <p class="text-danger">
+          {{ error }}
+        </p>
+      {% endif %}
+      </div>
+      <div class="col"></div>
+    </div>
+  </div>
+{% endblock %}

@@ -7,12 +7,14 @@
 {% block content %}
   {% with latest_build=project.latest_build %}
   <div class="container">
+  {% if user_can_edit %}
     <div class="float-right">
       <button class="btn btn-primary queue-project-build-btn" title="Queue a new video build">
         <i class="fa fa-plus"></i>
         Queue Build
       </button>
     </div>
+  {% endif %}
     <h3>
       <small>
         <a href="{% url 'project-details' project.id %}">Project</a>

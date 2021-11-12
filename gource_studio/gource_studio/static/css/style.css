@@ -34,6 +34,33 @@ a.navbar-brand:hover > span {
     margin-bottom: -8px;
 }
 
+.nav-item.nav-login {
+    line-height: 2.4;
+    margin-right: 12px;
+}
+.nav-item.nav-user-panel {
+    border-left: 1px solid #666666;
+    margin-left: 4px;
+}
+.nav-item.nav-user-panel .dropdown {
+    padding: 7px 0 0 12px;
+    margin-right: -70px;
+}
+.nav-item.nav-user-panel .dropdown > a {
+    display: inline-block;
+    max-width: 100px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    color: #FFFFFF;
+}
+.nav-item.nav-user-panel .dropdown > a:hover {
+    text-decoration: none;
+    opacity: 0.8;
+}
+.nav-item.nav-user-panel .dropdown .dropdown-menu {
+}
+
 .card-body {
     padding: 4px;
 }

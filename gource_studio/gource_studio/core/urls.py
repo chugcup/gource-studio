@@ -4,6 +4,8 @@ from . import views
 
 urlpatterns = [
     re_path(r'^$', views.index, name='index'),
+    re_path(r'^login/?$', views.login, name='login'),
+    re_path(r'^logout/?$', views.logout, name='logout'),
     re_path(r'^avatars/?$', views.avatars, name='avatars'),
     re_path(r'^avatars/upload/?$', views.avatar_upload, name='avatar-upload'),
     #re_path(r'^avatars/(?P<avatar_id>\d+)/$', views.avatar_details, name='avatar-details'),

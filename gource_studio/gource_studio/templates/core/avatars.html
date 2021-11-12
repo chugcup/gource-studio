@@ -2,18 +2,16 @@
 
 {% block content %}
   <div class="container">
+  {% if user_can_edit %}
     <div class="float-right" style="width:240px">
-    {% if page_view == 'project_avatars' %}
-      <form method="POST" action="{% url 'project-avatar-upload' project.id %}" class="form-inline" enctype="multipart/form-data">
-    {% else %}
-      <form method="POST" action="{% url 'avatar-upload' %}" class="form-inline" enctype="multipart/form-data">
-    {% endif %}
+      <form method="POST" action="{% if page_view == 'project_avatars' %}{% url 'project-avatar-upload' project.id %}{% else %}{% url 'avatar-upload' %}{% endif %}" class="form-inline" enctype="multipart/form-data">
         <input id="avatar_name" class="form-control form-control-sm" type="text" name="name" text="" placeholder="Name" style="margin:0 8px; width:150px"/>
         <button type="submit" class="btn btn-primary btn-sm">Submit</button>
         <input id="avatar_image" class="form-control-file form-control-sm" type="file" name="image" />
         {% csrf_token %}
       </form>
     </div>
+  {% endif %}
     <h3>
     {% if page_view == 'project_avatars' %}
       <small>
