@@ -160,3 +160,17 @@ PROJECT_DOMAINS = [
     'github.com',
     'gitlab.com',
 ]
+
+# Custom software executable paths
+# - `git`
+GIT_PATH = None
+# - `hg` (Mercurial)
+MERCURIAL_PATH = None
+# - `ffmpeg`
+FFMPEG_PATH = None
+# - `ffprobe`
+FFPROBE_PATH = None
+# - `ffplay`
+FFPLAY_PATH = None
+# - `gource`
+GOURCE_PATH = None

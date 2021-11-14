@@ -31,7 +31,7 @@ def get_gource():
 def get_git():
     return get_executable_path('git', 'GIT_PATH')
 def get_mercurial():
-    return get_executable_path('mercurial', 'MERCURIAL_PATH')
+    return get_executable_path('hg', 'MERCURIAL_PATH')
 
 def get_ffmpeg():
     return get_executable_path('ffmpeg', 'FFMPEG_PATH')
