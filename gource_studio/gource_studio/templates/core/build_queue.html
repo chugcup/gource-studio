@@ -4,20 +4,20 @@
 {% endblock %}
 
 {% block content %}
-  <div class="container">
-    <h3 class="float-left" style="margin-right:40px">Build Queue</h3>
-    <form action="{% url 'build-queue' %}" method="GET" class="build-queue-search-container" style="display:inline-block; width: 600px;">
-      <div class="input-group">
-        <input type="text" name="search" class="form-control build-queue-search" placeholder="Name, URL, ..." value="{{ search|default_if_none:"" }}" />
-        <div class="input-group-append">
-          <button class="btn btn-default btn-outline-secondary" type="button">Search</button>
+  <div class="main-container container">
+    <div>
+      <h3 class="float-left" style="margin-right:40px">Build Queue</h3>
+      <form action="{% url 'build-queue' %}" method="GET" class="build-queue-search-container" style="display:inline-block; width: 600px;">
+        <div class="input-group">
+          <input type="text" name="search" class="form-control build-queue-search" placeholder="Name, URL, ..." value="{{ search|default_if_none:"" }}" />
+          <div class="input-group-append">
+            <button class="btn btn-default btn-outline-secondary" type="button">Search</button>
+          </div>
         </div>
-      </div>
-    </form>
-    <hr />
-  </div>
+      </form>
+      <hr />
+    </div>
 
-  <div class="container">
     <div class="row text-center">
     {% for build in page_obj %}
       <div class="project-build-panel col-lg-12 col-md-12 mb-12">

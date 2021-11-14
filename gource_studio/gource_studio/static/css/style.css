@@ -19,6 +19,9 @@ footer {
     flex-grow: 1;
 }
 
+.main-container {
+}
+
 .navbar-brand {
     /*padding: 0;     /* Padding applied by logo image */
 }
@@ -64,6 +67,17 @@ a.navbar-brand:hover > span {
 .card-body {
     padding: 4px;
 }
+
+/* New Project */
+#new-project-errors {
+    color: #FF0000;
+    padding-top: 12px;
+    font-size: 1.1em;
+    max-width: 800px;
+    text-align: center;
+    margin: 0 auto;
+}
+
 
 /* Projects/Builds List */
 .project-item-container {

@@ -239,6 +239,15 @@ def edit_project(request, project_id=None, project_slug=None):
 
     # TODO: 'video_size'
 
+    # General project fields
+    project_updated = False
+    update_fields = []
+    for field in ['project_slug', 'is_public']:
+        if field in data:
+            setattr(project, field, data[field])
+            project_updated = True
+            update_fields.append(field)
+
     if 'gource_options' in data:
         if isinstance(data['gource_options'], dict):
             new_options = []
@@ -295,6 +304,9 @@ def edit_project(request, project_id=None, project_slug=None):
             ProjectCaption.objects.bulk_create(new_captions)
         else:
             logging.error(f"Invalid 'captions' list provided: {data['captions']}")
+
+    if project_updated:
+        project.save(update_fields=update_fields)
 
     response = {"error": False, "message": "Project saved successfully."}
     return HttpResponse(json.dumps(response), status=201, content_type="application/json")
@@ -677,6 +689,7 @@ def new_project(request):
         project_url = data['project_url']
         project_vcs = data['project_vcs']
         project_branch = data['project_branch']
+        project_is_public = data.get('is_public', True)
         if project_vcs not in [ch[0] for ch in Project.VCS_CHOICES]:
             response = {"error": True, "message": f"[ERROR] Invalid VCS option: {project_vcs}"}
             return HttpResponse(json.dumps(response), status=400, content_type="application/json")
@@ -731,6 +744,9 @@ def new_project(request):
             project_branch=project_branch,
             created_by=request.user
         )
+        # Set project private
+        if not project_is_public:
+            project.is_public = False
         # Populate attributes from source download
         if log_hash:
             project.project_log_commit_hash = log_hash

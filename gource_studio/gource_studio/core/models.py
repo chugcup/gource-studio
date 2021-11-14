@@ -2,6 +2,7 @@ import os
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.validators import validate_slug, RegexValidator
 from django.db import models
 from django.urls import reverse
 from django.utils.functional import SimpleLazyObject
@@ -55,19 +56,19 @@ class Project(models.Model):
     project_log_commit_preview = models.CharField(max_length=128, blank=True, null=True)
 
     # Optional name to display in video
-    build_title = models.CharField(max_length=255, default="")
+    build_title = models.CharField(max_length=255, default="", blank=True)
     # Optional logo to display in video
     # TODO: logo location
     build_logo = models.ImageField(upload_to=get_build_logo_path, blank=True, null=True)
     # Optional background music (MP3)
     build_audio = models.FileField(upload_to=get_build_audio_path, blank=True, null=True)
-    build_audio_name = models.CharField(max_length=255, null=True)
+    build_audio_name = models.CharField(max_length=255, null=True, blank=True)
 
     # Determine if project is publicly-visible or restricted to project members
     is_public = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='projects_created', on_delete=models.CASCADE, null=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='projects_created', on_delete=models.CASCADE, null=True, blank=True)
 
     objects = ProjectQuerySet.as_manager()
 
@@ -76,6 +77,20 @@ class Project(models.Model):
 
     def get_absolute_url(self):
         return reverse('project-detail', [self.pk])
+
+    def clean(self):
+        if self.project_slug is not None:
+            if self.project_slug.strip() == '':
+                self.project_slug = None
+            else:
+                # Validate normal slug format...
+                validate_slug(self.project_slug)
+                # ...and does not contain only digits (to avoid confusion with PK)
+                RegexValidator(r'^\d+$', message="Slug cannot contain only numbers.", inverse_match=True)(self.project_slug)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     @property
     def latest_build(self):

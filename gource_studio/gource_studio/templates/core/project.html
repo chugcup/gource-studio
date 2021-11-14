@@ -30,6 +30,11 @@
     .nav-link > .fa.fa-external-link {
         font-size: 0.75em;
     }
+    .project-nav-topbar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
     .project-nav-topbar .nav-link.active {
         border-bottom: 1px solid #CCCCCC;
     }
@@ -145,29 +150,32 @@
   {% endif %}
   </div>
 
+  <!-- Nav topbar (mobile) -->
+  <div class="d-md-none">
+    <ul class="project-nav-topbar nav justify-content-center">
+      <li class="nav-item">
+        <a class="nav-link active" href="#project-details-pane" data-toggle="tab" role="tab">Details</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#project-settings-pane" data-toggle="tab" role="tab">Settings</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
+      </li>
+    {% if user_can_edit %}
+      <li class="nav-item">
+        <a class="nav-link" href="#project-manage-pane" data-toggle="tab" role="tab">Manage</a>
+      </li>
+    {% endif %}
+      <li class="nav-item">
+          <a class="nav-link" href="{% url 'project-avatars' project.id %}">Avatars <i class="fa fa-external-link"></i></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'project-builds' project.id %}">Builds <i class="fa fa-external-link"></i></a>
+      </li>
+    </ul>
+  </div>
   <div class="container">
-    <div class="row d-md-none">
-      <div class="col-12">
-        <!-- Nav topbar (mobile) -->
-        <ul class="project-nav-topbar nav justify-content-center">
-          <li class="nav-item">
-            <a class="nav-link active" href="#project-details-pane" data-toggle="tab" role="tab">Details</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#project-settings-pane" data-toggle="tab" role="tab">Settings</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
-          </li>
-          <li class="nav-item">
-              <a class="nav-link" href="{% url 'project-avatars' project.id %}">Avatars <i class="fa fa-external-link"></i></a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'project-builds' project.id %}">Builds <i class="fa fa-external-link"></i></a>
-          </li>
-        </ul>
-      </div>
-    </div>
     <div class="row">
       <div class="col-1"></div>
       <div class="col-10">
@@ -352,6 +360,31 @@
                 </div>
               </div>
             </div>
+        {% if user_can_edit %}
+            <div id="project-manage-pane" class="tab-pane" role="tabpanel">
+              <div id="project-manage-region">
+                <hr />
+                <div class="project-manage-actions float-right">
+                  <button class="btn btn-success save-project-manage-btn"><i class="fa fa-disk"></i> Save</button>
+                </div>
+                <h5>Manage Project</h5>
+                <div class="clearfix"></div>
+                <div class="row justify-content-center">
+                  <div class="col-12">
+                    <div id="project-manage-container"></div>
+                    <div class="form-group form-inline">
+                      <label for="project-slug"><b>Project Slug:</b>&nbsp;</label>
+                      <input id="project-slug" type="text" name="project-slug" class="form-control form-control-sm" value="{{ project.project_slug|default_if_none:"" }}" />
+                    </div>
+                    <div class="form-group form-inline">
+                      <label for="project-is-public"><b>Public Project:</b>&nbsp;</label>
+                      <input id="project-is-public" type="checkbox" name="project-public" class="form-control" {% if project.is_public %}checked="checked"{% endif %}/>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+        {% endif %}
           </div>
         </div>
       </div>
@@ -368,6 +401,11 @@
           <li class="nav-item">
             <a class="nav-link" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
           </li>
+        {% if user_can_edit %}
+          <li class="nav-item">
+            <a class="nav-link" href="#project-manage-pane" data-toggle="tab" role="tab">Manage</a>
+          </li>
+        {% endif %}
           <li class="nav-item separator"></li>
           <li class="nav-item">
             <a class="nav-link" href="{% url 'project-avatars' project.id %}">Avatars <i class="fa fa-external-link"></i></a>
@@ -472,7 +510,48 @@
                 }, 1500);
             }
         });
+    });
 
+    $('body').on('click', '.save-project-manage-btn', function(e) {
+        let project_slug = $('#project-slug').val().trim();
+        if (project_slug === "") {
+            project_slug = null;
+        }
+        let project_is_public = $('#project-is-public').is(':checked');
+        let post_data = {
+            'project_slug': project_slug,
+            'is_public': project_is_public
+        };
+        $('.save-project-manage-btn').attr({disabled: true});
+        $.ajax({
+            url: "/projects/"+PROJECT_ID+"/edit/",
+            method: 'POST',
+            data: JSON.stringify(post_data),
+            contentType: "application/json",
+            dataType: "json",
+            beforeSend: function(xhr) {
+                // Attach CSRF Token
+                xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+            },
+            success: function(data, textStatus, xhr) {
+                // TODO show success message
+                console.log("Project saved successfully.");
+                $('.save-project-manage-btn').attr({disabled: false})
+                                               .prepend('<i class="fa fa-check"></i>');
+            },
+            error: function(xhr, textStatus, err) {
+                // Error
+                console.log("Save error: "+err, xhr);
+                $('.save-project-manage-btn').attr({disabled: false})
+                                               .prepend('<i class="fa fa-times"></i>');
+            },
+            complete: function(xhr, textStatus) {
+                setTimeout(function() {
+                    $('.save-project-manage-btn').attr({disabled: false})
+                                                   .find('.fa').remove();
+                }, 1500);
+            }
+        });
     });
 
     // Gource settings container

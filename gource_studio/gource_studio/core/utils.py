@@ -367,6 +367,7 @@ def add_background_audio(video_path, audio_path, loop=True):
         cmd1_out = Path(tempdir) / 'output_1a.mp4'
 
         # Loop audio with video until shortest ends
+        # NOTE: Requires `ffmpeg` newer than 2017-11 to fix 'stream_loop' bug
         #ffmpeg  -i input.mp4 -stream_loop -1 -i input.mp3 -shortest -map 0:v:0 -map 1:a:0 -y out.mp4
         cmd1 = [get_ffmpeg(),
                 '-i', video_path,

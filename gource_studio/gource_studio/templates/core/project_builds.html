@@ -6,7 +6,7 @@
 
 {% block content %}
   {% with latest_build=project.latest_build %}
-  <div class="container">
+  <div class="main-container container">
   {% if user_can_edit %}
     <div class="float-right">
       <button class="btn btn-primary queue-project-build-btn" title="Queue a new video build">
@@ -69,9 +69,11 @@
                 </h5>
               </div>
               <div class="card-body" style="padding:10px">
+              {% if build.status != "running" %}
                 <div class="float-right">
                     <a class="btn btn-link delete-build-btn" data-build-id="{{ build.id }}"><i class="fa fa-trash"></i> DELETE</a>
                 </div>
+              {% endif %}
                 <p class="card-text" style="font-size:12px; text-align:left;">
                 {% if build.error_description %}
                   {{ build.error_description }}

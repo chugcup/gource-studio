@@ -1,14 +1,14 @@
 {% extends "core/base.html" %}
 
 {% block content %}
-  <div class="container">
+  <div class="main-container container">
     <h2 class="text-center">New Project</h2>
     <label for="project-url-input" style="font-weight:bold">Project URL:</label>
     <div class="input-group">
       <div class="input-group-prepend">
         <select id="project-vcs-select" class="form-control" name="project_vcs" style="width: 120px; border-radius: .25rem 0 0 .25rem">
-            <option value="git">Git</option>
-            <option value="hg">Mercurial</option>
+          <option value="git">Git</option>
+          <option value="hg">Mercurial</option>
         </select>
         <!--
         <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
@@ -33,11 +33,17 @@
       <label for="project-initial-captions-from-tags" class="form-check-label">Load Captions From Tags</label>
     </div>
     <br />
+    <div class="form-check">
+      <input type="checkbox" id="set-project-public" class="form-check-input" checked="checked" />
+      <label for="set-project-public" class="form-check-label">Make Project Public</label>
+    </div>
+    <br />
     <div class="text-center">
       <button id="save-project-btn" class="btn btn-lg btn-success">
         Create Project
       </button>
     </div>
+    <div id="new-project-errors"></div>
     <br />
   </div>
 {% endblock %}
@@ -63,6 +69,7 @@
         let project_vcs = ($('#project-vcs-select').val() || "").trim();
         let project_branch = ($('#project-branch-input').val() || "").trim();
         let load_initial_tags = $('#project-initial-captions-from-tags').is(':checked');
+        let project_is_public = $('#project-public').is(':checked');
 
         // Clear errors
         $('.is-invalid').removeClass('is-invalid');
@@ -89,12 +96,15 @@
             'project_url': project_url,
             'project_vcs': project_vcs,
             'project_branch': project_branch,
+            'is_public': project_is_public,
         };
         if (load_initial_tags) {
             post_data['load_captions_from_tags'] = true;
         }
         console.log('POST DATA: ',post_data);
-        $('#save-project-btn').attr({disabled: true});
+        $('#new-project-errors').text('');
+        $('#save-project-btn').attr({disabled: true})
+                              .prepend('<i class="fa fa-spin fa-spinner"></i>');
         $.ajax({
             url: "/new/",
             method: 'POST',
@@ -114,7 +124,11 @@
             error: function(xhr, textStatus, err) {
                 // Error
                 console.log("Save error: "+err, xhr);
-                $('#save-project-btn').attr({disabled: false});
+                $('#save-project-btn').attr({disabled: false}).find('i.fa').remove();
+                // Show error message
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    $('#new-project-errors').text(xhr.responseJSON.message);
+                }
             }
         });
     });
