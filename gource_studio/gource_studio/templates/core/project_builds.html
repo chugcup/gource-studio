@@ -37,9 +37,11 @@
             <div class="status-container bg-light">
           {% elif build.status == "running" %}
             <div class="status-container bg-primary text-white">
+          {% elif build.status == "aborted" %}
+            <div class="status-container bg-danger text-white">
           {% elif build.status == "completed" %}
             <div class="status-container bg-success text-white">
-          {% elif build.status == "error" %}
+          {% elif build.status == "errored" %}
             <div class="status-container bg-danger text-white">
           {% endif %}
               <div class="" style="line-height:73px">
@@ -69,9 +71,13 @@
                 </h5>
               </div>
               <div class="card-body" style="padding:10px">
-              {% if build.status != "running" %}
+              {% if build.is_finished %}
                 <div class="float-right">
-                    <a class="btn btn-link delete-build-btn" data-build-id="{{ build.id }}"><i class="fa fa-trash"></i> DELETE</a>
+                    <a class="btn btn-link delete-build-btn text-danger" data-project-id="{{ project.id }}" data-build-id="{{ build.id }}"><i class="fa fa-trash"></i> DELETE</a>
+                </div>
+              {% elif build.status == 'running' %}
+                <div class="float-right">
+                    <a class="btn btn-link abort-build-btn text-danger" data-project-id="{{ project.id }}" data-build-id="{{ build.id }}"><i class="fa fa-ban"></i> ABORT</a>
                 </div>
               {% endif %}
                 <p class="card-text" style="font-size:12px; text-align:left;">
@@ -160,15 +166,16 @@
 
     // Delete build handler
     $('body').on('click', '.delete-build-btn', function(e) {
+        let project_id = $(e.currentTarget).data('project-id');
         let build_id = $(e.currentTarget).data('build-id');
-        if (!build_id) {
+        if (!project_id || !build_id) {
             return false;
         }
         let confirm_delete = confirm("Delete this build?");
         if (confirm_delete) {
             console.log("Deleting build...");
             $.ajax({
-                url: "/projects/{{project.id}}/builds/"+build_id+"/",
+                url: "/projects/"+project_id+"/builds/"+build_id+"/",
                 method: 'DELETE',
                 beforeSend: function(xhr) {
                     // Attach CSRF Token
@@ -176,11 +183,44 @@
                 },
                 success: function(data, textStatus, xhr) {
                     // Redirect/reload
-                    window.location = '/projects/{{project.id}}/builds/';
+                    window.location.reload();
                 },
                 error: function(xhr, textStatus, err) {
                     // Error
                     console.log("Delete error: "+err, xhr);
+                }
+            });
+        }
+    });
+    // Abort (running) build handler
+    $('body').on('click', '.abort-build-btn', function(e) {
+        let project_id = $(e.currentTarget).data('project-id');
+        let build_id = $(e.currentTarget).data('build-id');
+        if (!project_id || !build_id) {
+            return false;
+        }
+        let confirm_abort = confirm("Abort this build?");
+        if (confirm_abort) {
+            console.log("Aborting build...");
+            $.ajax({
+                url: "/projects/"+project_id+"/builds/"+build_id+"/",
+                method: 'PATCH',
+                data: JSON.stringify({
+                    status: 'aborted',
+                }),
+                contentType: "application/json",
+                dataType: "json",
+                beforeSend: function(xhr) {
+                    // Attach CSRF Token
+                    xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+                },
+                success: function(data, textStatus, xhr) {
+                    // Redirect/reload
+                    window.location.reload();
+                },
+                error: function(xhr, textStatus, err) {
+                    // Error
+                    console.log("Abort error: "+err, xhr);
                 }
             });
         }

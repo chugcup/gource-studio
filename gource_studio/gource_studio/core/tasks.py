@@ -10,6 +10,7 @@ from django.core.files import File
 from django.core.files.base import ContentFile
 
 from .constants import GOURCE_OPTIONS
+from .exceptions import ProjectBuildAbortedError
 from .models import Project, ProjectBuild, UserAvatar, ProjectUserAvatar
 from .utils import (
     add_background_audio,   #(video_path, audio_path, loop=True):
@@ -94,12 +95,18 @@ def generate_gource_build(build_id):
         if build.project_captions:
             captions_path = build.project_captions.path
         #final_path = generate_gource_video(log_data, avatars=avatar_dir, gource_options={'--seconds-per-day': 0.01})
-        final_path = generate_gource_video(log_data, avatars=avatar_dir, captions=captions_path, gource_options=gource_options)
+        try:
+            final_path = generate_gource_video(log_data, avatars=avatar_dir, captions=captions_path, gource_options=gource_options, project_build=build)
+        except ProjectBuildAbortedError:
+            logger.info("Project was aborted by user [elapsed: %s sec]", time.monotonic() - start_time)
+            return
+
         process_time = time.monotonic() - start_time
         logger.info("Processing time: %s sec", process_time)
         build.duration = int(get_video_duration(final_path))
 
         # Add background audio (optional)
+        # TODO support abort
         try:
             if build.project.build_audio:
                 audio_path = build.project.build_audio.path

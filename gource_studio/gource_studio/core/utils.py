@@ -17,6 +17,7 @@ from django.conf import settings
 from PIL import Image
 
 from .constants import VIDEO_OPTIONS
+from .exceptions import ProjectBuildAbortedError
 
 # Ignore SSL verification
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -222,7 +223,7 @@ def retrieve_tags_from_git_repo(repo_path):
     return tags_list
 
 
-def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars=None, default_avatar=None, captions=None, gource_options=None):
+def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars=None, default_avatar=None, captions=None, gource_options=None, project_build=None):
     """
     Create a new Gource video using provided options.
     """
@@ -323,19 +324,37 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
 
         # Direct FFmpeg stdout/stderr to file to avoid halting due to filled I/O buffer
         # - On long running videos, can cause process to halt waiting for output to be read
+        ffmpeg_start = time.monotonic()
         with open(str(tempdir_path / 'ffmpeg.stdout'), 'w') as ffout:
             with open(str(tempdir_path / 'ffmpeg.stderr'), 'w') as fferr:
                 p2 = subprocess.Popen(cmd, cwd=str(tempdir_path),
                                       stdout=ffout, stderr=fferr)
                                       #stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 logging.info("[STEP 2] %s", p2.args)
-                p2.wait(timeout=FFMPEG_TIMEOUT)
-                if p2.returncode:
-                    # Error
-                    print(" ~ FFmpeg command error - exiting...")
-                    #_stdout, _stderr = p2.communicate()
-                    #raise RuntimeError(f"[{p2.returncode}] Error: {_stderr}")
-                    raise RuntimeError(f"[{p2.returncode}] Error during FFmpeg conversion")
+                while p2.returncode is None and (time.monotonic() - ffmpeg_start) < FFMPEG_TIMEOUT:
+                    # Periodically check if task was aborted
+                    if project_build is not None:
+                        project_build.refresh_from_db()
+                        if project_build.status == 'aborted':
+                            p2.terminate()
+                            p1.terminate()
+                            raise ProjectBuildAbortedError()
+                    try:
+                        p2.wait(timeout=5)
+                        if p2.returncode is not None and p2.returncode:
+                            # Error
+                            print(" ~ FFmpeg command error - exiting...")
+                            #_stdout, _stderr = p2.communicate()
+                            #raise RuntimeError(f"[{p2.returncode}] Error: {_stderr}")
+                            raise RuntimeError(f"[{p2.returncode}] Error during FFmpeg conversion")
+                    except subprocess.TimeoutExpired:
+                        pass
+
+                if p2.returncode is None:
+                    if project_build is not None:
+                        raise RuntimeError(f"Project video timeout elapsed [Build={project_build.id}]")
+                    else:
+                        raise RuntimeError("Project video timeout elapsed")
 
         final_path = f'/tmp/{int(time.time())}.mp4'
         shutil.move(str(dest_video), final_path)

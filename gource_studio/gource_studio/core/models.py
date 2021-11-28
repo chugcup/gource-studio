@@ -254,6 +254,7 @@ class ProjectBuild(models.Model):
         ('pending', 'Pending'),
         ('queued', 'Queued'),
         ('running', 'Running'),
+        ('aborted', 'Aborted'),
         ('completed', 'Completed'),
         ('errored', 'Errored')
     ]
@@ -275,6 +276,7 @@ class ProjectBuild(models.Model):
     # Timestamps
     queued_at = models.DateTimeField(null=True)
     running_at = models.DateTimeField(null=True)
+    aborted_at = models.DateTimeField(null=True)
     completed_at = models.DateTimeField(null=True)
     errored_at = models.DateTimeField(null=True)
 
@@ -312,6 +314,14 @@ class ProjectBuild(models.Model):
             return os.path.getsize(self.content.path)
         return None
 
+    @property
+    def is_finished(self):
+        return self.status in ['aborted', 'completed', 'errored']
+
+    @property
+    def is_waiting(self):
+        return self.status in ['pending', 'queued']
+
     ## Status transition methods
 
     def mark_queued(self):
@@ -332,6 +342,15 @@ class ProjectBuild(models.Model):
         else:
             raise ValueError("Cannot mark build running from \"%s\" status", self.status)
 
+    def mark_aborted(self):
+        "Mark running build as aborted"
+        if self.status == 'running':
+            self.status = 'aborted'
+            self.aborted_at = utc_now()
+            self.save(update_fields=['status', 'aborted_at'])
+        else:
+            raise ValueError("Cannot mark build aborted from \"%s\" status", self.status)
+
     def mark_completed(self):
         "Mark build as completed"
         if self.status == 'running':
@@ -345,8 +364,8 @@ class ProjectBuild(models.Model):
         "Mark build as errored"
         # NOTE: no state check; can always transition to error state
         update_fields = []
-        if self.status != 'error':
-            self.status = 'error'
+        if self.status != 'errored':
+            self.status = 'errored'
             self.errored_at = utc_now()
             update_fields += ['status', 'errored_at']
         if error_description is not None:
@@ -356,7 +375,7 @@ class ProjectBuild(models.Model):
             self.save(update_fields=update_fields)
 
     def get_build_duration(self):
-        "Returns total runtime duration of build (from 'running' -> 'completed'|'error')"
+        "Returns total runtime duration of build (from 'running' -> 'completed'|'errored')"
         if not self.running_at:
             return None
         if self.completed_at:

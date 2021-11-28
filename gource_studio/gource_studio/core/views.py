@@ -25,6 +25,7 @@ from django.views.static import serve
 ssl._create_default_https_context = ssl._create_unverified_context
 
 from .constants import GOURCE_OPTIONS, GOURCE_OPTIONS_LIST, GOURCE_OPTIONS_JSON
+from .exceptions import ProjectBuildAbortedError
 from .models import Project, ProjectBuild, ProjectBuildOption, ProjectCaption, ProjectOption, ProjectUserAvatar, UserAvatar
 from .tasks import generate_gource_build
 from .utils import (
@@ -193,6 +194,16 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
         # Delete build
         build.delete()
         return HttpResponseRedirect(f'/projects/{project.id}/')
+    # Allow for updating build
+    elif build_id and request.method == 'PATCH':
+        data = json.loads(request.body)
+        if 'status' in data:
+            if data['status'] == 'aborted':
+                if build.status != 'running':
+                    # Invalid state transition
+                    return HttpResponseRedirect(f'/projects/{project.id}/')
+                build.mark_aborted()
+                return HttpResponseRedirect(f'/projects/{project.id}/')
 
     context = {
         'document_title': f'Project - {SITE_NAME}',
