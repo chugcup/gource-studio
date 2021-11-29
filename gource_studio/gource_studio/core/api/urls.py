@@ -28,4 +28,5 @@ urlpatterns = [
     re_path(r'^projects/(?P<project_id>\d+)/members/?$', views.ProjectMembersList.as_view(), name='api-project-members-list'),
     re_path(r'^projects/(?P<project_id>\d+)/options/?$', views.ProjectOptionsList.as_view(), name='api-project-options-list'),
     re_path(r'^projects/(?P<project_id>\d+)/project_log/download/?$', views.ProjectLogDownload.as_view(), name='api-project-log-download'),
+    re_path(r'^projects/(?P<project_id>\d+)/utils/duration/?$', views.ProjectDurationUtility.as_view(), name='api-project-duration-utility'),
 ]

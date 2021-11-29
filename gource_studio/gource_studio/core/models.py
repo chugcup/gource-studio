@@ -2,6 +2,7 @@ import os
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.core.validators import validate_slug, RegexValidator
 from django.db import models
 from django.urls import reverse
@@ -98,7 +99,7 @@ class Project(models.Model):
 
     def get_latest_build(self):
         if hasattr(self, '_cached_latest_build'):
-            return self._cached_latest_build[0]
+            return self._cached_latest_build[0] if len(self._cached_latest_build) else None
         return self.builds.exclude(content='').order_by('-created_at').first()
 
     def analyze_log(self):
@@ -132,9 +133,13 @@ class Project(models.Model):
         The "edit" and "delete" permissions checks the `ProjectMember` relation.
         For "view", checks the `is_public` flag set on project.
         """
-        if not isinstance(actor, (get_user_model(), SimpleLazyObject)):
+        if not isinstance(actor, (get_user_model(), AnonymousUser, SimpleLazyObject)):
             raise ValueError(f"Invalid 'actor' instance: {type(actor)}")
         action = str(action).lower()
+        if action == 'get':
+            action = 'view'
+        elif action in ['post', 'put', 'patch']:
+            action = 'edit'
         if action not in ["view", "edit", "delete"]:
             raise ValueError(f"Invalid 'action' given: {action}")
 

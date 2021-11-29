@@ -380,6 +380,12 @@
                       <label for="project-is-public"><b>Public Project:</b>&nbsp;</label>
                       <input id="project-is-public" type="checkbox" name="project-public" class="form-control" {% if project.is_public %}checked="checked"{% endif %}/>
                     </div>
+                  {% if project.created_by %}
+                    <div>
+                      <label><b>Created By:</b>&nbsp;</label>
+                      <span>{{ project.created_by.username }}</span>
+                    </div>
+                  {% endif %}
                   </div>
                 </div>
               </div>
@@ -444,6 +450,7 @@
             'gource_options': gource_options
         };
         $('.save-project-settings-btn').attr({disabled: true});
+        // FIXME
         $.ajax({
             url: "/projects/"+PROJECT_ID+"/edit/",
             method: 'POST',
@@ -481,6 +488,7 @@
         };
         $('.remix-audio-btn').attr({disabled: true})
                              .prepend('<i class="fa fa-spin fa-spinner"></i> ');
+        // FIXME: just queue new build
         $.ajax({
             url: "/projects/"+PROJECT_ID+"/actions/",
             method: 'POST',
@@ -518,15 +526,15 @@
             project_slug = null;
         }
         let project_is_public = $('#project-is-public').is(':checked');
-        let post_data = {
+        let patch_data = {
             'project_slug': project_slug,
             'is_public': project_is_public
         };
         $('.save-project-manage-btn').attr({disabled: true});
         $.ajax({
-            url: "/projects/"+PROJECT_ID+"/edit/",
-            method: 'POST',
-            data: JSON.stringify(post_data),
+            url: "/api/v1/projects/"+PROJECT_ID+"/",
+            method: 'PATCH',
+            data: JSON.stringify(patch_data),
             contentType: "application/json",
             dataType: "json",
             beforeSend: function(xhr) {
@@ -641,7 +649,7 @@
         console.log(' ==> ',gource_options);
 
         $.ajax({
-            url: "/test/"+PROJECT_ID+"/duration/",
+            url: "/api/v1/projects/"+PROJECT_ID+"/utils/duration/",
             method: 'GET',
             data: gource_options,
             contentType: "application/json",
@@ -794,6 +802,7 @@
         $('.load-captions-from-project-tags-btn').attr({disabled: true})
                              .find('i.fa').removeClass('fa-tag fa-times fa-check')
                                           .addClass('fa-spinner fa-spin');
+        // FIXME: make into API view
         $.ajax({
             url: "/projects/"+PROJECT_ID+"/actions/",
             method: 'POST',
@@ -852,6 +861,7 @@
         $('.save-project-captions-btn').attr({disabled: true})
                              .find('i.fa').removeClass('fa-tag fa-times fa-check')
                                           .addClass('fa-spinner fa-spin');
+        // FIXME: make into API view
         $.ajax({
             url: "/projects/"+PROJECT_ID+"/edit/",
             method: 'POST',
@@ -931,6 +941,7 @@
 
     // Queue build handler
     $('body').on('click', '.queue-project-build-btn', function(e) {
+        // FIXME: Make into API view
         $.ajax({
             url: "/projects/"+PROJECT_ID+"/queue/",
             method: 'POST',

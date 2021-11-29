@@ -99,11 +99,12 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Project
-        fields = ('id', 'name', 'project_url', 'project_branch', 'project_vcs',
+        fields = ('id', 'name', 'project_slug', 'project_url', 'project_branch', 'project_vcs',
                   'project_log', 'build_title', 'build_logo',
                   'build_audio', 'build_audio_name',
-                  'options', 'builds', 'captions', 'avatars',
+                  'options', 'builds', 'captions', 'avatars', 'members',
                   'is_public', 'created_at', 'updated_at', 'url')
+        read_only_fields = ('project_log', 'created_at', 'updated_at')
 
 
 class ProjectBuildSerializer(serializers.HyperlinkedModelSerializer):
@@ -145,20 +146,11 @@ class ProjectBuildSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = ProjectBuild
         fields = ('id', 'project_id', 'project_branch',
-                  'status',
-                  'error_description',
-                  'content',
-                  'content_size',
-                  'duration',
-                  'screenshot',
-                  'thumbnail',
-                  'project_log',
-                  'options',
-                  'queued_at',
-                  'running_at',
-                  'completed_at',
-                  'errored_at',
-                  'url')
+                  'status', 'error_description', 'content', 'content_size', 'duration',
+                  'screenshot', 'thumbnail', 'project_log', 'options',
+                  'queued_at', 'running_at', 'aborted_at', 'completed_at', 'errored_at', 'url')
+        read_only_fields = ('project_id', 'project_branch', 'status', 'content_size', 'duration',
+                            'queued_at', 'running_at', 'aborted_at', 'completed_at', 'errored_at')
 
 
 class ProjectOptionSerializer(serializers.ModelSerializer):

@@ -136,7 +136,8 @@ MEDIA_ROOT = Path(__file__).resolve().parent / "media"
 # Django REST Framework options
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+        #'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
     ],
     'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.NamespaceVersioning',
     # - Pagination

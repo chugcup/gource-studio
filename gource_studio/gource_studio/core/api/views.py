@@ -1,9 +1,14 @@
+from datetime import timedelta
 import os
+import time
 
+from django.db.models import DateTimeField, Exists, Max, OuterRef, Prefetch, Q, Subquery, Value
+from django.db.models.functions import Coalesce, Greatest
 from django.shortcuts import get_object_or_404
 from django.views.static import serve
-from rest_framework import generics, views
+from rest_framework import generics, status, views
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import BasePermission, IsAuthenticated, SAFE_METHODS
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 
@@ -19,6 +24,9 @@ from ..models import (
     UserAvatar,
     UserAvatarAlias,
 )
+from ..utils import (
+    estimate_gource_video_duration,
+)
 from .serializers import (
     ProjectBuildOptionSerializer,
     ProjectBuildSerializer,
@@ -33,6 +41,7 @@ from .serializers import (
     UserAvatarSerializer,
 )
 
+
 # TODO Root API view
 
 def _serve_file_field(request, instance, name):
@@ -42,6 +51,22 @@ def _serve_file_field(request, instance, name):
     # TODO: check if populated
     filepath = getattr(instance, name).path
     return serve(request, os.path.basename(filepath), os.path.dirname(filepath))
+
+
+class ProjectPermissionQuerySetMixin:
+    def get_queryset(self):
+        return self.queryset.filter_permissions(self.request.user)
+
+
+class ProjectMemberPermission(BasePermission):
+    "Checks membership of request user in Project to allow CRUD operations"
+    def has_object_permission(self, request, view, obj):
+        if request.method in SAFE_METHODS:
+            return True
+        else:
+            if not isinstance(obj, Project):
+                obj = obj.project
+            return obj.check_permission(request.user, request.method)
 
 
 class APIRoot(views.APIView):
@@ -58,44 +83,74 @@ class APIRoot(views.APIView):
         })
 
 
-class ProjectsList(generics.ListAPIView):
+class ProjectsList(ProjectPermissionQuerySetMixin, generics.ListAPIView):
     """
     Retrieve a list of projects.
 
     """
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
+    permission_classes = (ProjectMemberPermission,)
+
+    def get_queryset(self):
+        return super().get_queryset()\
+                      .with_latest_build()\
+                      .annotate(
+                        latest_build_time=Coalesce(
+                          Max('builds__completed_at'),
+                          Value('1970-01-01 00:00:00', output_field=DateTimeField())
+                        )
+                      )\
+                      .annotate(
+                        latest_activity_time=Greatest('created_at', 'latest_build_time')
+                      )
 
 
-class ProjectDetail(generics.RetrieveAPIView):
+class ProjectDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateDestroyAPIView):
     """
-    Retrieve a list of projects.
-
+    Retrieve details about a project.
     """
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
+    permission_classes = (ProjectMemberPermission,)
     lookup_url_kwarg = 'project_id'
 
+    def delete(self, request, *args, **kwargs):
+        project = self.get_object()
+        # Check for any queued builds and cancel them
+        project.builds.filter(status__in=['pending', 'queued']).update(status='aborted')
+        # Check for any running Project builds and abort them
+        running_builds = project.builds.filter(status='running')
+        if running_builds:
+            for build in running_builds:
+                try:
+                    build.mark_aborted()
+                except:
+                    pass
 
-class ProjectLogDownload(views.APIView):
+            time.sleep(5)   # Wait a brief period for jobs to clean up
+        return super().delete(request, *args, **kwargs)
+
+
+class ProjectLogDownload(ProjectPermissionQuerySetMixin, views.APIView):
     """
     Download project (Gource) 'project.log' contents.
     """
     queryset = Project.objects.all()
 
     def get(self, request, *args, **kwargs):
-        project = get_object_or_404(Project, **{'id': self.kwargs['project_id']})
+        project = get_object_or_404(self.get_queryset(), **{'id': self.kwargs['project_id']})
         return _serve_file_field(request, project, 'project_log')
 
 
-class ProjectBuildAudioDownload(views.APIView):
+class ProjectBuildAudioDownload(ProjectPermissionQuerySetMixin, views.APIView):
     """
     Download project 'build_audio' contents.
     """
     queryset = Project.objects.all()
 
     def get(self, request, *args, **kwargs):
-        project = get_object_or_404(Project, **{'id': self.kwargs['project_id']})
+        project = get_object_or_404(self.get_queryset(), **{'id': self.kwargs['project_id']})
         return _serve_file_field(request, project, 'build_audio')
 
 
@@ -108,7 +163,7 @@ class ProjectMembersList(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        project = get_object_or_404(Project, **{'id': self.kwargs['project_id']})
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
         return super().get_queryset().filter(project=project)
 
 
@@ -121,7 +176,7 @@ class ProjectOptionsList(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        project = get_object_or_404(Project, **{'id': self.kwargs['project_id']})
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
         return super().get_queryset().filter(project=project)
 
 
@@ -134,7 +189,7 @@ class ProjectCaptionsList(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        project = get_object_or_404(Project, **{'id': self.kwargs['project_id']})
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
         return super().get_queryset().filter(project=project)
 
 
@@ -151,19 +206,42 @@ class ProjectBuildsByProjectList(ProjectBuildsList):
     Retrieve a list of builds for a project.
     """
     def get_queryset(self):
-        project = get_object_or_404(Project, **{'id': self.kwargs['project_id']})
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
         return super().get_queryset().filter(project=project)
 
 
-class ProjectBuildDetail(generics.RetrieveAPIView):
+class ProjectBuildDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = ProjectBuild.objects.all()
     serializer_class = ProjectBuildSerializer
 
     def get_object(self):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
         return get_object_or_404(super().get_queryset(), **{
-            'project_id': self.kwargs['project_id'],
+            'project_id': project.id,
             'id': self.kwargs['project_build_id']
         })
+
+    def patch(self, request, *args, **kwargs):
+        build = self.get_object()
+        if 'status' in request.data:
+            if data['status'] == 'aborted':
+                if build.status != 'running':
+                    # Invalid state transition
+                    return Response({"status": f"Cannot mark build aborted from \"{build.status}\" status"}, status=status.HTTP_400_BAD_REQUEST)
+                build.mark_aborted()
+        return super().patch(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        build = self.get_object()
+        # Check if build is running and abort it
+        if build.status == 'running':
+            try:
+                build.mark_aborted()
+            except:
+                pass
+
+            time.sleep(5)   # Wait a brief period for job to clean up
+        return super().delete(request, *args, **kwargs)
 
 
 class ProjectBuildContentDownload(views.APIView):
@@ -173,8 +251,9 @@ class ProjectBuildContentDownload(views.APIView):
     queryset = ProjectBuild.objects.all()
 
     def get(self, request, *args, **kwargs):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
         project_build = get_object_or_404(ProjectBuild, **{
-            'project_id': self.kwargs['project_id'],
+            'project_id': project.id,
             'id': self.kwargs['project_build_id']
         })
         return _serve_file_field(request, project_build, 'content')
@@ -187,8 +266,9 @@ class ProjectBuildProjectLogDownload(views.APIView):
     queryset = ProjectBuild.objects.all()
 
     def get(self, request, *args, **kwargs):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
         project_build = get_object_or_404(ProjectBuild, **{
-            'project_id': self.kwargs['project_id'],
+            'project_id': project.id,
             'id': self.kwargs['project_build_id']
         })
         return _serve_file_field(request, project_build, 'project_log')
@@ -201,8 +281,9 @@ class ProjectBuildScreenshotDownload(views.APIView):
     queryset = ProjectBuild.objects.all()
 
     def get(self, request, *args, **kwargs):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
         project_build = get_object_or_404(ProjectBuild, **{
-            'project_id': self.kwargs['project_id'],
+            'project_id': project.id,
             'id': self.kwargs['project_build_id']
         })
         return _serve_file_field(request, project_build, 'screenshot')
@@ -215,8 +296,9 @@ class ProjectBuildThumbnailDownload(views.APIView):
     queryset = ProjectBuild.objects.all()
 
     def get(self, request, *args, **kwargs):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
         project_build = get_object_or_404(ProjectBuild, **{
-            'project_id': self.kwargs['project_id'],
+            'project_id': project.id,
             'id': self.kwargs['project_build_id']
         })
         return _serve_file_field(request, project_build, 'thumbnail')
@@ -231,8 +313,9 @@ class ProjectBuildOptionsList(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
         project_build = get_object_or_404(ProjectBuild, **{
-            'project_id': self.kwargs['project_id'],
+            'project_id': project.id,
             'id': self.kwargs['project_build_id']
         })
         return super().get_queryset().filter(build=project_build)
@@ -244,7 +327,7 @@ class ProjectUserAvatarsList(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        project = get_object_or_404(Project, **{'id': self.kwargs['project_id']})
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
         return super().get_queryset().filter(project=project)
 
 
@@ -253,8 +336,9 @@ class ProjectUserAvatarDetail(generics.RetrieveAPIView):
     serializer_class = ProjectUserAvatarSerializer
 
     def get_object(self):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
         return get_object_or_404(super().get_queryset(), **{
-            'project_id': self.kwargs['project_id'],
+            'project_id': project.id,
             'id': self.kwargs['project_avatar_id']
         })
 
@@ -266,8 +350,9 @@ class ProjectUserAvatarImageDownload(views.APIView):
     queryset = ProjectUserAvatar.objects.all()
 
     def get(self, request, *args, **kwargs):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
         avatar = get_object_or_404(ProjectUserAvatar, **{
-            'project_id': self.kwargs['project_id'],
+            'project_id': project.id,
             'id': self.kwargs['project_avatar_id']
         })
         return _serve_file_field(request, avatar, 'image')
@@ -293,3 +378,74 @@ class UserAvatarImageDownload(views.APIView):
     def get(self, request, *args, **kwargs):
         avatar = get_object_or_404(UserAvatar, **{'id': self.kwargs['avatar_id']})
         return _serve_file_field(request, avatar, 'image')
+
+
+class ProjectDurationUtility(views.APIView):
+    """
+    Utility to estimate the generated Project video duration based on settings.
+
+    Requires project to have a `project.log` saved, and will use existing
+    Gource settings to estimate video length.  Custom Gource options may be
+    provided using URL parameters.
+
+        `seconds-per-day`       [float] Speed of simulation in seconds per day.
+        `auto-skip-seconds`     [float] Idle duration before skipping to next date entry.
+
+    Returns estimated video duration in seconds.
+    """
+    queryset = Project.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        project = get_object_or_404(self.queryset.filter_permissions(request.user), **{'id': self.kwargs['project_id']})
+
+        # Check for project log and read contents
+        if not os.path.isfile(project.project_log.path):
+            return Response({"detail": "Project has no project log available for estimation."}, status=status.HTTP_400_BAD_REQUEST)
+        with open(project.project_log.path, 'r') as f:
+            data = f.read()
+
+        # Parse project log and determine action counts
+        added = 0
+        modded = 0
+        deleted = 0
+        lines = data.strip().split('\n')
+        for line in lines:
+            # <TIME>|<AUTHOR>|<MODIFICATION>|<PATH>
+            segments = line.split('|')
+            if segments[2] == 'A': added += 1
+            elif segments[2] == 'M': modded += 1
+            elif segments[2] == 'D': deleted += 1
+
+        # Load relevant video duration options
+        PROJECT_DURATION_OPTIONS = ['seconds-per-day', 'auto-skip-seconds']
+        project_options = project.options.filter(name__in=PROJECT_DURATION_OPTIONS)
+        # - Gource defaults
+        option_spd = 1.0
+        option_ass = 3.0
+        for option in project_options:
+            if option.name == 'seconds-per-day':
+                option_spd = float(option.value)
+            if option.name == 'auto-skip-seconds':
+                option_ass = float(option.value)
+        # - Allow for HTTP request overrides (via URL params)
+        try:
+            option_spd = float(request.GET.get('seconds-per-day', None))
+        except:
+            pass
+        try:
+            option_ass = float(request.GET.get('auto-skip-seconds', None))
+        except:
+            pass
+
+        # Perform estimation using project log and Gource options
+        gource_options = {
+            'seconds-per-day': option_spd,
+            'auto-skip-seconds': option_ass,
+        }
+        duration = estimate_gource_video_duration(data, gource_options=gource_options)
+        td_duration = str(timedelta(seconds=int(duration)))
+        response = {
+            "duration": duration,
+            "duration_str": td_duration
+        }
+        return Response(response)
