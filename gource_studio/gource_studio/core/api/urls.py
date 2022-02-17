@@ -13,6 +13,7 @@ urlpatterns = [
     # - Projects
     re_path(r'^projects/?$', views.ProjectsList.as_view(), name='api-projects-list'),
     re_path(r'^projects/(?P<project_id>\d+)/?$', views.ProjectDetail.as_view(), name='api-project-detail'),
+    re_path(r'^projects/(?P<project_id>\d+)/actions/?$', views.ProjectActions.as_view(), name='api-project-actions'),
     re_path(r'^projects/(?P<project_id>\d+)/avatars/?$', views.ProjectUserAvatarsList.as_view(), name='api-project-useravatars-list'),
     re_path(r'^projects/(?P<project_id>\d+)/avatars/(?P<project_avatar_id>\d+)/?$', views.ProjectUserAvatarDetail.as_view(), name='api-project-useravatar-detail'),
     re_path(r'^projects/(?P<project_id>\d+)/avatars/(?P<project_avatar_id>\d+)/download/?$', views.ProjectUserAvatarImageDownload.as_view(), name='api-project-useravatar-image-download'),

@@ -802,9 +802,8 @@
         $('.load-captions-from-project-tags-btn').attr({disabled: true})
                              .find('i.fa').removeClass('fa-tag fa-times fa-check')
                                           .addClass('fa-spinner fa-spin');
-        // FIXME: make into API view
         $.ajax({
-            url: "/projects/"+PROJECT_ID+"/actions/",
+            url: "/api/v1/projects/"+PROJECT_ID+"/actions/",
             method: 'POST',
             data: JSON.stringify(post_data),
             contentType: "application/json",

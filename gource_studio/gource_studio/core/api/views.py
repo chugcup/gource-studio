@@ -1,4 +1,5 @@
 from datetime import timedelta
+import logging
 import os
 import time
 
@@ -25,7 +26,9 @@ from ..models import (
     UserAvatarAlias,
 )
 from ..utils import (
+    download_git_tags,
     estimate_gource_video_duration,
+    test_http_url,
 )
 from .serializers import (
     ProjectBuildOptionSerializer,
@@ -130,6 +133,63 @@ class ProjectDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateDestr
 
             time.sleep(5)   # Wait a brief period for jobs to clean up
         return super().delete(request, *args, **kwargs)
+
+
+class ProjectActions(ProjectPermissionQuerySetMixin, views.APIView):
+    """
+    Endpoint for a number of project actions to perform.
+
+    Options:
+
+        {
+            "action": "load_captions_from_tags"
+        }
+
+    """
+    queryset = Project.objects.all()
+    permission_classes = (ProjectMemberPermission,)
+
+    def post(self, request, *args, **kwargs):
+        project = get_object_or_404(self.get_queryset(), **{'id': self.kwargs['project_id']})
+        if 'action' not in request.data:
+            return Response({"detail": "Field \"action\" is required."}, status=status.HTTP_400_BAD_REQUEST)
+        action_code = request.data['action']
+
+        # + 'load_captions_from_tags' - Populate captions from project's tags
+        if action_code == 'load_captions_from_tags':
+            return self._action_load_captions_from_tags(project, request)
+
+        return Response({"action": f"Invalid action choice: {action_code}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    def _action_load_captions_from_tags(self, project, request):
+        """
+        Load current tags from a remote project repository and add them as captions.
+
+        Requires valid project URL.
+        """
+        try:
+            content = test_http_url(project.project_url)
+            tags_list = download_git_tags(project.project_url, branch=project.project_branch)
+            for timestamp, tag_name in tags_list:
+                captions_added = 0
+                try:
+                    caption, created = ProjectCaption.objects.get_or_create(
+                        project=project,
+                        timestamp=timestamp,
+                        text=tag_name
+                    )
+                    if created:
+                        captions_added += 1
+                except Exception as e:
+                    logging.error("Failed to load caption: %s", str(e))
+            response = {"error": False, "data": {"message": "Tags loaded successfully."}}
+        except Exception as e:
+            logging.exception("Failed to retrieve project tags")
+            response = {"error": True, "data": {"message": f"Error: {str(e)}"}}
+
+        if response['error']:
+            return Response(response["data"], status=status.HTTP_400_BAD_REQUEST)
+        return Response(response["data"], status=status.HTTP_201_CREATED)
 
 
 class ProjectLogDownload(ProjectPermissionQuerySetMixin, views.APIView):

@@ -216,6 +216,8 @@ def retrieve_tags_from_git_repo(repo_path):
     tags_list = []
     ISO_PATTERN = '%Y-%m-%d %H:%M:%S %z'
     for line in tags_output.strip().split('\n'):
+        if not line:
+            continue
         timestamp, _, tag_name = line.partition('|')
         tags_list.append(
             (datetime.strptime(timestamp, ISO_PATTERN), tag_name)

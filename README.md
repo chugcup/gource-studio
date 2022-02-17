@@ -6,18 +6,31 @@ The project uses the following software:
 - Python (3.6+)
 - Django (3.0+)
 - Celery
+- FFmpeg (4.0+)
+- Gource (0.50+)
 - Redis
 - SQLite
-- FFmpeg
 
 
 First Steps
 =================
 
-Ubuntu 18.04+
+Ubuntu 18.04 LTS
 -----------------
 
     sudo apt install ffmpeg git gource libjpeg8-dev libpng-dev mercurial python3 python3-dev python3-venv redis-server sqlite3 zlib1g-dev
+
+The version of `ffmpeg` (3.4.8) included with Ubuntu 18.04 has some bugs related
+to looping audio, which affects the audio mixing process.
+While the application will run on 18.04, you should include a custom version
+of FFmpeg on the system and set the `FFMPEG_PATH` setting to its local path.
+
+
+Ubuntu 20.04 LTS
+-----------------
+
+    sudo apt install ffmpeg git gource libjpeg8-dev libpng-dev mercurial python3 python3-dev python3-venv redis-server sqlite3 zlib1g-dev
+
 
 
 Python Setup
