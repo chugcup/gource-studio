@@ -1,14 +1,20 @@
 from datetime import datetime
 import re
+
 from django.core.validators import RegexValidator
 from django.utils import dateparse
 
+
 # 16:9 video options
 VIDEO_OPTIONS = [
-    '1280x720',     # 720p
-    '1920x1080',    # 1080p
-    '3840x2160'     # 4K
+    ('1024x576',  '1024 x 576'),
+    ('1280x720',  '1280 x 720'),    # 720p
+    ('1600x900',  '1600 x 900'),
+    ('1920x1080', '1920 x 1080'),   # 1080p
+    ('2560x1440', '2560 x 1440'),
+    ('3840x2160', '3840 x 2160'),   # 4K
 ]
+
 
 ## Validators/parsers for options
 def range_validator(value, min_value=None, max_value=None):

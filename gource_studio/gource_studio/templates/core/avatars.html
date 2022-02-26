@@ -1,5 +1,16 @@
 {% extends 'core/base.html' %}
 
+{% block page_css %}
+  <style type="text/css">
+    .contributor-no-avatar {
+    }
+    .contributor-no-avatar:hover {
+        text-decoration: underline;
+        cursor: pointer;
+    }
+  </style>
+{% endblock %}
+
 {% block content %}
   <div class="main-container container">
     <div>
@@ -58,9 +69,16 @@
     <div class="row">
       <div class="col-lg-12 col-md-12 col-sm-12">
       {% if contributors %}
+        <hr />
+        <h5>
+          <i class="fa fa-user"></i> &nbsp;
+          Project Contributors
+        </h5>
+        <p>
         {% for name in contributors %}
-        {{ name }},
+        <span{% if user_can_edit %} class="contributor-no-avatar" title="Add avatar for this user"{% endif %}>{{ name }}</span>,
         {% endfor %}
+        </p>
       {% endif %}
       </div>
     </div>
@@ -95,3 +113,14 @@
   </div>
   <br />
 {% endblock %}
+
+{% block page_js %}
+  <script type="text/javascript">
+    // Click contributor name to populate input at top of page
+    $('body').on('click', '.contributor-no-avatar', function(e) {
+        $('#avatar_name').val(
+            $(e.currentTarget).text()
+        ).focus();
+    });
+  </script>
+{% endblock %} 

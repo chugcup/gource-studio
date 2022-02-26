@@ -143,9 +143,23 @@
     </video>
   {% else %}
     <div class="project-video-empty">
-        No video available.
-        <br />
+    {% if build.errored_at %}
+        <div class="text-danger">Build Error</div>
+      {% if build.error_description %}
+        <small class="text-danger">{{ build.error_description }}</small>
+      {% endif %}
+    {% elif build.aborted_at %}
+        <div class="text-danger">Build was aborted.</div>
+    {% elif build.running_at %}
+        <div>Currently building...</div>
+        <h3><i class="fa fa-spin fa-spinner"></i></h3>
+    {% elif build.queued_at %}
+        <div>Waiting to build...</div>
+        <h3><i class="fa fa-spin fa-spinner"></i></h3>
+    {% else %}
+        <div>No video available.</div>
         <button class="btn btn-sm btn-primary queue-project-build-btn" type="button">Build Now</button>
+    {% endif %}
     </div>
   {% endif %}
   </div>
@@ -231,7 +245,10 @@
               <hr />
 
               <div class="project-links-container row">
-                <h5>Links:</h5>
+                <h5>
+                  <i class="fa fa-link"></i> &nbsp;
+                  Links:
+                </h5>
                 <div class="input-group input-group-sm">
                     <div class="input-group-prepend">
                         <span class="input-group-text">Project Link</span>
@@ -264,43 +281,56 @@
             </div>
             <div class="tab-pane" id="project-settings-pane" role="tabpanel">
               <hr />
+            {% if user_can_edit %}
               <div class="float-right">
                 <button class="btn btn-success save-project-settings-btn"><i class="fa fa-disk"></i> Save</button>
               </div>
-              <h5>Video Settings</h5>
-                <div class="row justify-content-center">
-                  <div class="col-12">
-                    <div class="form-group form-inline">
-                      <label for="project-video-size"><b>Video Size:</b>&nbsp;</label>
-                      <select id="project-video-size" name="project-video-size" class="form-control form-control-sm">
-                        <option value="1280x720">1280 x 720</option>
-                        <option value="1920x1080">1920 x 1080</option>
-                        <option value="3840x2160">3840 x 2160</option>
-                      </select>
-                    </div>
+            {% endif %}
 
-                    <div class="form-group">
-                      <b>Background Audio:</b>
-                    {% if project.build_audio %}
-                      {{ project.build_audio_name }}
-                      <a class="btn btn-link edit-audio-file"><i class="fa fa-pencil"></i></a>
-                    {% endif %}
-                      <form id="project_build_audio_file_form" method="POST" action="{% url 'project-audio-upload' project.id %}" class="form-inline" enctype="multipart/form-data"{% if project.build_audio %} style="display:none"{% endif %}>
-                          <input id="project_build_audio_file" class="form-control form-control-file form-control-sm" type="file" name="build_audio" style="display:inline-block; width:auto;"/>
-                          <button type="submit" class="btn btn-primary btn-sm">Upload</button>
-                          {% csrf_token %}
-                      </form>
-                    {% if project.build_audio %}
-                    <div>
-                      <button class="btn btn-sm btn-success remix-audio-btn">Remix Audio</button>
-                    </div>
-                    {% endif %}
-                    </div>
+              <h5>
+                <i class="fa fa-video-camera"></i> &nbsp;
+                Audio / Video Settings
+              </h5>
+              <div class="row justify-content-center">
+                <div class="col-12">
+                  <div class="form-group form-inline">
+                    <label for="project-video-size"><b>Video Size:</b>&nbsp;</label>
+                  {% if user_can_edit and build.id == latest_build.id %}
+                    <select id="project-video-size" name="project-video-size" class="form-control form-control-sm">
+                    {% for video_option in video_size_options %}
+                      <option value="{{ video_option.0 }}"{% if project.video_size == video_option.0 %} selected="selected"{% endif %}>{{ video_option.1 }}</option>
+                    {% endfor %}
+                    </select>
+                  {% else %}
+                    <span>{{ build.video_size }}</span>
+                  {% endif %}
+                  </div>
+
+                  <div class="form-group">
+                    <b>Background Audio:</b>
+                  {% if project.build_audio %}
+                    {{ project.build_audio_name }}
+                    <a class="btn btn-link edit-audio-file"><i class="fa fa-pencil"></i></a>
+                  {% endif %}
+                    <form id="project_build_audio_file_form" method="POST" action="{% url 'project-audio-upload' project.id %}" class="form-inline" enctype="multipart/form-data"{% if project.build_audio %} style="display:none"{% endif %}>
+                        <input id="project_build_audio_file" class="form-control form-control-file form-control-sm" type="file" name="build_audio" style="display:inline-block; width:auto;"/>
+                        <button type="submit" class="btn btn-primary btn-sm">Upload</button>
+                        {% csrf_token %}
+                    </form>
+                {% if project.build_audio %}
+                  <div>
+                    <button class="btn btn-sm btn-success remix-audio-btn">Remix Audio</button>
+                  </div>
+                {% endif %}
                   </div>
                 </div>
+              </div>
               <hr />
               <div>
-                <h5 class="float-left" style="padding-right: 36px">Gource Settings</h5>
+                <h5 class="float-left" style="padding-right: 36px">
+                  <i class="fa fa-sliders"></i> &nbsp;
+                  Gource Settings
+                </h5>
                 <div id="gource-duration-estimate-container">
                     <small>Estimated Duration:</small>
                     <span id="gource-duration-estimate">-</span>
@@ -334,11 +364,16 @@
             <div id="project-captions-pane" class="tab-pane" role="tabpanel">
               <div id="project-captions-region">
                 <hr />
+              {% if user_can_edit %}
                 <div class="project-caption-actions float-right">
                   <button class="btn btn-primary load-captions-from-project-tags-btn"><i class="fa fa-tag"></i> Add Project Tags</button>
                   <button class="btn btn-success save-project-captions-btn"><i class="fa fa-disk"></i> Save</button>
                 </div>
-                <h5>Video Captions</h5>
+              {% endif %}
+                <h5>
+                  <i class="fa fa-tag"></i> &nbsp;
+                  Video Captions
+                </h5>
                 <div class="clearfix"></div>
                 <div class="row justify-content-center">
                   <div class="col-12">
@@ -352,9 +387,11 @@
                               v-bind:key="caption.id"
                               v-bind="caption"></project-caption-edit>
                       </div>
+                    {% if user_can_edit %}
                       <button class="btn btn-primary add-caption-btn" style="margin-top:1rem">
                         <i class="fa fa-plus"></i> Add Caption
                       </button>
+                    {% endif %}
                     </div>
                   </div>
                 </div>
@@ -367,7 +404,10 @@
                 <div class="project-manage-actions float-right">
                   <button class="btn btn-success save-project-manage-btn"><i class="fa fa-disk"></i> Save</button>
                 </div>
-                <h5>Manage Project</h5>
+                <h5>
+                  <i class="fa fa-wrench"></i> &nbsp;
+                  Manage Project
+                </h5>
                 <div class="clearfix"></div>
                 <div class="row justify-content-center">
                   <div class="col-12">
@@ -895,15 +935,6 @@
 
     $('body').on('click', '.add-caption-btn', function(e) {
         captions_container.addOption('tmp-'+_.random(0, 999999));
-        /*
-        let $dtpicker = $(gource_caption_template({
-            caption_timestamp: "",
-            caption_text: "",
-        }));
-        $('#project-captions-list').append($dtpicker);
-        $dtpicker.find('.gource-caption-datetimepicker').datetimepicker({
-            format: 'YYYY-MM-DD HH:mm:ss',
-        });*/
     });
 
     // Button to copy URL to clipboard
@@ -991,26 +1022,18 @@
             {{ caption_json|safe }},{% endfor %}
         ];
 
-        _.each(init_project_captions, function(item) {
-            //console.log(item);
-            let moment_timestamp = moment(item.timestamp);
-            item.timestamp = moment_timestamp.format('YYYY-MM-DD HH:mm:ss');
-            item.can_edit = !IS_READONLY;
-            captions_container.captions_list.push(item);
-            return;
-            /*
-            let $selector = $('#project-captions-list');
-            let moment_timestamp = moment(item.timestamp);
-            let $dtpicker = $(gource_caption_template({
-                caption_timestamp: moment_timestamp.format('YYYY-MM-DD HH:mm:ss'),
-                caption_text: item.text,
-            }));
-            $selector.append($dtpicker);
-            $dtpicker.find('.gource-caption-datetimepicker').datetimepicker({
-                format: 'YYYY-MM-DD HH:mm:ss',
+        if (init_project_captions.length > 0) {
+            _.each(init_project_captions, function(item) {
+                let moment_timestamp = moment(item.timestamp);
+                item.timestamp = moment_timestamp.format('YYYY-MM-DD HH:mm:ss');
+                item.can_edit = !IS_READONLY;
+                captions_container.captions_list.push(item);
             });
-            */
-        });
+        } else if (IS_READONLY) {
+            $('#project-captions-list').append(
+                '<div class="text-muted text-center">No captions added yet.</div>'
+            );
+        }
 
         if (IS_READONLY) {
             // Remove selectable options

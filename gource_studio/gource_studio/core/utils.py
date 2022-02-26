@@ -230,7 +230,7 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
     Create a new Gource video using provided options.
     """
     # Input validation
-    if video_size not in VIDEO_OPTIONS:
+    if video_size not in [n[0] for n in VIDEO_OPTIONS]:
         raise ValueError(f'Invalid video size: {video_size}')
 
     gource_options = gource_options if gource_options else {}

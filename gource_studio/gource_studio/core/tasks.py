@@ -94,9 +94,15 @@ def generate_gource_build(build_id):
         captions_path = None
         if build.project_captions:
             captions_path = build.project_captions.path
-        #final_path = generate_gource_video(log_data, avatars=avatar_dir, gource_options={'--seconds-per-day': 0.01})
         try:
-            final_path = generate_gource_video(log_data, avatars=avatar_dir, captions=captions_path, gource_options=gource_options, project_build=build)
+            final_path = generate_gource_video(
+                log_data,
+                video_size=build.video_size,
+                avatars=avatar_dir,
+                captions=captions_path,
+                gource_options=gource_options,
+                project_build=build
+            )
         except ProjectBuildAbortedError:
             logger.info("Project was aborted by user [elapsed: %s sec]", time.monotonic() - start_time)
             return

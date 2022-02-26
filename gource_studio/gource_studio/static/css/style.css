@@ -61,7 +61,10 @@ a.navbar-brand:hover > span {
     text-decoration: none;
     opacity: 0.8;
 }
-.nav-item.nav-user-panel .dropdown .dropdown-menu {
+@media(max-width: 991px) {
+    .nav-item.nav-user-panel .dropdown .dropdown-menu {
+        width: 85%;
+    }
 }
 
 .card-body {

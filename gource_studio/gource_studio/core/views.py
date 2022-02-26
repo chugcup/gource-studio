@@ -24,7 +24,7 @@ from django.views.static import serve
 # Ignore SSL verification
 ssl._create_default_https_context = ssl._create_unverified_context
 
-from .constants import GOURCE_OPTIONS, GOURCE_OPTIONS_LIST, GOURCE_OPTIONS_JSON
+from .constants import GOURCE_OPTIONS, GOURCE_OPTIONS_LIST, GOURCE_OPTIONS_JSON, VIDEO_OPTIONS
 from .exceptions import ProjectBuildAbortedError
 from .models import Project, ProjectBuild, ProjectBuildOption, ProjectCaption, ProjectOption, ProjectUserAvatar, UserAvatar
 from .tasks import generate_gource_build
@@ -215,6 +215,7 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
         'project_options_json': [
             json.dumps(opt.to_dict()) for opt in project_options
         ],
+        'video_size_options': VIDEO_OPTIONS,
         'gource_options': GOURCE_OPTIONS_LIST,
         'gource_options_json': [
             json.dumps(opt) for opt in GOURCE_OPTIONS_JSON
@@ -248,12 +249,10 @@ def edit_project(request, project_id=None, project_slug=None):
     logging.error(request.POST)
     logging.error(data)
 
-    # TODO: 'video_size'
-
     # General project fields
     project_updated = False
     update_fields = []
-    for field in ['project_slug', 'is_public']:
+    for field in ['video_size', 'project_slug', 'is_public']:
         if field in data:
             setattr(project, field, data[field])
             project_updated = True
@@ -643,6 +642,7 @@ def project_queue_build(request, project_id=None, project_slug=None):
         build = ProjectBuild(
             project=project,
             project_branch=project.project_branch,
+            video_size=project.video_size,
             status='queued',
             queued_at=utc_now()
         )
@@ -998,6 +998,7 @@ def test_queue_video(request):
         build = ProjectBuild(
             project=project,
             project_branch=project.project_branch,
+            video_size=project.video_size,
             status='queued',
             queued_at=utc_now()
         )
@@ -1052,6 +1053,7 @@ def make_video(request):
         build = ProjectBuild(
             project=project,
             project_branch=project.project_branch,
+            video_size=project.video_size,
             status='queued',
             queued_at=utc_now()
         )

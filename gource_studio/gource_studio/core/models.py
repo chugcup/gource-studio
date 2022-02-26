@@ -10,6 +10,7 @@ from django.utils.functional import SimpleLazyObject
 from django.utils.timezone import make_aware, now as utc_now
 
 #from .managers import ProjectManager
+from .constants import VIDEO_OPTIONS
 from .managers import ProjectQuerySet
 from .utils import (
     analyze_gource_log,     #(data):
@@ -56,6 +57,8 @@ class Project(models.Model):
     project_log_commit_time = models.DateTimeField(blank=True, null=True)
     project_log_commit_preview = models.CharField(max_length=128, blank=True, null=True)
 
+    # Output video size (16:9 aspect ratio only)
+    video_size = models.CharField(max_length=16, default="1280x720", choices=VIDEO_OPTIONS)
     # Optional name to display in video
     build_title = models.CharField(max_length=255, default="", blank=True)
     # Optional logo to display in video
@@ -272,6 +275,7 @@ class ProjectBuild(models.Model):
     project_captions = models.FileField(upload_to=get_build_project_captions_path, blank=True, null=True)
 
     # Video/thumbnail data
+    video_size = models.CharField(max_length=16, default="1280x720", choices=VIDEO_OPTIONS)
     content = models.FileField(upload_to=get_video_build_path, blank=True, null=True)
     screenshot = models.ImageField(upload_to=get_video_screenshot_path, blank=True, null=True)
     thumbnail = models.ImageField(upload_to=get_video_thumbnail_path, blank=True, null=True)

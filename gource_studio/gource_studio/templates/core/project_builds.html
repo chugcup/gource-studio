@@ -71,6 +71,7 @@
                 </h5>
               </div>
               <div class="card-body" style="padding:10px">
+            {% if user_can_edit %}
               {% if build.is_finished %}
                 <div class="float-right">
                     <a class="btn btn-link delete-build-btn text-danger" data-project-id="{{ project.id }}" data-build-id="{{ build.id }}"><i class="fa fa-trash"></i> DELETE</a>
@@ -80,6 +81,7 @@
                     <a class="btn btn-link abort-build-btn text-danger" data-project-id="{{ project.id }}" data-build-id="{{ build.id }}"><i class="fa fa-ban"></i> ABORT</a>
                 </div>
               {% endif %}
+            {% endif %}
                 <p class="card-text" style="font-size:12px; text-align:left;">
                 {% if build.error_description %}
                   {{ build.error_description }}
