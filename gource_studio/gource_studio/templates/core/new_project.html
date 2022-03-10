@@ -31,15 +31,22 @@
     <div class="form-check">
       <input type="checkbox" id="project-initial-captions-from-tags" class="form-check-input" checked="checked" />
       <label for="project-initial-captions-from-tags" class="form-check-label">Load Captions From Tags</label>
+      <span style="padding-left:12px;" data-toggle="popover" data-trigger="hover" data-content="This will load VCS tags from the project and add them as video captions.">
+        <i class="fa fa-info-circle"></i>
+      </span>
     </div>
     <br />
     <div class="form-check">
       <input type="checkbox" id="set-project-public" class="form-check-input" checked="checked" />
       <label for="set-project-public" class="form-check-label">Make Project Public</label>
+      <span style="padding-left:12px;" data-toggle="popover" data-trigger="hover" data-content="This will make the project publicly visible to all users.">
+        <i class="fa fa-info-circle"></i>
+      </span>
     </div>
     <br />
     <div class="text-center">
       <button id="save-project-btn" class="btn btn-lg btn-success">
+        <i class="fa fa-plus"></i>
         Create Project
       </button>
     </div>
@@ -50,17 +57,17 @@
 
 {% block page_js %}
   <script type="text/javascript">
-      // Listen for VCS option changes
-      $('body').on('change', '#project-vcs-select', function(e) {
-          // Change 'branch' default input if VCS is changed
-          if ($(e.currentTarget).val() == 'hg') {
-              // Mercurial
-              $('#project-branch-input').val('default');
-          } else {
-              // Git
-              $('#project-branch-input').val('master');
-          }
-      });
+    // Listen for VCS option changes
+    $('body').on('change', '#project-vcs-select', function(e) {
+        // Change 'branch' default input if VCS is changed
+        if ($(e.currentTarget).val() == 'hg') {
+            // Mercurial
+            $('#project-branch-input').val('default');
+        } else {
+            // Git
+            $('#project-branch-input').val('master');
+        }
+    });
 
     // Save project
     $('body').on('click', '#save-project-btn', function(e) {
@@ -132,5 +139,6 @@
             }
         });
     });
+    $('span[data-toggle="popover"]').popover();
   </script>
 {% endblock %}

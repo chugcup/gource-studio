@@ -114,7 +114,7 @@ def logout(request):
 
 def index(request):
     "Landing page"
-    # Return latest 8 projects
+    # Return latest 24 projects
     # - Subquery filter removes any projects without a successful build
     projects_list = Project.objects.filter_permissions(request.user)\
                                    .with_latest_build()\
@@ -126,7 +126,7 @@ def index(request):
     context = {
         'document_title': f'{SITE_NAME} - Generate Video Timelines of Software Projects',
         'nav_page': '',
-        'projects': projects_list.order_by('-latest_build_time')[:8],
+        'projects': projects_list.order_by('-latest_build_time')[:24],
     }
     return render(request, 'core/index.html', context)
 

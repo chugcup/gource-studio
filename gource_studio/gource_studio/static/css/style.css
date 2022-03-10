@@ -70,6 +70,25 @@ a.navbar-brand:hover > span {
 .card-body {
     padding: 4px;
 }
+.latest-projects-gallery .card-body .card-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;  /* Max lines to show */
+    font-size: 1.25rem;
+    line-height: 1.5rem;
+}
+
+/* Login */
+#login-form .input-group label {
+    text-align: right;
+    display: inline-block;
+    width: 100px;
+    margin-right: 12px;
+    font-size: 1.25em;
+    font-weight: 600;
+}
 
 /* New Project */
 #new-project-errors {
@@ -86,8 +105,12 @@ a.navbar-brand:hover > span {
 .project-item-container {
     display: flex;
     flex-wrap: nowrap;
+    align-items: stretch;
 }
 .project-item-container > .status-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-basis: 7rem;
     flex-grow: 1;
     border-radius: .25rem 0 0 .25rem;
@@ -105,6 +128,12 @@ a.navbar-brand:hover > span {
 .project-item-container > .content-container .card-header {
     padding: .25rem 1.25rem;
     height: 34px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.project-item-container > .content-container .card-header a {
+    width: 100%;
 }
 .project-item-container > .content-container .card-header a:hover {
     text-decoration: none;
@@ -113,4 +142,21 @@ a.navbar-brand:hover > span {
 .project-item-container > .content-container .card-header small {
     line-height: 26px;
 }
-
+@media(max-width: 767px) {
+    .project-item-container > .content-container .card-header .build-time-notice {
+        display: none;
+    }
+}
+.project-item-container > .content-container .card-text .latest-project-build {
+    margin-top: 8px;
+}
+@media(max-width: 1200px) {
+    .project-item-container > .content-container .card-text .latest-project-build {
+        margin-top: 4px;
+    }
+}
+@media(max-width: 992px) {
+    .project-item-container > .content-container .card-text .latest-project-build {
+        margin-top: 0px;
+    }
+}

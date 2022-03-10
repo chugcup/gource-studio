@@ -1,10 +1,26 @@
 {% extends 'core/base.html' %}
 
+{% block page_css %}
+  <style type="text/css">
+  .jumbotron .jumbotron-dismiss-btn {
+      display: none;
+      margin-right: -10px;
+      margin-top: -50px;
+  }
+  .jumbotron:hover .jumbotron-dismiss-btn {
+      display: inline-block;
+  }
+  </style>
+{% endblock %}
+
 {% block content %}
   <div class="main-container container">
 
     <!-- Jumbotron Header -->
     <header class="jumbotron my-4">
+      <button type="button" class="jumbotron-dismiss-btn close" data-dismiss="alert" aria-label="Close" title="Dismiss">
+        <span aria-hidden="true">&times;</span>
+      </button>
       <h1 class="display-3">Your Project in Bloom!</h1>
       <div class="float-right d-none d-lg-block">
         <img src="/static/img/gource-studio-logo.png" alt="Main Logo" style="width:150px"/>
@@ -16,7 +32,8 @@
           Built using <a href="https://gource.io" target="_blank">Gource</a>, <a href="https://ffmpeg.org" target="_blank">ffmpeg</a>, and other open source software.
         </div>
       </p>
-      <a href="{% url 'new-project' %}" class="btn btn-primary btn-lg">Get Started</a>
+      {# TODO Registration (no login) or New Project (logged in) #}
+      {#<a href="{% url 'new-project' %}" class="btn btn-primary btn-lg">Get Started</a>#}
       <div class="clearfix"></div>
     </header>
 
@@ -24,7 +41,7 @@
     <hr />
 
     <!-- Page Features -->
-    <div class="row text-center">
+    <div class="latest-projects-gallery row text-center">
     {% for project in projects %}
       {% with latest_build=project.latest_build %}
       <div class="col-lg-3 col-md-6 mb-4">
@@ -39,15 +56,12 @@
           <div class="card-body">
             <h4 class="card-title">
             {% if project.name %}
-              {{ project.name }}
+              <span title="{{ project.name }}">{{ project.name }}</span>
             {% else %}
               <em class="text-muted">No Name</em>
             {% endif %}
             </h4>
             <p class="card-text"><!-- Card Text --></p>
-          </div>
-          <div class="card-footer">
-            <a href="{% url 'project-details' project.id %}" class="btn btn-primary">Watch Video</a>
           </div>
         </div>
       </div>
@@ -62,4 +76,14 @@
 
     <br />
   </div>
+{% endblock %}
+
+{% block page_js %}
+  <script type="text/javascript">
+  {% verbatim %}
+  $('.jumbotron-dismiss-btn').click(function() {
+      $('.jumbotron').remove();
+  });
+  {% endverbatim %}
+  </script>
 {% endblock %}
