@@ -1,11 +1,13 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 import os
 import time
+import urllib
 
 from django.db.models import DateTimeField, Exists, Max, OuterRef, Prefetch, Q, Subquery, Value
 from django.db.models.functions import Coalesce, Greatest
 from django.shortcuts import get_object_or_404
+from django.utils.timezone import make_aware, now as utc_now
 from django.views.static import serve
 from rest_framework import generics, status, views
 from rest_framework.decorators import api_view, permission_classes
@@ -25,6 +27,7 @@ from ..models import (
     UserAvatar,
     UserAvatarAlias,
 )
+from ..tasks import generate_gource_build
 from ..utils import (
     download_git_tags,
     estimate_gource_video_duration,
@@ -284,11 +287,16 @@ class ProjectBuildDetail(generics.RetrieveUpdateDestroyAPIView):
     def patch(self, request, *args, **kwargs):
         build = self.get_object()
         if 'status' in request.data:
-            if data['status'] == 'aborted':
-                if build.status != 'running':
+            request_status = request.data['status']
+            if request_status in ['canceled', 'aborted']:
+                if build.status not in ['pending', 'queued', 'running']:
                     # Invalid state transition
-                    return Response({"status": f"Cannot mark build aborted from \"{build.status}\" status"}, status=status.HTTP_400_BAD_REQUEST)
-                build.mark_aborted()
+                    return Response({"status": f"Cannot mark build {request_status} from \"{build.status}\" status"}, status=status.HTTP_400_BAD_REQUEST)
+                if build.status in ['pending', 'queued']:
+                    build.mark_canceled()
+                else:
+                    build.mark_aborted()
+            # TODO: prevent other status changes?
         return super().patch(request, *args, **kwargs)
 
     def delete(self, request, *args, **kwargs):
@@ -302,6 +310,91 @@ class ProjectBuildDetail(generics.RetrieveUpdateDestroyAPIView):
 
             time.sleep(5)   # Wait a brief period for job to clean up
         return super().delete(request, *args, **kwargs)
+
+
+class CreateNewProjectBuild(generics.CreateAPIView):
+    queryset = ProjectBuild.objects.all()
+    serializer_class = ProjectBuildSerializer
+
+    def post(self, request, *args, **kwargs):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+
+        # Determine if project log should be re-downloaded
+        refetch_log = request.data.get('refetch_log', None)
+
+        response = {}
+        # Check if project currently has queued build
+        # TODO: allow more than one at a time?
+        if project.builds.filter(status__in=['pending', 'queued', 'running']).count():
+            response = {
+                "detail": "Project already has pending builds."
+            }
+            return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            if str(refetch_log).lower() in ['t', 'true', '1']:
+                # Download latest VCS branch; generate Gource log
+                content = test_http_url(project.project_url)
+                log_data, log_hash, log_subject, tags_list = download_git_log(project.project_url, branch=project.project_branch)
+                project.project_log_commit_hash = log_hash
+                project.project_log_commit_preview = log_subject
+                # Get time/author from last entry
+                latest_commit = log_data.splitlines()[-1].split('|')
+                project.project_log_commit_time = make_aware(datetime.utcfromtimestamp(int(latest_commit[0])))
+                if project.project_log:
+                    #os.remove(project.project_log.path)
+                    project.project_log.delete()
+                project.project_log.save('gource.log', ContentFile(log_data))
+
+            # Create new build (immediately in "queued" state)
+            build = ProjectBuild(
+                project=project,
+                project_branch=project.project_branch,
+                video_size=project.video_size,
+                status='queued',
+                queued_at=utc_now()
+            )
+            build.save()
+
+            # Copy over build options from master project
+            build_options = []
+            for option in project.options.all():
+                build_options.append(
+                    ProjectBuildOption(
+                        build=build,
+                        name=option.name,
+                        value=option.value,
+                        value_type=option.value_type
+                    )
+                )
+            if build_options:
+                ProjectBuildOption.objects.bulk_create(build_options)
+
+            # Save captions to file prior to build
+            captions = project.generate_captions_file()
+            if captions is not None:
+                captions_data = "\n".join(captions)
+                build.project_captions.save('captions.txt', ContentFile(captions_data))
+
+            # Generate serializer response for new ProjectBuild
+            serializer = self.get_serializer(build, context={'request': request})
+            response = serializer.data
+
+            # Send to background worker
+            generate_gource_build.delay(build.id)
+
+            # Return success response
+            return Response(response, status=status.HTTP_201_CREATED)
+        except urllib.error.URLError as e:
+            response = {
+                "detail": f'URL/HTTP error: {e.reason}'
+            }
+        except Exception as e:
+            logging.exception("Uncaught exception")
+            response = {
+                "detail": f'Server error: [{e.__class__.__name__}] {e}'
+            }
+        return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProjectBuildContentDownload(views.APIView):

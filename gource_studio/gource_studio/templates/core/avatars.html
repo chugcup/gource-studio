@@ -75,9 +75,9 @@
           Project Contributors
         </h5>
         <p>
-        {% for name in contributors %}
-        <span{% if user_can_edit %} class="contributor-no-avatar" title="Add avatar for this user"{% endif %}>{{ name }}</span>,
-        {% endfor %}
+      {% for name in contributors %}
+        <span{% if user_can_edit %} class="contributor-no-avatar" title="Add avatar for this user"{% endif %}>{{ name }}</span>{% if not forloop.last %},{% endif %}
+      {% endfor %}
         </p>
       {% endif %}
       </div>

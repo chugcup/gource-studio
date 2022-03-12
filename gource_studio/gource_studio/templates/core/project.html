@@ -41,6 +41,11 @@
     .project-nav-topbar li.nav-item:not(:first-child) {
         border-left: 1px solid #EEEEEE;
     }
+  @media(max-width: 577px) {
+    .project-nav-topbar .nav-link {
+        padding: 0.5rem 0.5rem;
+    }
+  }
     .project-nav-sidebar {
         white-space: nowrap;
     }
@@ -79,6 +84,32 @@
     .project-video-container .queue-project-build-btn:hover {
         opacity: 1.0;
     }
+    .project-url-link {
+        font-weight: bold;
+        color: #333333;
+    }
+    .project-url-link:hover {
+        color: #333333;
+        text-decoration: underline;
+    }
+    #project-details-pane .row b {
+        display: inline-block;
+        width: 120px;
+        text-align: right;
+    }
+  @media(max-width: 577px) {
+    #project-details-pane .row b,
+    #project-details-pane .row span {
+        width: auto;
+        text-align: center;
+        display: block;
+    }
+  }
+  @media(min-width: 992px) {
+    #project-details-pane .row b {
+        margin-left: 100px;
+    }
+  }
     .project-nav-topbar {
         border-bottom: 1px solid #CCCCCC;
         margin-bottom: 12px;
@@ -197,7 +228,7 @@
         <div class="container">
           <div class="row justify-content-center text-center">
             <div class="col-12">
-              <b>{{ project.project_url }}</b>
+              <a href="{{ project.project_url }}" class="project-url-link" target="_blank">{{ project.project_url }}</a>
               {% if build.content %}
               <a class="btn btn-link" href="{% url 'project-build-video' project.id build.id %}" download="video-{{ build.id }}.mp4" title="Download video ({{ build.content.size|filesizeformat }})"$>
                 <i class="fa fa-download"></i>
@@ -206,28 +237,34 @@
             </div>
           </div>
 
+          <hr />
+
           <div class="tab-content" id="project-tab-content">
             <div class="tab-pane show active" id="project-details-pane" role="tabpanel">
-              {% if project.project_log_commit_hash %}
-              <div class="row justify-content-center text-center">
+              <div class="row">
                 <div class="col-12">
-                {% if build.project_log %}
-                  <a class="btn btn-link" href="{% url 'project-build-project-log' project.id build.id %}" download="project.log">
-                    <i class="fa fa-file-text-o"></i>
-                  </a>
-                {% elif project.project_log %}
-                  <a class="btn btn-link" href="{% url 'project-project-log' project.id %}" download="project.log">
-                    <i class="fa fa-file-text-o"></i>
-                  </a>
-                {% endif %}
+                  <b>Branch:</b>
+                  <span title="{{ project.project_branch }}">{{ project.project_branch }}</span>
+                </div>
+              {% if project.project_log_commit_hash %}
+                <div class="col-12">
                   <b>Last Commit:</b>
                   <span title="{{ project.project_log_commit_time|date:"M j, Y H:i:s T" }}">
                     [{{ project.project_log_commit_time|date:"M j, Y" }}]
-                  </span>
                   {{ project.project_log_commit_preview }}
+                {% if build.project_log %}
+                    <a class="btn btn-link" href="{% url 'project-build-project-log' project.id build.id %}" download="project.log">
+                      <i class="fa fa-file-text-o"></i>
+                    </a>
+                {% elif project.project_log %}
+                    <a class="btn btn-link" href="{% url 'project-project-log' project.id %}" download="project.log">
+                      <i class="fa fa-file-text-o"></i>
+                    </a>
+                {% endif %}
+                  </span>
                 </div>
-              </div>
               {% endif %}
+              </div>
 
               <hr />
 
@@ -280,7 +317,6 @@
               {% endif %}
             </div>
             <div class="tab-pane" id="project-settings-pane" role="tabpanel">
-              <hr />
             {% if user_can_edit %}
               <div class="float-right">
                 <button class="btn btn-success save-project-settings-btn"><i class="fa fa-disk"></i> Save</button>
@@ -363,7 +399,6 @@
             </div>
             <div id="project-captions-pane" class="tab-pane" role="tabpanel">
               <div id="project-captions-region">
-                <hr />
               {% if user_can_edit %}
                 <div class="project-caption-actions float-right">
                   <button class="btn btn-primary load-captions-from-project-tags-btn"><i class="fa fa-tag"></i> Add Project Tags</button>
@@ -400,7 +435,6 @@
         {% if user_can_edit %}
             <div id="project-manage-pane" class="tab-pane" role="tabpanel">
               <div id="project-manage-region">
-                <hr />
                 <div class="project-manage-actions float-right">
                   <button class="btn btn-success save-project-manage-btn"><i class="fa fa-disk"></i> Save</button>
                 </div>

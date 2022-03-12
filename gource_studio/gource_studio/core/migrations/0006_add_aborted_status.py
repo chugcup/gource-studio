@@ -18,6 +18,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='projectbuild',
             name='status',
-            field=models.CharField(choices=[('pending', 'Pending'), ('queued', 'Queued'), ('running', 'Running'), ('aborted', 'Aborted'), ('completed', 'Completed'), ('errored', 'Errored')], default='pending', max_length=16),
+            field=models.CharField(choices=[('pending', 'Pending'), ('queued', 'Queued'), ('canceled', 'Canceled'), ('running', 'Running'), ('aborted', 'Aborted'), ('completed', 'Completed'), ('errored', 'Errored')], default='pending', max_length=16),
         ),
     ]

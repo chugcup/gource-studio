@@ -28,6 +28,8 @@
             <div class="status-container bg-light">
           {% elif build.status == "queued" %}
             <div class="status-container bg-light">
+          {% elif build.status == "canceled" %}
+            <div class="status-container bg-danger text-white">
           {% elif build.status == "running" %}
             <div class="status-container bg-primary text-white">
           {% elif build.status == "aborted" %}
@@ -71,9 +73,17 @@
                 <div class="float-right">
                     <a class="btn btn-link delete-build-btn text-danger" data-project-id="{{ project.id }}" data-build-id="{{ build.id }}"><i class="fa fa-trash"></i> DELETE</a>
                 </div>
-              {% elif build.status == 'running' %}
+              {% elif build.status == 'pending' or build.status == 'queued' or build.status == 'running' %}
                 <div class="float-right">
-                    <a class="btn btn-link abort-build-btn text-danger" data-project-id="{{ project.id }}" data-build-id="{{ build.id }}"><i class="fa fa-ban"></i> ABORT</a>
+                  {% if build.status == 'running' %}
+                    <a class="btn btn-link abort-build-btn text-danger" data-project-id="{{ project.id }}" data-build-id="{{ build.id }}">
+                        <i class="fa fa-ban"></i> ABORT
+                    </a>
+                  {% else %}
+                    <a class="btn btn-link cancel-build-btn text-danger" data-project-id="{{ project.id }}" data-build-id="{{ build.id }}">
+                        <i class="fa fa-times"></i> CANCEL
+                    </a>
+                  {% endif %}
                 </div>
               {% endif %}
             {% endif %}
@@ -174,7 +184,42 @@
             });
         }
     });
-    // Abort (running) build handler
+    // Cancel/Abort (running) build handler
+    let set_build_status = function(project_id, build_id, status) {
+        console.log("Setting build to '"+status+"'...");
+        $.ajax({
+            url: "/api/v1/projects/"+project_id+"/builds/"+build_id+"/",
+            method: 'PATCH',
+            data: JSON.stringify({
+                status: status,
+            }),
+            contentType: "application/json",
+            dataType: "json",
+            beforeSend: function(xhr) {
+                // Attach CSRF Token
+                xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+            },
+            success: function(data, textStatus, xhr) {
+                // Redirect/reload
+                window.location.reload();
+            },
+            error: function(xhr, textStatus, err) {
+                // Error
+                console.log(status+" error: "+err, xhr);
+            }
+        });
+    };
+    $('body').on('click', '.cancel-build-btn', function(e) {
+        let project_id = $(e.currentTarget).data('project-id');
+        let build_id = $(e.currentTarget).data('build-id');
+        if (!project_id || !build_id) {
+            return false;
+        }
+        let confirm_cancel = confirm("Cancel this build?");
+        if (confirm_cancel) {
+            set_build_status(project_id, build_id, "canceled");
+        }
+    });
     $('body').on('click', '.abort-build-btn', function(e) {
         let project_id = $(e.currentTarget).data('project-id');
         let build_id = $(e.currentTarget).data('build-id');
@@ -183,28 +228,7 @@
         }
         let confirm_abort = confirm("Abort this build?");
         if (confirm_abort) {
-            console.log("Aborting build...");
-            $.ajax({
-                url: "/projects/"+project_id+"/builds/"+build_id+"/",
-                method: 'PATCH',
-                data: JSON.stringify({
-                    status: 'aborted',
-                }),
-                contentType: "application/json",
-                dataType: "json",
-                beforeSend: function(xhr) {
-                    // Attach CSRF Token
-                    xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
-                },
-                success: function(data, textStatus, xhr) {
-                    // Redirect/reload
-                    window.location.reload();
-                },
-                error: function(xhr, textStatus, err) {
-                    // Error
-                    console.log("Abort error: "+err, xhr);
-                }
-            });
+            set_build_status(project_id, build_id, "aborted");
         }
     });
   </script>

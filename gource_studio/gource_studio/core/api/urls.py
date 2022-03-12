@@ -19,6 +19,7 @@ urlpatterns = [
     re_path(r'^projects/(?P<project_id>\d+)/avatars/(?P<project_avatar_id>\d+)/download/?$', views.ProjectUserAvatarImageDownload.as_view(), name='api-project-useravatar-image-download'),
     re_path(r'^projects/(?P<project_id>\d+)/build_audio/download/?$', views.ProjectBuildAudioDownload.as_view(), name='api-project-build-audio-download'),
     re_path(r'^projects/(?P<project_id>\d+)/builds/?$', views.ProjectBuildsByProjectList.as_view(), name='api-project-builds-byproject-list'),
+    re_path(r'^projects/(?P<project_id>\d+)/builds/new/?$', views.CreateNewProjectBuild.as_view(), name='api-new-project-build'),
     re_path(r'^projects/(?P<project_id>\d+)/builds/(?P<project_build_id>\d+)/?$', views.ProjectBuildDetail.as_view(), name='api-project-build-detail'),
     re_path(r'^projects/(?P<project_id>\d+)/builds/(?P<project_build_id>\d+)/options/?$', views.ProjectBuildOptionsList.as_view(), name='api-project-build-options-list'),
     re_path(r'^projects/(?P<project_id>\d+)/builds/(?P<project_build_id>\d+)/content/download/?$', views.ProjectBuildContentDownload.as_view(), name='api-project-build-content-download'),

@@ -42,7 +42,7 @@ class Migration(migrations.Migration):
             name='ProjectBuild',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('queued', 'Queued'), ('running', 'Running'), ('completed', 'Completed'), ('errored', 'Errored')], default='pending', max_length=16)),
+                ('status', models.CharField(choices=[('pending', 'Pending'), ('queued', 'Queued'), ('canceled', 'Canceled'), ('running', 'Running'), ('aborted', 'Aborted'), ('completed', 'Completed'), ('errored', 'Errored')], default='pending', max_length=16)),
                 ('project_branch', models.CharField(default='master', max_length=255)),
                 ('project_log', models.FileField(blank=True, null=True, upload_to=gource_studio.core.models.get_build_project_log_path)),
                 ('content', models.FileField(blank=True, null=True, upload_to=gource_studio.core.models.get_video_build_path)),

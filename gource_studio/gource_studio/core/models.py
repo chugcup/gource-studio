@@ -261,6 +261,7 @@ class ProjectBuild(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('queued', 'Queued'),
+        ('canceled', 'Canceled'),
         ('running', 'Running'),
         ('aborted', 'Aborted'),
         ('completed', 'Completed'),
@@ -341,6 +342,15 @@ class ProjectBuild(models.Model):
             self.save(update_fields=['status', 'queued_at'])
         else:
             raise ValueError("Cannot queue build from \"%s\" status", self.status)
+
+    def mark_canceled(self):
+        "Mark pending/queued build as canceled"
+        if self.status in ['pending', 'queued']:
+            self.status = 'canceled'
+            self.aborted_at = utc_now()
+            self.save(update_fields=['status', 'aborted_at'])
+        else:
+            raise ValueError("Cannot mark build canceled from \"%s\" status", self.status)
 
     def mark_running(self):
         "Mark build running"
