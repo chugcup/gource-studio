@@ -4,6 +4,7 @@ import os
 import time
 import urllib
 
+from django.core.files.base import ContentFile
 from django.db.models import DateTimeField, Exists, Max, OuterRef, Prefetch, Q, Subquery, Value
 from django.db.models.functions import Coalesce, Greatest
 from django.shortcuts import get_object_or_404
@@ -124,7 +125,7 @@ class ProjectDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateDestr
     def delete(self, request, *args, **kwargs):
         project = self.get_object()
         # Check for any queued builds and cancel them
-        project.builds.filter(status__in=['pending', 'queued']).update(status='aborted')
+        project.builds.filter(status__in=['pending', 'queued']).update(status='canceled')
         # Check for any running Project builds and abort them
         running_builds = project.builds.filter(status='running')
         if running_builds:

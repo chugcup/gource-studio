@@ -70,6 +70,8 @@ class Project(models.Model):
 
     # Determine if project is publicly-visible or restricted to project members
     is_public = models.BooleanField(default=True)
+    # Flag to indicate project (settings) updated since last build
+    is_project_changed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='projects_created', on_delete=models.CASCADE, null=True, blank=True)

@@ -151,16 +151,41 @@
     </div>
     <br />
   </div>
+
+  <div id="queue-project-build-modal" class="modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">New Project Build</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="text-center">
+            <input id="queue_project_build_refetch_log" type="checkbox" checked="checked" />
+            <label for="queue_project_build_refetch_log">Download new project log</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary">Queue Build</button>
+        </div>
+      </div>
+    </div>
+  </div>
   {% endwith %}
 {% endblock %}
 
 {% block page_js %}
   <script type="text/javascript">
     // Queue build handler
-    $('body').on('click', '.queue-project-build-btn', function(e) {
-        $.ajax({
+    let queue_project_build = function(options) {
+        options = options || {};
+        return $.ajax({
             url: "/api/v1/projects/{{project.id}}/builds/new/",
             method: 'POST',
+            data: JSON.stringify(options),
             contentType: 'application/json',
             beforeSend: function(xhr) {
                 // Attach CSRF Token
@@ -176,6 +201,16 @@
                 console.log("Queue error: "+err, xhr);
             }
         });
+    };
+    $('body').on('click', '.queue-project-build-btn', function(e) {
+        $('#queue-project-build-modal').modal();
+    });
+    $('body #queue-project-build-modal').on('click', '.btn-primary', function() {
+        let options = {};
+        if ($('#queue_project_build_refetch_log').is('checked')) {
+            options.refetch_log = true;
+        }
+        let $ajax = queue_project_build(options);
     });
 
     // Delete build handler
