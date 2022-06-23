@@ -29,6 +29,8 @@ urlpatterns = [
     re_path(r'^projects/(?P<project_id>\d+)/captions/?$', views.ProjectCaptionsList.as_view(), name='api-project-captions-list'),
     re_path(r'^projects/(?P<project_id>\d+)/members/?$', views.ProjectMembersList.as_view(), name='api-project-members-list'),
     re_path(r'^projects/(?P<project_id>\d+)/options/?$', views.ProjectOptionsList.as_view(), name='api-project-options-list'),
+    re_path(r'^projects/(?P<project_id>\d+)/project_log/?$', views.ProjectLogDetail.as_view(), name='api-project-log'),
+    re_path(r'^projects/(?P<project_slug>[-\w]+)/project_log/?$', views.ProjectLogDetail.as_view(), name='api-project-log-slug'),
     re_path(r'^projects/(?P<project_id>\d+)/project_log/download/?$', views.ProjectLogDownload.as_view(), name='api-project-log-download'),
     re_path(r'^projects/(?P<project_id>\d+)/utils/duration/?$', views.ProjectDurationUtility.as_view(), name='api-project-duration-utility'),
 ]

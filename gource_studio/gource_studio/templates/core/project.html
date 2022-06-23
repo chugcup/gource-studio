@@ -246,12 +246,12 @@
                   <b>Branch:</b>
                   <span title="{{ project.project_branch }}">{{ project.project_branch }}</span>
                 </div>
-              {% if project.project_log_commit_hash %}
+              {% if build.project_log_commit_hash %}
                 <div class="col-12">
                   <b>Last Commit:</b>
-                  <span title="{{ project.project_log_commit_time|date:"M j, Y H:i:s T" }}">
-                    [{{ project.project_log_commit_time|date:"M j, Y" }}]
-                  {{ project.project_log_commit_preview }}
+                  <span title="{{ build.project_log_commit_time|date:"M j, Y H:i:s T" }}">
+                    [{{ build.project_log_commit_time|date:"M j, Y" }}]
+                  {{ build.project_log_commit_preview }}
                 {% if build.project_log %}
                     <a class="btn btn-link" href="{% url 'project-build-project-log' project.id build.id %}" download="project.log">
                       <i class="fa fa-file-text-o"></i>

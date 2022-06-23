@@ -30,6 +30,8 @@ from ..models import (
 )
 from ..tasks import generate_gource_build
 from ..utils import (
+    analyze_gource_log,
+    download_git_log,
     download_git_tags,
     estimate_gource_video_duration,
     test_http_url,
@@ -196,6 +198,62 @@ class ProjectActions(ProjectPermissionQuerySetMixin, views.APIView):
         return Response(response["data"], status=status.HTTP_201_CREATED)
 
 
+class ProjectLogDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateAPIView):
+    """
+    Update project (Gource) 'project.log' contents or metadata.
+    """
+    queryset = Project.objects.all()
+    serializer_class = ProjectLogSerializer
+
+    def get_object(self, *args, **kwargs):
+        if 'project_id' in self.kwargs:
+            project = get_object_or_404(self.get_queryset(), **{'id': self.kwargs['project_id']})
+        elif 'project_slug' in self.kwargs:
+            project = get_object_or_404(self.get_queryset(), **{'project_slug': self.kwargs['project_slug']})
+        else:
+            project = get_object_or_404(self.get_queryset(), **{'id': None})    # Force 404
+        return project
+
+    def get(self, request, *args, **kwargs):
+        project = self.get_object()
+        serializer = self.get_serializer(project, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, *args, **kwargs):
+        project = self.get_object()
+        response_status = status.HTTP_200_OK
+        if not project.project_log:
+            response_status = status.HTTP_201_CREATED
+        for field in ['project_log_commit_hash', 'project_log_commit_time', 'project_log_commit_preview']:
+            if field in request.data:
+                if field == 'project_log_commit_time':
+                    # FIXME: not always going to be UNIX timestamp
+                    setattr(project, field,
+                            make_aware(datetime.utcfromtimestamp(int(request.data[field]))))
+                else:
+                    setattr(project, field, request.data[field])
+        if 'project_log' in request.data:
+            log_data = request.data['project_log']
+            try:
+                analyze_gource_log(log_data)
+            except Exception as e:
+                # Invalid Gource log
+                logging.exception("Error analyzing log")
+                return Response({"project_log": "Error analyzing project log: {0}".format(str(e))}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                if project.project_log:
+                    #os.remove(project.project_log.path)
+                    project.project_log.delete()
+                project.project_log.save('gource.log', ContentFile(log_data))
+            except Exception as e:
+                # Error saving (500?)
+                logging.exception("Error saving log")
+                return Response({"project_log": "Error saving project log: {0}".format(str(e))}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(project, context={'request': request})
+        return Response(serializer.data, status=response_status)
+
+
 class ProjectLogDownload(ProjectPermissionQuerySetMixin, views.APIView):
     """
     Download project (Gource) 'project.log' contents.
@@ -277,6 +335,7 @@ class ProjectBuildsByProjectList(ProjectBuildsList):
 class ProjectBuildDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = ProjectBuild.objects.all()
     serializer_class = ProjectBuildSerializer
+    permission_classes = (ProjectMemberPermission,)
 
     def get_object(self):
         project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
@@ -316,6 +375,7 @@ class ProjectBuildDetail(generics.RetrieveUpdateDestroyAPIView):
 class CreateNewProjectBuild(generics.CreateAPIView):
     queryset = ProjectBuild.objects.all()
     serializer_class = ProjectBuildSerializer
+    permission_classes = (ProjectMemberPermission,)
 
     def post(self, request, *args, **kwargs):
         project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
@@ -351,6 +411,9 @@ class CreateNewProjectBuild(generics.CreateAPIView):
             build = ProjectBuild(
                 project=project,
                 project_branch=project.project_branch,
+                project_log_commit_hash=project.project_log_commit_hash,
+                project_log_commit_time=project.project_log_commit_time,
+                project_log_commit_preview=project.project_log_commit_preview,
                 video_size=project.video_size,
                 status='queued',
                 queued_at=utc_now()

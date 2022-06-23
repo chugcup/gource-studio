@@ -166,6 +166,7 @@
             <input id="queue_project_build_refetch_log" type="checkbox" checked="checked" />
             <label for="queue_project_build_refetch_log">Download new project log</label>
           </div>
+          <div class="error-message text-center text-danger"></div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
@@ -182,6 +183,7 @@
     // Queue build handler
     let queue_project_build = function(options) {
         options = options || {};
+        $('body #queue-project-build-modal .error-message').text('');
         return $.ajax({
             url: "/api/v1/projects/{{project.id}}/builds/new/",
             method: 'POST',
@@ -199,6 +201,7 @@
             error: function(xhr, textStatus, err) {
                 // Error
                 console.log("Queue error: "+err, xhr);
+                $('body #queue-project-build-modal .error-message').text(err);
             }
         });
     };
@@ -207,7 +210,7 @@
     });
     $('body #queue-project-build-modal').on('click', '.btn-primary', function() {
         let options = {};
-        if ($('#queue_project_build_refetch_log').is('checked')) {
+        if ($('#queue_project_build_refetch_log').is(':checked')) {
             options.refetch_log = true;
         }
         let $ajax = queue_project_build(options);
@@ -224,7 +227,7 @@
         if (confirm_delete) {
             console.log("Deleting build...");
             $.ajax({
-                url: "/projects/"+project_id+"/builds/"+build_id+"/",
+                url: "/api/v1/projects/"+project_id+"/builds/"+build_id+"/",
                 method: 'DELETE',
                 beforeSend: function(xhr) {
                     // Attach CSRF Token

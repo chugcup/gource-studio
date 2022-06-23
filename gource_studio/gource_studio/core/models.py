@@ -275,6 +275,11 @@ class ProjectBuild(models.Model):
 
     project_branch = models.CharField(max_length=255, default='master')
     project_log = models.FileField(upload_to=get_build_project_log_path, blank=True, null=True)
+    # - Latest commit info cache
+    project_log_commit_hash = models.CharField(max_length=64, blank=True, null=True)
+    project_log_commit_time = models.DateTimeField(blank=True, null=True)
+    project_log_commit_preview = models.CharField(max_length=128, blank=True, null=True)
+    # Captions file
     project_captions = models.FileField(upload_to=get_build_project_captions_path, blank=True, null=True)
 
     # Video/thumbnail data
@@ -537,4 +542,4 @@ class ProjectMember(models.Model):
         unique_together = ('project', 'user')
 
     def __str__(self):
-        return self.user.username
+        return f"{self.project.name} ({self.user.username})"
