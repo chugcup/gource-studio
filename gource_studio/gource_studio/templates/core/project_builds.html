@@ -45,6 +45,8 @@
             <div class="status-container bg-success text-white">
           {% elif build.status == "errored" %}
             <div class="status-container bg-danger text-white">
+          {% else %}
+            <div class="status-container bg-light">
           {% endif %}
               <div class="" style="line-height:73px">
                 {{ build.status|capfirst }}

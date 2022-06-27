@@ -414,6 +414,7 @@ class CreateNewProjectBuild(generics.CreateAPIView):
                 project_log_commit_hash=project.project_log_commit_hash,
                 project_log_commit_time=project.project_log_commit_time,
                 project_log_commit_preview=project.project_log_commit_preview,
+                build_audio_name=project.build_audio_name,
                 video_size=project.video_size,
                 status='queued',
                 queued_at=utc_now()

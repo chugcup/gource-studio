@@ -344,20 +344,27 @@
 
                   <div class="form-group">
                     <b>Background Audio:</b>
-                  {% if project.build_audio %}
-                    {{ project.build_audio_name }}
+                  {% if user_can_edit and build.id == latest_build.id %}
+                    {% if project.build_audio %}
+                    <a href="{% url 'api-project-build-audio-download' project.id %}" target="_blank">{{ project.build_audio_name }}</a>
                     <a class="btn btn-link edit-audio-file"><i class="fa fa-pencil"></i></a>
-                  {% endif %}
+                    {% endif %}
                     <form id="project_build_audio_file_form" method="POST" action="{% url 'project-audio-upload' project.id %}" class="form-inline" enctype="multipart/form-data"{% if project.build_audio %} style="display:none"{% endif %}>
                         <input id="project_build_audio_file" class="form-control form-control-file form-control-sm" type="file" name="build_audio" style="display:inline-block; width:auto;"/>
                         <button type="submit" class="btn btn-primary btn-sm">Upload</button>
                         {% csrf_token %}
                     </form>
-                {% if project.build_audio %}
-                  <div>
-                    <button class="btn btn-sm btn-success remix-audio-btn">Remix Audio</button>
-                  </div>
-                {% endif %}
+                  {% else %}
+                    {% if build.build_audio_name %}
+                      {% if project.build_audio and project.build_audio_name == build.build_audio_name %}
+                    <a href="{% url 'api-project-build-audio-download' project.id %}" target="_blank">{{ project.build_audio_name }}</a>
+                      {% else %}
+                    {{ project.build_audio_name }}
+                      {% endif %}
+                    {% else %}
+                    <i class="text-muted">None</i>
+                    {% endif %}
+                  {% endif %}
                   </div>
                 </div>
               </div>

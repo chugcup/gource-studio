@@ -43,11 +43,11 @@ class Project(models.Model):
     project_url = models.TextField()
     # Branch name (most VCS limit to 28-50 characters)
     # + Defaults => (Git="master", Mercurial="default")
-    project_branch = models.CharField(max_length=255, default='master')
+    project_branch = models.CharField(max_length=256, default='master')
     # VCS software used
     project_vcs = models.CharField(max_length=16, choices=VCS_CHOICES, default="git")
     # URL slug (optional)
-    project_slug = models.SlugField(max_length=255, blank=True, null=True, unique=True)
+    project_slug = models.SlugField(max_length=256, blank=True, null=True, unique=True)
 
     # Latest version of project Gource log (used for setting analysis)
     project_log = models.FileField(upload_to=get_project_log_path, blank=True, null=True)
@@ -60,13 +60,13 @@ class Project(models.Model):
     # Output video size (16:9 aspect ratio only)
     video_size = models.CharField(max_length=16, default="1280x720", choices=VIDEO_OPTIONS)
     # Optional name to display in video
-    build_title = models.CharField(max_length=255, default="", blank=True)
+    build_title = models.CharField(max_length=256, default="", blank=True)
     # Optional logo to display in video
     # TODO: logo location
     build_logo = models.ImageField(upload_to=get_build_logo_path, blank=True, null=True)
     # Optional background music (MP3)
     build_audio = models.FileField(upload_to=get_build_audio_path, blank=True, null=True)
-    build_audio_name = models.CharField(max_length=255, null=True, blank=True)
+    build_audio_name = models.CharField(max_length=256, null=True, blank=True)
 
     # Determine if project is publicly-visible or restricted to project members
     is_public = models.BooleanField(default=True)
@@ -212,7 +212,7 @@ class ProjectCaption(models.Model):
     """
     project = models.ForeignKey(Project, related_name='captions', on_delete=models.CASCADE)
     timestamp = models.DateTimeField(null=False)
-    text = models.CharField(max_length=255)
+    text = models.CharField(max_length=256)
 
     class Meta:
         ordering = ('timestamp',)
@@ -273,7 +273,7 @@ class ProjectBuild(models.Model):
     project = models.ForeignKey(Project, related_name='builds', on_delete=models.CASCADE)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='pending')
 
-    project_branch = models.CharField(max_length=255, default='master')
+    project_branch = models.CharField(max_length=256, default='master')
     project_log = models.FileField(upload_to=get_build_project_log_path, blank=True, null=True)
     # - Latest commit info cache
     project_log_commit_hash = models.CharField(max_length=64, blank=True, null=True)
@@ -281,6 +281,8 @@ class ProjectBuild(models.Model):
     project_log_commit_preview = models.CharField(max_length=128, blank=True, null=True)
     # Captions file
     project_captions = models.FileField(upload_to=get_build_project_captions_path, blank=True, null=True)
+    # Audio file name (if set)
+    build_audio_name = models.CharField(max_length=256, null=True, blank=True)
 
     # Video/thumbnail data
     video_size = models.CharField(max_length=16, default="1280x720", choices=VIDEO_OPTIONS)
@@ -449,7 +451,7 @@ class UserAvatar(models.Model):
 
     (Global registry)
     """
-    name = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=256, unique=True)
     image = models.ImageField(upload_to=get_global_avatar_path, blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -474,7 +476,7 @@ class UserAvatarAlias(models.Model):
     (Global registry)
     """
     avatar = models.ForeignKey(UserAvatar, related_name='aliases', on_delete=models.CASCADE)
-    name = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=256, unique=True)
 
     def __str__(self):
         return self.name
@@ -490,7 +492,7 @@ class ProjectUserAvatar(models.Model):
     (Project override)
     """
     project = models.ForeignKey(Project, related_name='avatars', on_delete=models.CASCADE)
-    name = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=256, unique=True)
     image = models.ImageField(upload_to=get_project_avatar_path, blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -515,7 +517,7 @@ class ProjectUserAvatarAlias(models.Model):
     (Project override)
     """
     avatar = models.ForeignKey(ProjectUserAvatar, related_name='aliases', on_delete=models.CASCADE)
-    name = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=256, unique=True)
 
     def __str__(self):
         return self.name
