@@ -1,24 +1,54 @@
 {% extends "core/base.html" %}
 
+{% block page_css %}
+  <style type="text/css">
+    .form-check {
+        margin-top: 8px;
+        padding-left: 40px;
+    }
+  </style>
+{% endblock %}
+
 {% block content %}
   <div class="main-container container">
     <h2 class="text-center">New Project</h2>
-    <label for="project-url-input" style="font-weight:bold">Project URL:</label>
+    <br />
+    <div class="input-group" style="width:600px">
+      <div class="input-group-prepend">
+        <div class="input-group-text text-right" style="display:inline-block;width:120px">Name:</div>
+      </div>
+      <input type="text" id="project-name-input" name="project_name" class="form-control" value="" />
+    </div>
+    <br />
     <div class="input-group">
       <div class="input-group-prepend">
-        <select id="project-vcs-select" class="form-control" name="project_vcs" style="width: 120px; border-radius: .25rem 0 0 .25rem">
-          <option value="git">Git</option>
-          <option value="hg">Mercurial</option>
-        </select>
-        <!--
-        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
-          <div class="dropdown-menu">
-            <a class="dropdown-item">Git</a>
-            <a class="dropdown-item">Mercurial</a>
-          </div>
-        -->
+        <div class="input-group-text text-right" style="display:inline-block;width: 120px">Project URL:</div>
       </div>
       <input type="text" id="project-url-input" name="project_url" class="form-control" placeholder="http://..." />
+    </div>
+    <div class="form-check">
+      <input type="checkbox" id="project-url-active" class="form-check-input" checked="checked" />
+      <label for="project-url-active" class="form-check-label">Enable Project Download</label>
+      <span style="padding-left:12px;" data-toggle="popover" data-trigger="hover" data-content="This will allow for the server to remotely fetch the VCS log to generate videos.">
+        <i class="fa fa-info-circle"></i>
+      </span>
+    </div>
+    <div class="form-check">
+      <input type="checkbox" id="project-initial-captions-from-tags" class="form-check-input" checked="checked" />
+      <label for="project-initial-captions-from-tags" class="form-check-label">Load Captions From Tags</label>
+      <span style="padding-left:12px;" data-toggle="popover" data-trigger="hover" data-content="This will load VCS tags from the project and add them as video captions.">
+        <i class="fa fa-info-circle"></i>
+      </span>
+    </div>
+    <hr />
+    <div class="input-group" style="width:400px">
+      <div class="input-group-prepend">
+        <div class="input-group-text text-right" style="display:inline-block;width: 120px">VCS:</div>
+      </div>
+      <select id="project-vcs-select" name="project_vcs" class="form-control">
+        <option value="git">Git</option>
+        <option value="hg">Mercurial</option>
+      </select>
     </div>
     <br />
     <div class="input-group" style="width:400px">
@@ -27,15 +57,6 @@
       </div>
       <input type="text" id="project-branch-input" name="project_branch" class="form-control" value="master" />
     </div>
-    <br />
-    <div class="form-check">
-      <input type="checkbox" id="project-initial-captions-from-tags" class="form-check-input" checked="checked" />
-      <label for="project-initial-captions-from-tags" class="form-check-label">Load Captions From Tags</label>
-      <span style="padding-left:12px;" data-toggle="popover" data-trigger="hover" data-content="This will load VCS tags from the project and add them as video captions.">
-        <i class="fa fa-info-circle"></i>
-      </span>
-    </div>
-    <br />
     <div class="form-check">
       <input type="checkbox" id="set-project-public" class="form-check-input" checked="checked" />
       <label for="set-project-public" class="form-check-label">Make Project Public</label>
@@ -72,20 +93,29 @@
     // Save project
     $('body').on('click', '#save-project-btn', function(e) {
         console.log('save');
+        let project_name = ($('#project-name-input').val() || "").trim();
         let project_url = ($('#project-url-input').val() || "").trim();
         let project_vcs = ($('#project-vcs-select').val() || "").trim();
         let project_branch = ($('#project-branch-input').val() || "").trim();
         let load_initial_tags = $('#project-initial-captions-from-tags').is(':checked');
         let project_is_public = $('#set-project-public').is(':checked');
+        let project_url_active = $('#project-url-active').is(':checked');
 
         // Clear errors
         $('.is-invalid').removeClass('is-invalid');
 
         // Validate fields
         let has_errors = false;
-        if (project_url == "") {
+        if (project_name == "") {
+            has_errors = true;
+            $('#project-name-input').addClass('is-invalid');
+        }
+        if (project_url != "" && !project_url.indexOf('http') == 0) {
             has_errors = true;
             $('#project-url-input').addClass('is-invalid');
+        }
+        if (project_url == "") {
+            project_url_active = false;
         }
         if (project_vcs == "") {
             has_errors = true;
@@ -100,12 +130,14 @@
         }
 
         let post_data = {
+            'name': project_name,
             'project_url': project_url,
+            'project_url_active': project_url_active,
             'project_vcs': project_vcs,
             'project_branch': project_branch,
             'is_public': project_is_public,
         };
-        if (load_initial_tags) {
+        if (project_url_active && load_initial_tags) {
             post_data['load_captions_from_tags'] = true;
         }
         console.log('POST DATA: ',post_data);
@@ -113,7 +145,7 @@
         $('#save-project-btn').attr({disabled: true})
                               .prepend('<i class="fa fa-spin fa-spinner"></i>');
         $.ajax({
-            url: "/new/",
+            url: "/api/v1/projects/",
             method: 'POST',
             data: JSON.stringify(post_data),
             contentType: "application/json",
@@ -126,15 +158,17 @@
                 // TODO show success message
                 console.log("Project saved successfully.");
                 // Redirect to new project page
-                window.location = '/projects/'+data.data.id+'/';
+                window.location = '/projects/'+data.id+'/';
             },
             error: function(xhr, textStatus, err) {
                 // Error
                 console.log("Save error: "+err, xhr);
-                $('#save-project-btn').attr({disabled: false}).find('i.fa').remove();
+                $('#save-project-btn').attr({disabled: false}).find('i.fa.fa-spin').remove();
                 // Show error message
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    $('#new-project-errors').text(xhr.responseJSON.message);
+                if (xhr.responseJSON) {
+                    for (let key in xhr.responseJSON) {
+                        $('#new-project-errors').text(xhr.responseJSON[key]);
+                    }
                 }
             }
         });

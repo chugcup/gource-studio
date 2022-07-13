@@ -165,8 +165,13 @@
         </div>
         <div class="modal-body">
           <div class="text-center">
+          {% if project.project_url_active %}
             <input id="queue_project_build_refetch_log" type="checkbox" checked="checked" />
             <label for="queue_project_build_refetch_log">Download new project log</label>
+          {% else %}
+            <input id="queue_project_build_refetch_log" type="checkbox" disabled="disabled"/>
+            <label for="queue_project_build_refetch_log" class="text-muted">Download new project log</label>
+          {% endif %}
           </div>
           <div class="error-message text-center text-danger"></div>
         </div>
@@ -203,7 +208,13 @@
             error: function(xhr, textStatus, err) {
                 // Error
                 console.log("Queue error: "+err, xhr);
-                $('body #queue-project-build-modal .error-message').text(err);
+                if (xhr.responseJSON) {
+                    for (let key in xhr.responseJSON) {
+                        $('body #queue-project-build-modal .error-message').text(xhr.responseJSON[key]);
+                    }
+                } else {
+                    $('body #queue-project-build-modal .error-message').text(err);
+                }
             }
         });
     };

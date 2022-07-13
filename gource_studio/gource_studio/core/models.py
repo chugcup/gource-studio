@@ -40,7 +40,9 @@ class Project(models.Model):
 
     name = models.CharField(max_length=256)
     # Project URL
-    project_url = models.TextField()
+    project_url = models.TextField(blank=True, default="")
+    # Flag to indicate if URL can be used to fetch VCS logs
+    project_url_active = models.BooleanField(default=False)
     # Branch name (most VCS limit to 28-50 characters)
     # + Defaults => (Git="master", Mercurial="default")
     project_branch = models.CharField(max_length=256, default='master')

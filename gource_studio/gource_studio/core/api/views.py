@@ -35,6 +35,7 @@ from ..utils import (
     download_git_tags,
     estimate_gource_video_duration,
     test_http_url,
+    validate_project_url,
 )
 from .serializers import (
     ProjectBuildOptionSerializer,
@@ -92,7 +93,7 @@ class APIRoot(views.APIView):
         })
 
 
-class ProjectsList(ProjectPermissionQuerySetMixin, generics.ListAPIView):
+class ProjectsList(ProjectPermissionQuerySetMixin, generics.ListCreateAPIView):
     """
     Retrieve a list of projects.
 
@@ -113,6 +114,120 @@ class ProjectsList(ProjectPermissionQuerySetMixin, generics.ListAPIView):
                       .annotate(
                         latest_activity_time=Greatest('created_at', 'latest_build_time')
                       )
+
+    def post(self, request, *args, **kwargs):
+        # Save a new project
+        response = {}
+        for field in ['name', 'project_vcs', 'project_branch']:
+            if field not in request.data:
+                response[field] = f"Missing required field: {field}"
+                return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+        project_name = request.data['name']
+        project_url = request.data.get('project_url', '').rstrip()
+        project_vcs = request.data['project_vcs']
+        project_branch = request.data['project_branch']
+        project_url_active = str(request.data.get('project_url_active', 'True')).lower() in ['1', 't', 'true']
+        project_is_public = str(request.data.get('is_public', 'True')).lower() in ['1', 't', 'true']
+        if not project_name:
+            response['name'] = f"Must provide valid project name"
+            return Response(response, status=status.HTTP_400_BAD_REQUEST)
+        if project_vcs not in [ch[0] for ch in Project.VCS_CHOICES]:
+            response['project_vcs'] = f"Invalid VCS option: {project_vcs}"
+            return Response(response, status=status.HTTP_400_BAD_REQUEST)
+        if not project_branch:
+            response['project_branch'] = f"Must provide project branch"
+            return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check that project does not exist (identified by URL)
+        # TODO: Check name?
+#        try:
+#            Project.objects.get(project_url=project_url)
+#            response = {"error": True, "message": f"[ERROR] Project already exists matching that URL"}
+#            return HttpResponse(json.dumps(response), status=400, content_type="application/json")
+#        except Project.DoesNotExist:
+#            pass
+
+        if project_url:
+            if project_url_active:
+                # Validate URL string (and domain)
+                try:
+                    validate_project_url(project_url)
+                except Exception as e:
+                    response['project_url'] = f"Failed to validate project URL: {str(e)}"
+                    return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+                # Test that URL is reachable
+                # NOTE: some domains don't support HEAD/OPTIONS requests...
+                try:
+                    test_http_url(project_url)
+                except Exception as e:
+                    response['project_url'] = f"Failed to reach project URL: {str(e)}"
+                    return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+        else:
+            # If no project URL provided, unset this
+            project_url_active = False
+
+        # Download initial project data
+        log_data = log_hash = log_subject = tags_list = None
+        if project_url and project_url_active:
+            try:
+                if project_vcs == 'git':
+                    log_data, log_hash, log_subject, tags_list = download_git_log(project_url, branch=project_branch)
+                elif project_vcs == 'hg':
+                    # TODO
+                    response['project_vcs'] = "Mercurial download not supported"
+                    return Response(response, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    response['project_vcs'] = f"Invalid VCS option: {project_vcs}"
+                    return Response(response, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                response['project_url'] = f"Error downloading initial VCS log: {str(e)}"
+                return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+        project = Project(
+            name=project_name,
+            project_url=project_url,
+            project_url_active=project_url_active,
+            project_vcs=project_vcs,
+            project_branch=project_branch,
+            is_public=project_is_public,
+            created_by=request.user
+        )
+        # Populate attributes from source download
+        if log_hash:
+            project.project_log_commit_hash = log_hash
+        if log_subject:
+            project.project_log_commit_preview = log_subject
+        # Get time/author from last entry
+        if log_data is not None:
+            latest_commit = log_data.splitlines()[-1].split('|')
+            project.project_log_commit_time = make_aware(datetime.utcfromtimestamp(int(latest_commit[0])))
+        project.save()
+
+        # Load initial ProjectCaptions from VCS tags
+        if 'load_captions_from_tags' in request.data \
+                and str(request.data['load_captions_from_tags']).lower() in ['1', 't', 'true'] \
+                and tags_list:
+            try:
+                for timestamp, tag_name in tags_list:
+                    try:
+                        caption, created = ProjectCaption.objects.get_or_create(
+                            project=project,
+                            timestamp=timestamp,
+                            text=tag_name
+                        )
+                    except Exception as ex:
+                        logging.error("Failed to load caption: %s", str(ex))
+            except Exception as e:
+                logging.error("Failed to retrieve project tags: %s", str(e))
+
+        # Save new Gource log content
+        if log_data is not None:
+            project.project_log.save('gource.log', ContentFile(log_data))
+        response = ProjectSerializer(project, context={'request': request}).data
+        return Response(response, status=status.HTTP_201_CREATED)
 
 
 class ProjectDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateDestroyAPIView):
@@ -174,6 +289,8 @@ class ProjectActions(ProjectPermissionQuerySetMixin, views.APIView):
         Requires valid project URL.
         """
         try:
+            if not project.project_url_active:
+                return Response({"detail": "VCS fetch is not enabled for this project."}, status=status.HTTP_400_BAD_REQUEST)
             content = test_http_url(project.project_url)
             tags_list = download_git_tags(project.project_url, branch=project.project_branch)
             for timestamp, tag_name in tags_list:
@@ -393,7 +510,10 @@ class CreateNewProjectBuild(generics.CreateAPIView):
             return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            # Check if user requested new VCS log to be downloaded
             if str(refetch_log).lower() in ['t', 'true', '1']:
+                if not project.project_url_active:
+                    return Response({"detail": "VCS fetch is not enabled for this project."}, status=status.HTTP_400_BAD_REQUEST)
                 # Download latest VCS branch; generate Gource log
                 content = test_http_url(project.project_url)
                 log_data, log_hash, log_subject, tags_list = download_git_log(project.project_url, branch=project.project_branch)
