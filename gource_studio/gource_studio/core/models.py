@@ -109,6 +109,16 @@ class Project(models.Model):
             return self._cached_latest_build[0] if len(self._cached_latest_build) else None
         return self.builds.exclude(content='').order_by('-created_at').first()
 
+    @property
+    def has_build_waiting(self):
+        return self.builds.filter(status__in=['pending', 'queued', 'running']).exists()
+
+    def set_project_changed(self, changed=True):
+        if self.is_project_changed is bool(changed):
+            return
+        self.is_project_changed = bool(changed)
+        self.save(update_fields=['is_project_changed'])
+
     def analyze_log(self):
         """
         Perform analysis on current Gource log

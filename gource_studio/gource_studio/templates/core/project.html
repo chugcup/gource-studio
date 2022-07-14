@@ -62,11 +62,11 @@
         width: 80px;
         border-bottom: 1px solid #DDDDDD;
     }
-    .project-video-container {
+    #project-video-container {
         text-align: center;
         background: #000000;
     }
-    .project-video-container .project-video-empty {
+    #project-video-container .project-video-empty {
         max-height: 80vh;
         height: 600px;
         color: #FFFFFF;
@@ -78,11 +78,25 @@
         max-height: 80vh;
         width: 100%;
     }
-    .project-video-container .queue-project-build-btn {
+    #project-video-container .queue-project-build-btn {
         opacity: 0.6;
     }
-    .project-video-container .queue-project-build-btn:hover {
+    #project-video-container .queue-project-build-btn:hover {
         opacity: 1.0;
+    }
+    #project-details-container .project-changed-notice {
+        position: absolute;
+        left: 0;
+        z-index: 1;
+        background: #F5F5F5;
+        border: 1px solid #999999;
+        padding: 2px 8px;
+        border-radius: 0 10px 10px 0;
+        text-align: center;
+    }
+    #project-details-container .project-changed-notice > div {
+        font-size: 12px;
+        padding-bottom: 4px;
     }
     .project-url-link {
         font-weight: bold;
@@ -167,7 +181,7 @@
 
 {% block content %}
   {% with latest_build=project.latest_build %}
-  <div class="project-video-container">
+  <div id="project-video-container">
   {% if build.content %}
     <video class="project-video" controls poster="{% url 'project-build-screenshot' project.id build.id %}" preload="metadata">
       <source src="{% url 'project-build-video' project.id build.id %}" type="video/mp4">
@@ -220,7 +234,15 @@
       </li>
     </ul>
   </div>
-  <div class="container">
+  <div id="project-details-container" class="container">
+  {% if user_can_edit and project.is_project_changed and not project.has_build_waiting %}
+    <div class="project-changed-notice">
+      <div>Project was changed</div>
+      <button class="queue-project-build-btn btn btn-sm btn-danger" type="button">
+        Build Now
+      </button>
+    </div>
+  {% endif %}
     <div class="row">
       <div class="col-1"></div>
       <div class="col-10">
@@ -531,10 +553,9 @@
             'gource_options': gource_options
         };
         $('.save-project-settings-btn').attr({disabled: true});
-        // FIXME
         $.ajax({
-            url: "/projects/"+PROJECT_ID+"/edit/",
-            method: 'POST',
+            url: "/api/v1/projects/"+PROJECT_ID+"/",
+            method: 'PATCH',
             data: JSON.stringify(post_data),
             contentType: "application/json",
             dataType: "json",
@@ -941,10 +962,11 @@
         $('.save-project-captions-btn').attr({disabled: true})
                              .find('i.fa').removeClass('fa-tag fa-times fa-check')
                                           .addClass('fa-spinner fa-spin');
-        // FIXME: make into API view
         $.ajax({
-            url: "/projects/"+PROJECT_ID+"/edit/",
-            method: 'POST',
+            //url: "/api/v1/projects/"+PROJECT_ID+"/",
+            //method: 'PATCH',
+            url: "/api/v1/projects/"+PROJECT_ID+"/captions/",
+            method: "POST",
             data: JSON.stringify(post_data),
             contentType: "application/json",
             dataType: "json",
@@ -1012,10 +1034,11 @@
 
     // Queue build handler
     $('body').on('click', '.queue-project-build-btn', function(e) {
-        // FIXME: Make into API view
         $.ajax({
-            url: "/projects/"+PROJECT_ID+"/queue/",
+            url: "/api/v1/projects/"+PROJECT_ID+"/builds/new/",
             method: 'POST',
+            //data: JSON.stringify(options),
+            //contentType: 'application/json',
             beforeSend: function(xhr) {
                 // Attach CSRF Token
                 xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
@@ -1027,6 +1050,14 @@
             error: function(xhr, textStatus, err) {
                 // Error
                 console.log("Queue error: "+err, xhr);
+                if (xhr.responseJSON) {
+                    for (let key in xhr.responseJSON) {
+                        // TODO: dialog window
+                        //$('body #queue-project-build-modal .error-message').text(xhr.responseJSON[key]);
+                    }
+                } else {
+                    //$('body #queue-project-build-modal .error-message').text(err);
+                }
             }
         });
     });

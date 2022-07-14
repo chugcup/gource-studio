@@ -101,10 +101,10 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
         model = Project
         fields = ('id', 'name', 'project_slug', 'project_url', 'project_url_active',
                   'project_branch', 'project_vcs',
-                  'project_log', 'build_title', 'build_logo',
+                  'project_log', 'build_title', 'build_logo', 'video_size',
                   'build_audio', 'build_audio_name',
                   'options', 'builds', 'captions', 'avatars', 'members',
-                  'is_public', 'created_at', 'updated_at', 'url')
+                  'is_public', 'is_project_changed', 'created_at', 'updated_at', 'url')
         read_only_fields = ('project_log', 'created_at', 'updated_at')
 
 

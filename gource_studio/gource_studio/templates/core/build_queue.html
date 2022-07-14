@@ -169,7 +169,7 @@
         if (confirm_delete) {
             console.log("Deleting build...");
             $.ajax({
-                url: "/projects/"+project_id+"/builds/"+build_id+"/",
+                url: "/api/v1//projects/"+project_id+"/builds/"+build_id+"/",
                 method: 'DELETE',
                 beforeSend: function(xhr) {
                     // Attach CSRF Token

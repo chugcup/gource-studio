@@ -8,6 +8,7 @@ from django.core.files.base import ContentFile
 from django.db.models import DateTimeField, Exists, Max, OuterRef, Prefetch, Q, Subquery, Value
 from django.db.models.functions import Coalesce, Greatest
 from django.shortcuts import get_object_or_404
+from django.utils import dateparse
 from django.utils.timezone import make_aware, now as utc_now
 from django.views.static import serve
 from rest_framework import generics, status, views
@@ -16,6 +17,7 @@ from rest_framework.permissions import BasePermission, IsAuthenticated, SAFE_MET
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 
+from ..constants import GOURCE_OPTIONS, VIDEO_OPTIONS
 from ..models import (
     Project,
     ProjectBuild,
@@ -239,6 +241,80 @@ class ProjectDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateDestr
     permission_classes = (ProjectMemberPermission,)
     lookup_url_kwarg = 'project_id'
 
+    def patch(self, request, *args, **kwargs):
+        project = self.get_object()
+        response = {}
+        # Gource Video options list
+        # TODO: Move to new endpoint
+        if 'gource_options' in request.data:
+            if isinstance(request.data['gource_options'], dict):
+                new_options = []
+                for option, value in request.data['gource_options'].items():
+                    if option in GOURCE_OPTIONS:
+                        gource_opt = GOURCE_OPTIONS[option]
+                        try:
+                            # Parse/validate input
+                            typed_value = gource_opt['parser'](value)
+                            # Stage new set of options
+                            new_options.append(
+                                ProjectOption(
+                                    project=project,
+                                    name=option,
+                                    value=str(value),
+                                    value_type=gource_opt['type'],
+                                )
+                            )
+                        except Exception as e:
+                            logging.exception(f"Gource option error: {option} => {value}")
+                            response['gource_options'] = f"Gource option error: {option} => {value}"
+                            return Response(response, status=status.HTTP_400_BAD_REQUEST)
+                    else:
+                        logging.warning(f"Unrecognized option: {option}")
+                # Delete old options
+                project.options.all().delete()
+                # Add new set
+                ProjectOption.objects.bulk_create(new_options)
+            else:
+                logging.error(f"Invalid 'gource_options' provided: {request.data['gource_options']}")
+            request.data['gource_options']
+
+        # Project Captions list
+        # TODO: Move to new endpoint
+        if 'captions' in request.data:
+            if isinstance(request.data['captions'], list):
+                new_captions = []
+                for idx, caption in enumerate(request.data['captions']):
+                    if not isinstance(caption, dict):
+                        # TODO error or log?
+                        continue
+                    try:
+                        timestamp = make_aware(dateparse.parse_datetime(caption['timestamp']))
+                        caption_text = caption['text']
+                        new_captions.append(
+                            ProjectCaption(project=project, timestamp=timestamp, text=caption_text)
+                        )
+                    except Exception as e:
+                        logging.exception(f"Gource caption error [{idx}]")
+                        response['captions'] = f"Gource caption error: [{idx}]"
+                        return Response(response, status=status.HTTP_400_BAD_REQUEST)
+                # Delete old options
+                # TODO merge/prune
+                project.captions.all().delete()
+                # Add new set
+                ProjectCaption.objects.bulk_create(new_captions)
+            else:
+                logging.error(f"Invalid 'captions' list provided: {request.data['captions']}")
+            del request.data['captions']
+
+        res = super().patch(request, *args, **kwargs)
+
+        if res.status_code == 200:
+            # Mark 'is_project_changed' on Project to indicate build needed
+            if not project.is_project_changed:
+                project.set_project_changed(True)
+                res.data = ProjectSerializer(project, context={'request': request}).data
+        return res
+
     def delete(self, request, *args, **kwargs):
         project = self.get_object()
         # Check for any queued builds and cancel them
@@ -419,7 +495,7 @@ class ProjectOptionsList(generics.ListAPIView):
         return super().get_queryset().filter(project=project)
 
 
-class ProjectCaptionsList(generics.ListAPIView):
+class ProjectCaptionsList(generics.ListCreateAPIView):
     """
     Retrieve a current list of captions for a project.
     """
@@ -430,6 +506,57 @@ class ProjectCaptionsList(generics.ListAPIView):
     def get_queryset(self):
         project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
         return super().get_queryset().filter(project=project)
+
+    def post(self, request, *args, **kwargs):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+        response = {}
+        project_updated = False
+
+        # Write all new captions
+        if 'captions' in request.data:
+            if isinstance(request.data['captions'], list):
+                new_captions = []
+                for idx, caption in enumerate(request.data['captions']):
+                    if not isinstance(caption, dict):
+                        # TODO error or log?
+                        continue
+                    try:
+                        timestamp = make_aware(dateparse.parse_datetime(caption['timestamp']))
+                        caption_text = caption['text']
+                        new_captions.append(
+                            ProjectCaption(project=project, timestamp=timestamp, text=caption_text)
+                        )
+                    except Exception as e:
+                        logging.exception(f"Gource caption error [{idx}]")
+                        response['captions'] = f"Gource caption error: [{idx}]"
+                        return Response(response, status=status.HTTP_400_BAD_REQUEST)
+                # Delete old options
+                # TODO merge/prune
+                project.captions.all().delete()
+                # Add new set
+                ProjectCaption.objects.bulk_create(new_captions)
+                project_updated = True
+            else:
+                logging.error(f"Invalid 'captions' list provided: {request.data['captions']}")
+
+        # Append new caption
+        elif 'timestamp' in request.data and 'text' in request.data:
+            try:
+                timestamp = make_aware(dateparse.parse_datetime(request.data['timestamp']))
+                caption_text = request.data['text']
+                caption = ProjectCaption.objects.create(project=project, timestamp=timestamp, text=caption_text)
+                project_updated = True
+            except Exception as e:
+                logging.exception(f"Gource caption error [{idx}]")
+                response['detail'] = f"Gource caption error: [{idx}]"
+                return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+        # Successful (or no change)
+        if project_updated:
+            project.set_project_changed(True)
+        # Return full list of captions
+        response = [ProjectCaptionSerializer(c, context={'request': request}).data for c in project.captions.all()]
+        return Response(response, status=status.HTTP_200_OK)
 
 
 class ProjectBuildsList(generics.ListAPIView):
@@ -560,6 +687,9 @@ class CreateNewProjectBuild(generics.CreateAPIView):
             if captions is not None:
                 captions_data = "\n".join(captions)
                 build.project_captions.save('captions.txt', ContentFile(captions_data))
+
+            # Update parent project to unset `is_project_changed`
+            project.set_project_changed(False)
 
             # Generate serializer response for new ProjectBuild
             serializer = self.get_serializer(build, context={'request': request})
