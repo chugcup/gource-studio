@@ -2,11 +2,82 @@
 
 {% block page_css %}
   <style type="text/css">
-    .contributor-no-avatar {
+    #project-contributors-list span {
+        color: #999999;
     }
-    .contributor-no-avatar:hover {
+    #project-contributors-list .contributor-no-avatar {
+        color: #333333;
+    }
+    #project-contributors-list .contributor-no-avatar:hover {
         text-decoration: underline;
         cursor: pointer;
+    }
+    .card {
+        height: 115px;
+        width: 115px;
+        margin: auto;
+    }
+    .card .avatar-dropdown .dropdown-toggle {
+        display: none;
+        position: absolute;
+        right: 0;
+        padding: 2px 8px;
+        color: #333333;
+    }
+    .card .avatar-dropdown.show .dropdown-toggle,
+    .card:hover .avatar-dropdown .dropdown-toggle {
+        display: inline-block;
+    }
+    .card .avatar-dropdown .dropdown-menu {
+        padding: 0;
+        min-width: 8rem;
+    }
+    .card .avatar-dropdown .dropdown-item {
+        font-size: 12px;
+        cursor: pointer;
+    }
+    .card .avatar-dropdown .dropdown-item i.fa {
+        width: 1rem;
+    }
+    .card .avatar-dropdown .dropdown-divider {
+        margin: 0;
+    }
+    .card .ribbon {
+        width: 64px;
+        height: 64px;
+        overflow: hidden;
+        position: absolute;
+    }
+    .card .ribbon:before,
+    .card .ribbon:after, {
+        position: absolute;
+        z-index: -1;
+        content: '';
+        display: block;
+    }
+    .card .ribbon span {
+        position: absolute;
+        display: block;
+        width: 70px;
+        padding: 0 0 0 2px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        color: #FFFFFF;
+        background: #FF0000;
+        user-select: none;
+        text-transform: uppercase;
+    }
+    .card .ribbon.ribbon-top-right {
+        top: 0px;
+        right: 0px;
+    }
+    .card .ribbon-top-right span {
+        left: 10px;
+        top: 10px;
+        transform: rotate(45deg);
+    }
+    #confirm-delete-avatar-name {
+        margin-top: 0.5rem;
     }
   </style>
 {% endblock %}
@@ -30,6 +101,8 @@
           <a href="{% url 'project-details' project.id %}">Project</a>
           &raquo;
         </small>
+      {% else %}
+        Global
       {% endif %}
         Avatars
       </h3>
@@ -39,13 +112,32 @@
 
     <div class="row text-center">
     {% for avatar in page_obj %}
-      <div class="col-lg-2 col-md-2 mb-2">
-        <div class="card" style="height:115px;width:115px;margin:auto">
+      <div class="card-container col-lg-2 col-md-2 mb-2">
+        <div class="card">
+        {% if user_can_edit %}
+          {% if page_view == 'avatars' or page_view == 'project_avatars' and avatar.project_id %}
+          <div class="avatar-dropdown dropdown">
+            <a class="dropdown-toggle" role="button" title="{{ request.user.username }}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"></a>
+            <div class="dropdown-menu dropdown-menu-left">
+              <a class="dropdown-item change-avatar-btn"><i class="fa fa-pencil"></i> Change</a>
+              <div class="dropdown-divider"></div>
+              <a class="dropdown-item delete-avatar-btn" data-avatar-id="{{ avatar.id }}" data-avatar-name="{{ avatar.name }}"{% if avatar.project_id %} data-project-id="{{ avatar.project_id }}"{% endif %}>
+                <i class="fa fa-trash"></i> Delete
+              </a>
+            </div>
+          </div>
+          {% endif %}
+          {% if page_view == 'project_avatars' and not avatar.project_id %}
+          <div class="ribbon ribbon-top-right">
+            <span title="This avatar was found in the global collection">GLOBAL</span>
+          </div>
+          {% endif %}
+        {% endif %}
         {% if avatar.image %}
           {% if page_view == 'project_avatars' %}
-          <img class="card-img-top" src="{% url 'project-avatar-image' avatar.project_id avatar.id %}" alt="" style="height:auto;width:auto;max-height:100px;max-width:100px;" />
+          <img class="card-img-top" src="{{ avatar.image_url }}" alt="" style="height:auto;width:auto;max-height:100px;max-width:100px;margin:auto" />
           {% else %}
-          <img class="card-img-top" src="{% url 'avatar-image' avatar.id %}" alt="" style="height:auto;width:auto;max-height:100px;max-width:100px;margin:auto" />
+          <img class="card-img-top" src="{{ avatar.image_url }}" alt="" style="height:auto;width:auto;max-height:100px;max-width:100px;margin:auto" />
           {% endif %}
         {% else %}
           <img class="card-img-top" src="https://via.placeholder.com/185x100/D0D0D0/808080?text=No Preview" alt="No Preview" />
@@ -74,9 +166,9 @@
           <i class="fa fa-user"></i> &nbsp;
           Project Contributors
         </h5>
-        <p>
+        <p id="project-contributors-list">
       {% for name in contributors %}
-        <span{% if user_can_edit %} class="contributor-no-avatar" title="Add avatar for this user"{% endif %}>{{ name }}</span>{% if not forloop.last %},{% endif %}
+        <span{% if user_can_edit and name not in avatar_names %} class="contributor-no-avatar" title="Add avatar for this user"{% endif %}>{{ name }}</span>{% if not forloop.last %},{% endif %}
       {% endfor %}
         </p>
       {% endif %}
@@ -112,15 +204,112 @@
     </div>
   </div>
   <br />
+<!-- Modal -->
+<div class="modal" id="confirm-delete-avatar-modal" tabindex="-1" role="dialog" aria-labelledby="confirm-delete-avatar-title" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirm-delete-avatar-title">Delete Avatar?</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to delete this avatar?
+        <h4 id="confirm-delete-avatar-name" class="text-center"></h4>
+        <div id="confirm-delete-avatar-image" class="text-center"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-danger confirm-delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block page_js %}
   <script type="text/javascript">
-    // Click contributor name to populate input at top of page
+    // Click contributor name to quick-add avatar for their name
     $('body').on('click', '.contributor-no-avatar', function(e) {
-        $('#avatar_name').val(
-            $(e.currentTarget).text()
-        ).focus();
+        // [OLD] Prepopulate form at top
+        //$('#avatar_name').val(
+        //    $(e.currentTarget).text()
+        //).focus();
+
+        // Check if current target popover is already open (and toggle closed)
+        if ($(e.currentTarget).data('bs.popover')) {
+            $(e.currentTarget).popover('dispose');
+            return; // Don't re-open
+        } else {
+            // Find any other open popovers and destroy them
+            $('.popover.avatar-popover').popover('dispose');
+        }
+
+        let contributer_name = $(e.currentTarget).text();
+        let popover_html = ''
+            + '<form method="POST" action="{% if page_view == 'project_avatars' %}{% url 'project-avatar-upload' project.id %}{% else %}{% url 'avatar-upload' %}{% endif %}" class="form-inline" enctype="multipart/form-data">'
+            +   '<input type="hidden" name="name" value="'+contributer_name+'" />'
+            +   '<input class="form-control-file form-control-sm" type="file" name="image" />'
+            +   '{% csrf_token %}'
+            +   '<button type="submit" class="btn btn-primary btn-sm">Submit</button>'
+            + '</form>';
+        // Open popover with file select form
+        $(e.currentTarget).popover({
+            container: 'body',
+            content: popover_html,
+            placement: 'top',
+            template: '<div class="popover avatar-popover" role="tooltip"><div class="arrow"></div><div class="popover-body"></div></div>',
+            html: true,
+            sanitize: false,
+        }).popover('show');
+
+    });
+    $('body').on('click', '.delete-avatar-btn', function(e) {
+        let self = this;
+
+        let avatar_id = $(e.currentTarget).attr('data-avatar-id');
+        let avatar_name = $(e.currentTarget).attr('data-avatar-name');
+        let project_id = $(e.currentTarget).attr('data-project-id');
+
+        // Determine if this is global/project avatar
+        let avatar_url = '/api/v1/avatars/'+avatar_id+'/';
+        if (project_id) {
+            avatar_url = '/api/v1/projects/'+project_id+'/avatars/'+avatar_id+'/';
+        }
+        // Set name
+        $('#confirm-delete-avatar-modal #confirm-delete-avatar-name').text(avatar_name);
+        // Set image preview
+        $('#confirm-delete-avatar-modal #confirm-delete-avatar-image').append(
+            $(e.currentTarget).parents('.card').find('img')[0].outerHTML
+        );
+        let $modal = $('#confirm-delete-avatar-modal').modal();
+        $modal.on('click', '.confirm-delete', function() {
+            // Delete entry
+            $.ajax({
+                url: avatar_url,
+                method: 'DELETE',
+                beforeSend: function(xhr) {
+                    // Attach CSRF Token
+                    xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+                },
+                success: function(data, textStatus, xhr) {
+                    // Remove card from DOM
+                    $(e.currentTarget).parents('.card-container').remove();
+                    // Dismiss modal
+                    $modal.modal('hide');
+                    // TODO: show success message
+                    window.location.reload();
+                },
+                error: function(xhr, textStatus, err) {
+                    console.log("ERROR: ",err);
+                },
+            });
+        });
+        $modal.on('hidden.bs.modal', function() {
+            $('#confirm-delete-avatar-modal #confirm-delete-avatar-name').text('');
+            $('#confirm-delete-avatar-modal #confirm-delete-avatar-image').text('');
+        });
     });
   </script>
 {% endblock %} 

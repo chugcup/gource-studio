@@ -799,7 +799,7 @@ class ProjectUserAvatarsList(generics.ListAPIView):
         return super().get_queryset().filter(project=project)
 
 
-class ProjectUserAvatarDetail(generics.RetrieveAPIView):
+class ProjectUserAvatarDetail(generics.RetrieveDestroyAPIView):
     queryset = ProjectUserAvatar.objects.all()
     serializer_class = ProjectUserAvatarSerializer
 
@@ -831,7 +831,7 @@ class UserAvatarsList(generics.ListAPIView):
     serializer_class = UserAvatarSerializer
 
 
-class UserAvatarDetail(generics.RetrieveAPIView):
+class UserAvatarDetail(generics.RetrieveDestroyAPIView):
     queryset = UserAvatar.objects.all()
     serializer_class = UserAvatarSerializer
     lookup_url_kwarg = 'avatar_id'

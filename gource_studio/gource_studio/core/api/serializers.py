@@ -176,12 +176,14 @@ class UserAvatarAliasSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserAvatarAlias
         fields = ('name',)
+        read_only_fields = ('name',)
 
 
 class ProjectUserAvatarAliasSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProjectUserAvatarAlias
         fields = ('name',)
+        read_only_fields = ('name',)
 
 
 class UserAvatarSerializer(serializers.ModelSerializer):
@@ -196,6 +198,7 @@ class UserAvatarSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserAvatar
         fields = ('name', 'image', 'aliases')
+        read_only_fields = ('name',)
 
 
 class ProjectUserAvatarSerializer(UserAvatarSerializer):
@@ -209,3 +212,4 @@ class ProjectUserAvatarSerializer(UserAvatarSerializer):
     class Meta:
         model = ProjectUserAvatar
         fields = ('name', 'image', 'aliases')
+        read_only_fields = ('name',)

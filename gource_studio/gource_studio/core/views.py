@@ -13,7 +13,7 @@ from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.paginator import Paginator
 from django.db.models import DateTimeField, Exists, Max, OuterRef, Prefetch, Q, Subquery, Value
-from django.db.models.functions import Coalesce, Greatest
+from django.db.models.functions import Coalesce, Greatest, Lower
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render, redirect
 from django.utils import dateparse
@@ -536,7 +536,7 @@ def avatar_upload(request):
                 name=request.POST['name'],
                 image=request.FILES['image']
             )
-            #avatar.created_by = request.user
+            avatar.created_by = request.user
             avatar.save()
             return HttpResponseRedirect('/avatars/')
             #response = {"error": False, "message": "Avatar saved successfully."}
@@ -565,7 +565,7 @@ def project_avatar_upload(request, project_id=None, project_slug=None):
                 name=request.POST['name'],
                 image=request.FILES['image']
             )
-            #avatar.created_by = request.user
+            avatar.created_by = request.user
             avatar.save()
             return HttpResponseRedirect(f'/projects/{project.id}/avatars/')
             #response = {"error": False, "message": "Avatar saved successfully."}
@@ -802,11 +802,13 @@ def new_project(request):
 
 def avatars(request):
     "Global avatars page"
+    avatars = UserAvatar.objects.prefetch_related('aliases')\
+                                .order_by(Lower('name'))
     context = {
         'document_title': f'Avatars - {SITE_NAME}',
-        'nav_page': '',
-        'avatars': UserAvatar.objects.prefetch_related('aliases')\
-                                     .order_by('name'),
+        'nav_page': 'avatars',
+        'avatars': avatars,
+        'avatar_names': list(avatars.values_list('name', flat=True)),
         'page_view': 'avatars',
         'user_can_edit': not request.user.is_anonymous,
     }
@@ -832,15 +834,29 @@ def project_avatars(request, project_id=None, project_slug=None):
         logging.error("Error analyzing project log: {0}".format(str(e)))
         project_data = {}
     contributors_list = project_data.get('users', [])
+    avatars = ProjectUserAvatar.objects.prefetch_related('aliases')\
+                                       .filter(project_id=project.id)\
+                                       .order_by(Lower('name'))
+    avatar_names = list(avatars.values_list('name', flat=True))
+    unmatched_contributors = [name for name in contributors_list if name not in avatar_names]
+    if unmatched_contributors:
+        # Look in global avatars for names matching project contributors
+        global_avatars = UserAvatar.objects.prefetch_related('aliases')\
+                                           .filter(name__in=unmatched_contributors)\
+                                           .order_by(Lower('name'))
+        if global_avatars:
+            avatar_names += list(global_avatars.values_list('name', flat=True))
+            avatars = sorted([
+                mod for mod in list(avatars) + list(global_avatars)
+            ], key=lambda x: x.name.lower())
     context = {
         'document_title': f'Project Avatars - {SITE_NAME}',
         'nav_page': 'projects',
         'project': project,
         'project_permissions': _get_project_permissions(project, request.user),
         'contributors': contributors_list,
-        'avatars': ProjectUserAvatar.objects.prefetch_related('aliases')\
-                                            .filter(project_id=project.id)\
-                                            .order_by('name'),
+        'avatars': avatars,
+        'avatar_names': avatar_names,
         'page_view': 'project_avatars',
         'user_can_edit': project.check_permission(request.user, 'edit')
     }

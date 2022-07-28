@@ -5,7 +5,8 @@ def app_request_default(request):
         ('new', 'New Project', '/new/'),
         ('projects', 'Projects', '/projects/'),
         ('queue', 'Queue', '/queue/'),
-        ('about', 'About', '/about/'),
+        ('avatars', 'Avatars', '/avatars/'),
+#        ('about', 'About', '/about/'),
     ]
     # Remove 'New Project' option for anonymous users
     if not request.user or request.user.is_anonymous:

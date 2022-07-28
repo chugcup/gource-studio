@@ -84,7 +84,7 @@ class Project(models.Model):
         return self.name
 
     def get_absolute_url(self):
-        return reverse('project-detail', [self.pk])
+        return reverse('project-detail', args=[self.pk])
 
     def clean(self):
         if self.project_slug is not None:
@@ -203,7 +203,7 @@ class ProjectOption(models.Model):
         return '{0}={1}'.format(self.name, self.value)
 
     #def get_absolute_url(self):
-    #    return reverse('project-detail', [self.pk])
+    #    return reverse('project-detail', args=[self.pk])
 
     def to_dict(self):
         return {
@@ -233,7 +233,7 @@ class ProjectCaption(models.Model):
         return self.text
 
     #def get_absolute_url(self):
-    #    return reverse('project-detail', [self.pk])
+    #    return reverse('project-detail', args=[self.pk])
 
     def to_dict(self):
         return {
@@ -325,19 +325,19 @@ class ProjectBuild(models.Model):
         return self.created_at.isoformat()
 
     def get_absolute_url(self):
-        return reverse('project-build-detail', [self.project_id, self.pk])
+        return reverse('project-build-detail', args=[self.project_id, self.pk])
 
     @property
     def video_url(self):
-        return reverse('project-build-video', [self.project_id, self.pk])
+        return reverse('project-build-video', args=[self.project_id, self.pk])
 
     @property
     def screenshot_url(self):
-        return reverse('project-build-screenshot', [self.project_id, self.pk])
+        return reverse('project-build-screenshot', args=[self.project_id, self.pk])
 
     @property
     def thumbnail_url(self):
-        return reverse('project-build-thumbnail', [self.project_id, self.pk])
+        return reverse('project-build-thumbnail', args=[self.project_id, self.pk])
 
     @property
     def content_size(self):
@@ -444,7 +444,7 @@ class ProjectBuildOption(models.Model):
         return '{0}={1}'.format(self.name, self.value)
 
     #def get_absolute_url(self):
-    #    return reverse('project-detail', [self.pk])
+    #    return reverse('project-detail', args=[self.pk])
 
     def to_dict(self):
         return {
@@ -473,8 +473,12 @@ class UserAvatar(models.Model):
     def __str__(self):
         return self.name
 
-    #def get_absolute_url(self):
-    #    return reverse('project-detail', [self.pk])
+    def get_absolute_url(self):
+        return reverse('api-useravatar-image-download', args=[self.pk])
+
+    @property
+    def image_url(self):
+        return self.get_absolute_url()
 
     @property
     def aliases_count(self):
@@ -514,8 +518,12 @@ class ProjectUserAvatar(models.Model):
     def __str__(self):
         return self.name
 
-    #def get_absolute_url(self):
-    #    return reverse('project-detail', [self.pk])
+    def get_absolute_url(self):
+        return reverse('api-project-useravatar-image-download', args=[self.project_id, self.pk])
+
+    @property
+    def image_url(self):
+        return self.get_absolute_url()
 
     @property
     def aliases_count(self):
