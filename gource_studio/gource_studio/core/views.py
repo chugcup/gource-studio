@@ -691,7 +691,9 @@ def project_queue_build(request, project_id=None, project_slug=None):
 def new_project(request):
     "New Project page"
     if not request.user.is_authenticated:
-        return HttpResponse(json.dumps({"error": True, "message": "You must have an account to create a project."}), status=403, content_type="application/json")
+        if request.method == 'POST':
+            return HttpResponse(json.dumps({"error": True, "message": "You must have an account to create a project."}), status=403, content_type="application/json")
+        return redirect('index')    # Redirect to main
 
     # Save a new project
     if request.method == 'POST':

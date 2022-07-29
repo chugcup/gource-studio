@@ -4,6 +4,7 @@ import os
 import time
 import urllib
 
+from django import forms
 from django.core.files.base import ContentFile
 from django.db.models import DateTimeField, Exists, Max, OuterRef, Prefetch, Q, Subquery, Value
 from django.db.models.functions import Coalesce, Greatest
@@ -11,7 +12,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import dateparse
 from django.utils.timezone import make_aware, now as utc_now
 from django.views.static import serve
-from rest_framework import generics, status, views
+from rest_framework import generics, parsers, status, views
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import BasePermission, IsAuthenticated, SAFE_METHODS
 from rest_framework.response import Response
@@ -789,14 +790,47 @@ class ProjectBuildOptionsList(generics.ListAPIView):
         return super().get_queryset().filter(build=project_build)
 
 
-class ProjectUserAvatarsList(generics.ListAPIView):
+class ProjectUserAvatarsList(generics.ListCreateAPIView):
     queryset = ProjectUserAvatar.objects.all()
     serializer_class = ProjectUserAvatarSerializer
     pagination_class = None
+    parser_classes = (parsers.MultiPartParser,)
+
+    def get_parent_object(self):
+        return get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
 
     def get_queryset(self):
-        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+        project = self.get_parent_object()
         return super().get_queryset().filter(project=project)
+
+    def post(self, request, *args, **kwargs):
+        project = self.get_parent_object()
+        form = UploadAvatarForm(
+            request.data,   # POST
+            request.data,   # FILE
+        )
+        if form.is_valid():
+            try:
+                if ProjectUserAvatar.objects.filter(project=project, name=request.POST['name']).exists():
+                    raise ValueError("Project avatar by that name already exists.")
+                # TODO: Validate as .jpg or .png (or convert)
+                # TODO: rescale to 256x256
+                avatar = ProjectUserAvatar(
+                    project=project,
+                    name=request.POST['name'],
+                    image=request.FILES['image']
+                )
+                avatar.created_by = request.user
+                avatar.save()
+
+                # Generate serializer response for new ProjectBuild
+                serializer = self.get_serializer(avatar, context={'request': request})
+                response = serializer.data
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"detail": form.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProjectUserAvatarDetail(generics.RetrieveDestroyAPIView):
@@ -826,9 +860,44 @@ class ProjectUserAvatarImageDownload(views.APIView):
         return _serve_file_field(request, avatar, 'image')
 
 
-class UserAvatarsList(generics.ListAPIView):
+class UploadAvatarForm(forms.Form):
+    name = forms.CharField(max_length=255)
+    image = forms.ImageField()
+
+class UserAvatarsList(generics.ListCreateAPIView):
+    """
+    Retrieve a list of global avatars.
+    """
     queryset = UserAvatar.objects.all()
     serializer_class = UserAvatarSerializer
+    parser_classes = (parsers.MultiPartParser,)
+
+    def post(self, request, *args, **kwargs):
+        form = UploadAvatarForm(
+            request.data,   # POST
+            request.data,   # FILE
+        )
+        if form.is_valid():
+            try:
+                if UserAvatar.objects.filter(name=request.POST['name']).exists():
+                    raise ValueError("Avatar by that name already exists.")
+                # TODO: Validate as .jpg or .png (or convert)
+                # TODO: rescale to 256x256
+                avatar = UserAvatar(
+                    name=request.POST['name'],
+                    image=request.FILES['image']
+                )
+                avatar.created_by = request.user
+                avatar.save()
+
+                # Generate serializer response for new ProjectBuild
+                serializer = self.get_serializer(avatar, context={'request': request})
+                response = serializer.data
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"detail": form.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserAvatarDetail(generics.RetrieveDestroyAPIView):

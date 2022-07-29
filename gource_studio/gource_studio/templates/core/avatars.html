@@ -7,10 +7,20 @@
     }
     #project-contributors-list .contributor-no-avatar {
         color: #333333;
+        white-space: nowrap;    /* Breaking name messes with popover placement */
     }
     #project-contributors-list .contributor-no-avatar:hover {
         text-decoration: underline;
         cursor: pointer;
+    }
+    #avatar_name {
+        margin: 0 8px;
+        width: 150px;
+    }
+    #avatar_image {
+        border: none;
+        padding: 1px;
+        width: 230px;
     }
     .card {
         height: 115px;
@@ -79,6 +89,67 @@
     #confirm-delete-avatar-name {
         margin-top: 0.5rem;
     }
+    .avatar-upload-dropzone {
+        width: 120px;
+        height: 120px;
+        min-height: auto;
+        border: 6px dashed #007BFF;
+        border-radius: 8px;
+        cursor: pointer;
+        overflow: hidden;
+        padding: 0;
+        background: #F1F1F1;
+    }
+    .avatar-upload-dropzone .dz-default {
+        margin: 0;
+        padding-top: 28px;
+        line-height: 1.5rem;
+        font-size: 1.2rem;
+        color: #999999;
+        user-select: none;
+        pointer-events: none;
+    }
+    .avatar-upload-dropzone .dz-preview {
+        margin: 8px 16px;
+    }
+    .avatar-upload-dropzone .dz-preview.dz-image-preview {
+        background: none;
+    }
+    .avatar-upload-dropzone .dz-preview .dz-image {
+        width: 70px;
+        height: 70px;
+        margin-left: 4px;
+        text-align: center;
+    }
+    .avatar-upload-dropzone .dz-preview .dz-image:before {
+        content: "";
+        height: 70px;
+        display: inline-block;
+        vertical-align: middle;
+    }
+    .avatar-upload-dropzone .dz-preview .dz-image img {
+        display: inline-block;
+        vertical-align: middle;
+    }
+    .avatar-upload-dropzone .dz-preview .dz-details {
+
+    }
+    .avatar-upload-dropzone .dz-preview .dz-progress {
+        top: 82%;
+        left: 52%;
+        width: 80px;
+    }
+    .avatar-upload-dropzone .dz-preview .dz-filename {
+        display: none;
+    }
+    .avatar-upload-dropzone .dz-preview .dz-success-mark svg g > path {
+        fill: #009900;
+        stroke: #000000;
+    }
+    .avatar-upload-dropzone .dz-preview .dz-error-mark svg g > g {
+        fill: #FF0000;
+        stroke: #000000;
+    }
   </style>
 {% endblock %}
 
@@ -87,10 +158,10 @@
     <div>
     {% if user_can_edit %}
       <div class="float-right" style="width:240px">
-        <form method="POST" action="{% if page_view == 'project_avatars' %}{% url 'project-avatar-upload' project.id %}{% else %}{% url 'avatar-upload' %}{% endif %}" class="form-inline" enctype="multipart/form-data">
-          <input id="avatar_name" class="form-control form-control-sm" type="text" name="name" text="" placeholder="Name" style="margin:0 8px; width:150px"/>
+        <form id="new_avatar_upload" method="POST" action="{% if page_view == 'project_avatars' %}{% url 'api-project-useravatars-list' project.id %}{% else %}{% url 'api-useravatars-list' %}{% endif %}" class="form-inline" enctype="multipart/form-data">
+          <input id="avatar_name" class="form-control form-control-sm" type="text" name="name" text="" placeholder="Name" style=""/>
           <button type="submit" class="btn btn-primary btn-sm">Submit</button>
-          <input id="avatar_image" class="form-control-file form-control-sm" type="file" name="image" />
+          <input id="avatar_image" class="form-control form-control-sm" type="file" name="image" />
           {% csrf_token %}
         </form>
       </div>
@@ -230,6 +301,59 @@
 
 {% block page_js %}
   <script type="text/javascript">
+    $('#new_avatar_upload button[type="submit"]').on('click', function(e) {
+        e.preventDefault();
+        console.log('CLICKED');
+        let $form = $('#new_avatar_upload');
+        $form.find('.is-invalid').removeClass('is-invalid');    // Clear errors
+
+        // Load values for name/image
+        let name = $form.find('input[name="name"]').val();
+        let image = $form.find('input[name="image"]')[0].files[0];
+        if (!name) {
+            $form.find('input[name="name"]').addClass('is-invalid');
+            return false;
+        }
+        if (!image) {
+            $form.find('input[name="image"]').addClass('is-invalid');
+            return false;
+        }
+
+        let form_data = new FormData();
+        form_data.append('name', name);
+        form_data.append('image', image);
+        let avatar_url = $form.attr('action');
+        $form.find('button[type="submit"]').attr({disabled: true});
+        $.ajax({
+            url: avatar_url,
+            type: 'POST',
+            data: form_data,
+            processData: false,
+            contentType: false,
+            beforeSend: function(xhr) {
+                // Attach CSRF Token
+                xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+            },
+            success: function(data, textStatus, xhr) {
+                // TODO: show success message
+                window.location.reload();
+            },
+            error: function(xhr, textStatus, err) {
+                console.log("ERROR: Avatar upload error: ", err, xhr);
+                let responseText = xhr.responseText;
+                try {
+                    responseText = JSON.parse(responseText);
+                    if (responseText.detail) {
+                        $.notify(responseText.detail, {autoHide: false, position: 'top center'});
+                    }
+                } catch (err) {
+                    console.log("Error parsing response as JSON: ", err);
+                    $.notify("Error occurred while submitting avatar", {autoHide: false, position: 'top center'});
+                }
+                $form.find('button[type="submit"]').attr({disabled: false});
+            }
+        });
+    });
     // Click contributor name to quick-add avatar for their name
     $('body').on('click', '.contributor-no-avatar', function(e) {
         // [OLD] Prepopulate form at top
@@ -246,23 +370,89 @@
             $('.popover.avatar-popover').popover('dispose');
         }
 
-        let contributer_name = $(e.currentTarget).text();
+        let contributor_name = $(e.currentTarget).text();
+        let upload_url = "{% if page_view == 'project_avatars' %}{% url 'project-avatar-upload' project.id %}{% else %}{% url 'avatar-upload' %}{% endif %}";
         let popover_html = ''
-            + '<form method="POST" action="{% if page_view == 'project_avatars' %}{% url 'project-avatar-upload' project.id %}{% else %}{% url 'avatar-upload' %}{% endif %}" class="form-inline" enctype="multipart/form-data">'
-            +   '<input type="hidden" name="name" value="'+contributer_name+'" />'
-            +   '<input class="form-control-file form-control-sm" type="file" name="image" />'
-            +   '{% csrf_token %}'
-            +   '<button type="submit" class="btn btn-primary btn-sm">Submit</button>'
-            + '</form>';
+            + '<div class="dropzone avatar-upload-dropzone"></div>'
+            + '<div class="text-center" style="margin-top:2px">'
+            +   '<button type="submit" class="btn btn-primary btn-sm submit-dropzone-upload" disabled>Submit</button>'
+            +   '<button type="button" class="btn btn-default btn-sm cancel-dropzone-upload" style="position:absolute;bottom:8px"><i class="fa fa-times"></i></button>'
+            + '</div>';
         // Open popover with file select form
-        $(e.currentTarget).popover({
+        let _popover = $(e.currentTarget).popover({
             container: 'body',
             content: popover_html,
             placement: 'top',
             template: '<div class="popover avatar-popover" role="tooltip"><div class="arrow"></div><div class="popover-body"></div></div>',
             html: true,
             sanitize: false,
-        }).popover('show');
+        });
+        _popover.on('shown.bs.popover', function() {
+            let $popover = $($(this).data('bs.popover').tip);
+            let _dropzone = new window.Dropzone(
+                $popover.find('div.avatar-upload-dropzone')[0],
+                {
+                    url: upload_url,
+                    paramName: "image",
+                    maxFiles: 1,
+                    maxFilesize: 2, // MB
+                    acceptedFiles: 'image/*',
+                    thumbnailHeight: 70,
+                    thumbnailWidth: 70,
+                    thumbnailMethod: 'contain',
+                    dictDefaultMessage: 'Select Image',
+                    autoProcessQueue: false,
+                    headers: {
+                        "X-CSRFToken": getCookie("csrftoken"),
+                    },
+                    init: function() {
+                        this.on("addedfile", function(file) {
+                            // NOTE: this will still be called if invalid/too large file selected
+                            $popover.find('.submit-dropzone-upload').attr({disabled: false});
+                        });
+                        this.on("removedfile", function(file) {
+                            $popover.find('.submit-dropzone-upload').attr({disabled: true});
+                        });
+                        this.on("sending", function(file, xhr, formData) {
+                            // Append 'name' field to request
+                            formData.append('name', contributor_name);
+                        });
+                        this.on("success", function(file, responseText, e) {
+                            // Success (reload the page after animation ends)
+                            setTimeout(function() { window.location.reload(); }, 1000);
+                        });
+                        this.on("error", function(file, message, xhr) {
+                            console.log("ERROR: Avatar upload error: ", message, xhr);
+                            let responseText = xhr.responseText;
+                            try {
+                                responseText = JSON.parse(responseText);
+                                if (responseText.detail) {
+                                    $.notify(responseText.detail, {autoHide: false, position: 'top center'});
+                                }
+                            } catch (err) {
+                                console.log("Error parsing response as JSON: ", err);
+                                $.notify("Error occurred while submitting avatar", {autoHide: false, position: 'top center'});
+                            }
+                        });
+                    }
+                }
+            );
+
+            $popover.find('button.submit-dropzone-upload').on('click', function(e) {
+                e.preventDefault();
+                _dropzone.processQueue();
+            });
+            $popover.find('button.cancel-dropzone-upload').on('click', function(e) {
+                e.preventDefault();
+                // If no file set, close popover
+                if (_dropzone.getQueuedFiles().length === 0) {
+                    $popover.popover('dispose');
+                    return;
+                }
+                _dropzone.removeAllFiles();
+            });
+        });
+        _popover.popover('show');
 
     });
     $('body').on('click', '.delete-avatar-btn', function(e) {
