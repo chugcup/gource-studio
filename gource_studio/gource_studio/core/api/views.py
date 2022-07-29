@@ -655,6 +655,12 @@ class CreateNewProjectBuild(generics.CreateAPIView):
                     project.project_log.delete()
                 project.project_log.save('gource.log', ContentFile(log_data))
 
+            if not project.project_log:
+                response = {
+                    "detail": "Project does not have a log yet. Cannot build."
+                }
+                return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
             # Create new build (immediately in "queued" state)
             build = ProjectBuild(
                 project=project,
@@ -936,7 +942,7 @@ class ProjectDurationUtility(views.APIView):
         project = get_object_or_404(self.queryset.filter_permissions(request.user), **{'id': self.kwargs['project_id']})
 
         # Check for project log and read contents
-        if not os.path.isfile(project.project_log.path):
+        if not bool(project.project_log):
             return Response({"detail": "Project has no project log available for estimation."}, status=status.HTTP_400_BAD_REQUEST)
         with open(project.project_log.path, 'r') as f:
             data = f.read()

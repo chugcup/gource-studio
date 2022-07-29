@@ -161,8 +161,15 @@ a.navbar-brand:hover > span {
     }
 }
 
+/** Bootstrap extensions **/
+.btn-default {
+    color: #212529;
+    background-color: #FFFFFF;
+    border-color: #CCCCCC;
+}
+
 /** notifyjs 'horizontal centering' trick **/
-.notifyjs-corner {
+.notifyjs-corner.notifyjs-center {
     left: 50%;
     -moz-transform: translateX(-50%);
     -webkit-transform: translateX(-50%);

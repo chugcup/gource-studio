@@ -106,6 +106,10 @@
         color: #333333;
         text-decoration: underline;
     }
+    .project-url-nolink {
+        font-weight: bold;
+        color: #999999;
+    }
     #project-details-pane .row b {
         display: inline-block;
         width: 120px;
@@ -127,6 +131,9 @@
     .project-nav-topbar {
         border-bottom: 1px solid #CCCCCC;
         margin-bottom: 12px;
+    }
+    #project-captions-container {
+        margin-top: 12px;
     }
     #project-captions-list {
         min-width: 400px;
@@ -250,7 +257,11 @@
         <div class="container">
           <div class="row justify-content-center text-center">
             <div class="col-12">
+            {% if project.project_url %}
               <a href="{{ project.project_url }}" class="project-url-link" target="_blank">{{ project.project_url }}</a>
+            {% else %}
+              <span class="project-url-nolink">{{ project.name }}</span>
+            {% endif %}
               {% if build.content %}
               <a class="btn btn-link" href="{% url 'project-build-video' project.id build.id %}" download="video-{{ build.id }}.mp4" title="Download video ({{ build.content.size|filesizeformat }})"$>
                 <i class="fa fa-download"></i>
@@ -360,7 +371,11 @@
                     {% endfor %}
                     </select>
                   {% else %}
+                    {% if build.video_size %}
                     <span>{{ build.video_size }}</span>
+                    {% else %}
+                    <span class="text-muted">N/A</span>
+                    {% endif %}
                   {% endif %}
                   </div>
 
@@ -399,6 +414,9 @@
                 <div id="gource-duration-estimate-container">
                     <small>Estimated Duration:</small>
                     <span id="gource-duration-estimate">-</span>
+                  {% if not project.project_log %}
+                    <span class="fa fa-exclamation-triangle text-danger" title="Project does not currently have a log associated with it" data-toggle="tooltip" data-placement="right"></i>
+                  {% endif %}
                 </div>
               </div>
               <div class="clearfix"></div>
@@ -430,7 +448,14 @@
               <div id="project-captions-region">
               {% if user_can_edit %}
                 <div class="project-caption-actions float-right">
-                  <button class="btn btn-primary load-captions-from-project-tags-btn"><i class="fa fa-tag"></i> Add Project Tags</button>
+                {% if project.project_url_active %}
+                  <div class="btn-group">
+                    <button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown" aria-expanded="false"><i class="fa fa-cog"></i></button>
+                    <div class="dropdown-menu">
+                      <a class="dropdown-item load-captions-from-project-tags-btn"><i class="fa fa-tag"></i> Load Repository Tags</a>
+                    </div>
+                  </div>
+                {% endif %}
                   <button class="btn btn-success save-project-captions-btn"><i class="fa fa-disk"></i> Save</button>
                 </div>
               {% endif %}
@@ -443,6 +468,7 @@
                   <div class="col-12">
                     <div id="project-captions-container">
                       <div id="project-captions-list">
+                        <div class="text-muted text-center" v-if="!captions_list.length">No captions added yet.</div>
                         <project-caption-edit
                               v-for="caption in captions_list"
                               v-on:remove-caption="removeOption(caption.id)"
@@ -536,6 +562,17 @@
 {% block page_js %}
   {% verbatim %}
   <script type="text/javascript">
+    function handleErrorXHR(xhr, err) {
+        // TODO fallback on 'responseText'?
+        if (xhr.responseJSON) {
+            for (let key in xhr.responseJSON) {
+                $.notify(xhr.responseJSON[key], {autoHide: false, position: 'top center'});
+            }
+        } else {
+            $.notify(err, {autoHide: false, position: 'top center'});
+        }
+    }
+
     // Save settings
     // NOTE: Background Audio saved separately
     $('body').on('click', '.save-project-settings-btn', function(e) {
@@ -564,16 +601,17 @@
                 xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
             },
             success: function(data, textStatus, xhr) {
-                // TODO show success message
                 console.log("Options saved successfully.");
                 $('.save-project-settings-btn').attr({disabled: false})
                                                .prepend('<i class="fa fa-check"></i>');
+                $.notify("Options saved successfully.", {className: "success", position: "top right"});
             },
             error: function(xhr, textStatus, err) {
                 // Error
                 console.log("Save error: "+err, xhr);
                 $('.save-project-settings-btn').attr({disabled: false})
                                                .prepend('<i class="fa fa-times"></i>');
+                handleErrorXHR(xhr, err);
             },
             complete: function(xhr, textStatus) {
                 setTimeout(function() {
@@ -602,16 +640,17 @@
                 xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
             },
             success: function(data, textStatus, xhr) {
-                // TODO show success message
-                console.log("Options saved successfully.");
+                console.log("Audio saved successfully.");
                 $('.remix-audio-btn').attr({disabled: false}).find('.fa').remove();
                 $('.remix-audio-btn').prepend('<i class="fa fa-check"></i>');
+                $.notify("Audio saved successfully.", {className: "success", position: "top right"});
             },
             error: function(xhr, textStatus, err) {
                 // Error
                 console.log("Save error: "+err, xhr);
                 $('.remix-audio-btn').attr({disabled: false}).find('.fa').remove();
                 $('.remix-audio-btn').prepend('<i class="fa fa-times"></i>');
+                handleErrorXHR(xhr, err);
             },
             complete: function(xhr, textStatus) {
                 setTimeout(function() {
@@ -644,16 +683,17 @@
                 xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
             },
             success: function(data, textStatus, xhr) {
-                // TODO show success message
                 console.log("Project saved successfully.");
                 $('.save-project-manage-btn').attr({disabled: false})
                                                .prepend('<i class="fa fa-check"></i>');
+                $.notify("Project saved successfully.", {className: "success", position: "top right"});
             },
             error: function(xhr, textStatus, err) {
                 // Error
                 console.log("Save error: "+err, xhr);
                 $('.save-project-manage-btn').attr({disabled: false})
                                                .prepend('<i class="fa fa-times"></i>');
+                handleErrorXHR(xhr, err);
             },
             complete: function(xhr, textStatus) {
                 setTimeout(function() {
@@ -756,8 +796,7 @@
             data: gource_options,
             contentType: "application/json",
             success: function(data, textStatus, xhr) {
-                // TODO show success message
-                console.log("Duration response: ",data);
+                //console.log("Duration response: ",data);
                 $('#gource-duration-estimate').text(data.duration_str);
             },
             error: function(xhr, textStatus, err) {
@@ -824,13 +863,7 @@
 
         // Pluck from <select> and add to section
         settings_container.addOption($option.val());
-//        refreshGourceDuration();
     });
-
-//    $('body').on('change', '.gource-option-container input.form-control', function(e) {
-//        console.log('value change', e);
-//        refreshGourceDuration();
-//    });
 
     $('body').on('click', '.edit-audio-file', function(e) {
         $(e.currentTarget).hide();
@@ -901,9 +934,6 @@
         var post_data = {
             'action': 'load_captions_from_tags',
         };
-        $('.load-captions-from-project-tags-btn').attr({disabled: true})
-                             .find('i.fa').removeClass('fa-tag fa-times fa-check')
-                                          .addClass('fa-spinner fa-spin');
         $.ajax({
             url: "/api/v1/projects/"+PROJECT_ID+"/actions/",
             method: 'POST',
@@ -915,17 +945,14 @@
                 xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
             },
             success: function(data, textStatus, xhr) {
-                $('.load-captions-from-project-tags-btn').attr({disabled: false})
-                                     .find('i.fa').removeClass('fa-tag fa-times fa-check fa-spinner fa-spin')
-                                                  .addClass('fa-check');
-                // TODO show success message
-                window.location.reload();
+                $.notify("Captions loaded successfully.", {className: "success", position: "top right"});
+                setTimeout(function() {
+                    window.location.reload();
+                }, 2000);
             },
             error: function(xhr, textStatus, err) {
                 // Error
-                $('.load-captions-from-project-tags-btn').attr({disabled: false})
-                                     .find('i.fa').removeClass('fa-tag fa-times fa-check fa-spinner fa-spin')
-                                                  .addClass('fa-times');
+                handleErrorXHR(xhr, err);
             }
         });
     });
@@ -978,13 +1005,14 @@
                 $('.save-project-captions-btn').attr({disabled: false})
                                  .find('i.fa').removeClass('fa-tag fa-times fa-check fa-spinner fa-spin')
                                               .addClass('fa-check');
-                // TODO show success message
+                $.notify("Captions saved successfully.", {className: "success", position: "top right"});
             },
             error: function(xhr, textStatus, err) {
                 // Error
                 $('.save-project-captions-btn').attr({disabled: false})
                                  .find('i.fa').removeClass('fa-tag fa-times fa-check fa-spinner fa-spin')
                                               .addClass('fa-times');
+                handleErrorXHR(xhr, err);
             }
         });
     });
@@ -1050,14 +1078,7 @@
             error: function(xhr, textStatus, err) {
                 // Error
                 console.log("Queue error: "+err, xhr);
-                if (xhr.responseJSON) {
-                    for (let key in xhr.responseJSON) {
-                        // TODO: dialog window
-                        //$('body #queue-project-build-modal .error-message').text(xhr.responseJSON[key]);
-                    }
-                } else {
-                    //$('body #queue-project-build-modal .error-message').text(err);
-                }
+                handleErrorXHR(xhr, err);
             }
         });
     });
@@ -1069,6 +1090,7 @@
     let IS_LATEST_BUILD = {{ is_latest_build|lower }};
     let IS_READONLY = !CAN_USER_EDIT || !IS_LATEST_BUILD;
     $(document).ready(function() {
+        $('[data-toggle="tooltip"]').tooltip();
         // Load all available build options for Gource
         let gource_options = [{% for gource_opt in gource_options_json %}
             {{ gource_opt|safe }},{% endfor %}
@@ -1102,9 +1124,7 @@
                 captions_container.captions_list.push(item);
             });
         } else if (IS_READONLY) {
-            $('#project-captions-list').append(
-                '<div class="text-muted text-center">No captions added yet.</div>'
-            );
+            // Empty...
         }
 
         if (IS_READONLY) {

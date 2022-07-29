@@ -18,7 +18,7 @@ class ProjectQuerySet(models.QuerySet):
                 Q(is_public=True)
                 |
                 Q(Q(created_by=actor)|Q(members__user=actor))
-            )
+            ).distinct()
 
     def with_latest_build(self):
         "Cache 'builds' prefetch with latest build available first"

@@ -6,6 +6,11 @@
         margin-top: 8px;
         padding-left: 40px;
     }
+    .form-description {
+        padding-left: 40px;
+        font-size: 0.7rem;
+        color: #999999;
+    }
   </style>
 {% endblock %}
 
@@ -13,6 +18,7 @@
   <div class="main-container container">
     <h2 class="text-center">New Project</h2>
     <br />
+    <!-- Project Name -->
     <div class="input-group" style="width:600px">
       <div class="input-group-prepend">
         <div class="input-group-text text-right" style="display:inline-block;width:120px">Name:</div>
@@ -20,12 +26,17 @@
       <input type="text" id="project-name-input" name="project_name" class="form-control" value="" />
     </div>
     <br />
+    <!-- Project URL -->
     <div class="input-group">
       <div class="input-group-prepend">
         <div class="input-group-text text-right" style="display:inline-block;width: 120px">Project URL:</div>
       </div>
       <input type="text" id="project-url-input" name="project_url" class="form-control" placeholder="http://..." />
     </div>
+    <div class="form-description">
+      This is optional but provides link to repository for users (even if login is required).
+    </div>
+    <!-- Remote project settings (if URL provided) -->
     <div class="form-check">
       <input type="checkbox" id="project-url-active" class="form-check-input" checked="checked" />
       <label for="project-url-active" class="form-check-label">Enable Project Download</label>
@@ -41,7 +52,8 @@
       </span>
     </div>
     <hr />
-    <div class="input-group" style="width:400px">
+    <!-- VCS / Branch options -->
+    <div class="input-group" style="width:250px">
       <div class="input-group-prepend">
         <div class="input-group-text text-right" style="display:inline-block;width: 120px">VCS:</div>
       </div>
