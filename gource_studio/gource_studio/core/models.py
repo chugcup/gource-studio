@@ -470,6 +470,9 @@ class UserAvatar(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='uploaded_avatars', on_delete=models.CASCADE, null=True)
 
+    class Meta:
+        ordering = ('name',)
+
     def __str__(self):
         return self.name
 
@@ -494,6 +497,9 @@ class UserAvatarAlias(models.Model):
     avatar = models.ForeignKey(UserAvatar, related_name='aliases', on_delete=models.CASCADE)
     name = models.CharField(max_length=256, unique=True)
 
+    class Meta:
+        ordering = ('name',)
+
     def __str__(self):
         return self.name
 
@@ -508,12 +514,16 @@ class ProjectUserAvatar(models.Model):
     (Project override)
     """
     project = models.ForeignKey(Project, related_name='avatars', on_delete=models.CASCADE)
-    name = models.CharField(max_length=256, unique=True)
+    name = models.CharField(max_length=256)
     image = models.ImageField(upload_to=get_project_avatar_path, blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='uploaded_project_avatars', on_delete=models.CASCADE, null=True)
+
+    class Meta:
+        ordering = ('name',)
+        unique_together = ('project', 'name')
 
     def __str__(self):
         return self.name
@@ -537,7 +547,11 @@ class ProjectUserAvatarAlias(models.Model):
     (Project override)
     """
     avatar = models.ForeignKey(ProjectUserAvatar, related_name='aliases', on_delete=models.CASCADE)
-    name = models.CharField(max_length=256, unique=True)
+    name = models.CharField(max_length=256)
+
+    class Meta:
+        ordering = ('name',)
+        unique_together = ('avatar', 'name')
 
     def __str__(self):
         return self.name
