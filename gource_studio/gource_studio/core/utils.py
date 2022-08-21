@@ -41,6 +41,9 @@ def get_ffplay():
 def get_ffprobe():
     return get_executable_path('ffprobe', 'FFPROBE_PATH')
 
+def get_xvfb_run():
+    return get_executable_path('xvfb-run', 'XVFB_RUN_PATH')
+
 def get_executable_path(command, setting_name=None):
     # If set, use custom path configured in settings
     if setting_name:
@@ -99,7 +102,7 @@ def download_git_log(url, branch="master"):
         p1.wait(timeout=60)     # 60 seconds
         if p1.returncode:
             # Error
-            _stdout, _stderr = p1.communicate()
+            _stdout, _stderr = [x.decode('utf-8') for x in p1.communicate()]
             raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
 
         ## 2 - Generate Gource log from repository
@@ -115,7 +118,7 @@ def download_git_log(url, branch="master"):
         p2.wait(timeout=10)     # 10 seconds
         if p2.returncode:
             # Error
-            _stdout, _stderr = p2.communicate()
+            _stdout, _stderr = [x.decode('utf-8') for x in p2.communicate()]
             raise RuntimeError(f"[{p2.returncode}] Error: {_stderr}")
 
         ## 3 - Retrieve latest commit hash/subject from repo
@@ -180,7 +183,7 @@ def download_git_tags(url, branch="master"):
         p1.wait(timeout=60)     # 60 seconds
         if p1.returncode:
             # Error
-            _stdout, _stderr = p1.communicate()
+            _stdout, _stderr = [x.decode('utf-8') for x in p1.communicate()]
             raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
 
         return retrieve_tags_from_git_repo(str(destdir))
@@ -209,7 +212,7 @@ def retrieve_tags_from_git_repo(repo_path):
     p1.wait(timeout=60)
     if p1.returncode:
         # Error
-        _stdout, _stderr = p1.communicate()
+        _stdout, _stderr = [x.decode('utf-8') for x in p1.communicate()]
         raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
 
     tags_output = p1.communicate()[0].decode('utf-8')
@@ -260,6 +263,11 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
         fifo_path = tempdir_path / 'gource.fifo'
         os.mkfifo(str(fifo_path), 0o666)
 
+        if settings.DEBUG:
+            p0_output = subprocess.check_output([get_gource(), '--help'])
+            gource_version = re.search(r'Gource (v0\.\d\d)', p0_output.decode('utf-8')).group(1)
+            print(f" ~ Using Gource {gource_version}")
+
         ## 1 - Generate PPM video file from Gource
         cmd = [get_gource(),
                 '--stop-at-end',
@@ -292,7 +300,25 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
                 '--output-ppm-stream', str(fifo_path),
                 str(log_path),  # NOTE: must be last argument
         ]
-        print(f" ~ Starting Gource")
+
+        #####################################################################
+        # If configured, run with `xvfb-run` (X11 Virtual Frame Buffer)
+        #####################################################################
+        gource_display = ''
+        if hasattr(settings, 'USE_XVFB') and settings.USE_XVFB:
+            try:
+                xvfb_run = get_xvfb_run()
+                # Prepend `gource` execution with `xvfb-run` command
+                # NOTE: always run at 24 framerate, even if Gource intends to render higher
+                cmd = [xvfb_run,
+                       "--auto-servernum",
+                       "--server-args=-screen 0, {0}x24".format(video_size)] + cmd
+                gource_display = ' (XVFB)'
+            except:
+                pass
+        #####################################################################
+
+        print(f" ~ Starting Gource{gource_display}")
         p1 = subprocess.Popen(cmd, cwd=str(tempdir_path),
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         logging.info("[STEP 1] %s", p1.args)
@@ -302,8 +328,8 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
         if p1.returncode is not None:
             # Error
             print(" ~ Gource command error - exiting...")
-            _stdout, _stderr = p1.communicate()
-            raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
+            _stdout, _stderr = [x.decode('utf-8') for x in p1.communicate()]
+            raise RuntimeError(f"[{p1.returncode}] Stdout: {_stdout}, Error: {_stderr}")
 
         ## 2 - Generate video using ffmpeg
         print(f" ~ Starting ffmpeg encoding")
@@ -346,8 +372,17 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
                         if p2.returncode is not None and p2.returncode:
                             # Error
                             print(" ~ FFmpeg command error - exiting...")
-                            #_stdout, _stderr = p2.communicate()
+                            #_stdout, _stderr = [x.decode('utf-8') for x in p2.communicate()]
                             #raise RuntimeError(f"[{p2.returncode}] Error: {_stderr}")
+                            try:
+                                # Print relevant 'gource' process output as well
+                                p1.wait(timeout=5)
+                                if p1.returncode:
+                                    print(" ~ Gource command error - exiting...")
+                                    _stdout, _stderr = [x.decode('utf-8') for x in p1.communicate()]
+                                    print(f" ~~~ GOURCE: [{p1.returncode}] -> Stdout: {_stdout}, Error: {_stderr}")
+                            except:
+                                pass
                             raise RuntimeError(f"[{p2.returncode}] Error during FFmpeg conversion")
                     except subprocess.TimeoutExpired:
                         pass
@@ -405,7 +440,7 @@ def add_background_audio(video_path, audio_path, loop=True):
         p1.wait(timeout=FFMPEG_TIMEOUT)
         if p1.returncode:
             # Error
-            _stdout, _stderr = p1.communicate()
+            _stdout, _stderr = [x.decode('utf-8') for x in p1.communicate()]
             raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
 
         # Checkpoint
@@ -425,7 +460,7 @@ def add_background_audio(video_path, audio_path, loop=True):
         p2.wait(timeout=FFMPEG_TIMEOUT)
         if p2.returncode:
             # Error
-            _stdout, _stderr = p2.communicate()
+            _stdout, _stderr = [x.decode('utf-8') for x in p2.communicate()]
             raise RuntimeError(f"[{p2.returncode}] Error: {_stderr}")
 
         save_file = cmd2_out
@@ -466,7 +501,7 @@ def remove_background_audio(video_path):
         p1.wait(timeout=FFMPEG_TIMEOUT)
         if p1.returncode:
             # Error
-            _stdout, _stderr = p1.communicate()
+            _stdout, _stderr = [x.decode('utf-8') for x in p1.communicate()]
             raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
 
         save_file = cmd1_out
@@ -494,7 +529,7 @@ def get_video_duration(video_path):
     ]
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     p.wait()
-    _stdout, _stderr = p.communicate()
+    _stdout, _stderr = [x.decode('utf-8') for x in p.communicate()]
     if p.returncode:
         # Error
         raise RuntimeError(f"[{p.returncode}] Error: {_stderr}")
@@ -552,7 +587,7 @@ def get_video_thumbnail(video_path, width=512, secs=None, percent=None):
         ]
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p.wait()
-        _stdout, _stderr = p.communicate()
+        _stdout, _stderr = [x.decode('utf-8') for x in p.communicate()]
         if p.returncode:
             # Error
             raise RuntimeError(f"[{p.returncode}] Error: {_stderr}")

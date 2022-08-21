@@ -181,3 +181,7 @@ FFPROBE_PATH = None
 FFPLAY_PATH = None
 # - `gource`
 GOURCE_PATH = None
+# - `xvfb-run` (Headless X11 Frame Buffer)
+XVFB_RUN_PATH = None
+# Enable using headless X11 buffer (requires `XVFB_RUN_PATH`)
+USE_XVFB = False
