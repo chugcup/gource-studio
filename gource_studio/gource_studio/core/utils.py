@@ -129,7 +129,7 @@ def download_git_log(url, branch="master"):
             p1_1 = subprocess.Popen(cmd, cwd=str(destdir),
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             p1_1.wait(timeout=10)     # 10 seconds
-            if p1_1.returncode:
+            if p1_1.returncode and p1_1.returncode not in [5]:
                 # Error
                 _stdout, _stderr = [x.decode('utf-8') for x in p1_1.communicate()]
                 raise RuntimeError(f"[{p1_1.returncode}] Error: {_stderr}")
