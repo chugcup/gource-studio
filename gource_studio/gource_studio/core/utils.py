@@ -78,6 +78,21 @@ def validate_project_url(url):
         raise ValueError(f"Unauthorized URL domain: {info.netloc}")
 
 
+def get_git_version(split=False):
+    """
+    Return the current Git version (string).
+
+    By default, returns raw string.
+    Use `split=True` to return list of integer components.
+    """
+    cmd = [get_git(), '--version']
+    git_output = subprocess.check_output([get_git(), '--version'])
+    version = re.search(r'git version (.*)', git_output.decode('utf-8')).group(1)
+    if split:
+        return tuple([int(n) for n in version.split('.')])
+    return version
+
+
 def download_git_log(url, branch="master"):
     """
     Generate Gource log from Git repository URL.
@@ -104,6 +119,20 @@ def download_git_log(url, branch="master"):
             # Error
             _stdout, _stderr = [x.decode('utf-8') for x in p1.communicate()]
             raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
+
+        ## 1.1 - Disable 'filterpartialclone' and 'promisor' to prevent any additional
+        ##       network fetching (via lazy loading)
+        #      - This may cause the generated 'git log' to be incomplete,
+        #        but additional network downloading is not doable in our application
+        for config_setting in ['remote.origin.partialclonefilter', 'remote.origin.promisor']:
+            cmd = [get_git(), 'config', '--unset', config_setting]
+            p1_1 = subprocess.Popen(cmd, cwd=str(destdir),
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p1_1.wait(timeout=10)     # 10 seconds
+            if p1_1.returncode:
+                # Error
+                _stdout, _stderr = [x.decode('utf-8') for x in p1_1.communicate()]
+                raise RuntimeError(f"[{p1_1.returncode}] Error: {_stderr}")
 
         ## 2 - Generate Gource log from repository
         #   `gource --output-custom-log ${LOGFILE} ${TMP_REPO_PATH}`

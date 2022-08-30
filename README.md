@@ -32,7 +32,6 @@ Ubuntu 20.04 LTS
     sudo apt install ffmpeg git gource libjpeg8-dev libpng-dev mercurial python3 python3-dev python3-venv redis-server sqlite3 zlib1g-dev
 
 
-
 Python Setup
 -----------------
 
@@ -55,10 +54,18 @@ With environment active, run initial migrations
 
     python3 gource_studio/manage.py migrate
 
-By default, this will initialize using a SQLite database (`app.db`)
-To configure an alternate DB storage, edit the following settings file:
+Next, copy the sample settings override file into place (and make any needed changes):
 
-    gource_studio/gource_studio/custom_settings.py
+    cd gource_studio/gource_studio
+    cp custom_settings.py.example custom_settings.py
+
+By default, this will initialize using a SQLite database (`app.db`)
+To configure an alternate DB storage, edit the `DATABASES` dictionary
+within the `custom_settings.py` file.
+
+Lastly, create a default superuser account for the application
+
+    python3 gource_studio/manage.py createsuperuser
 
 
 Run Services
@@ -77,4 +84,23 @@ Last, start the main Django application service
     ./run.sh
 
 
+
+Other Notes
+==================
+
+Run Headless with Xvfb (Linux)
+----------------------------------
+
+If you are running on a Linux system, you may be able to run the Gource render
+in a headless mode using **Xvfb** (X virtual frame buffer).  This avoids needing
+an active GUI (otherwise required by Gource), and may result in faster builds.
+
+On Ubuntu, install the `xvfb` package:
+
+    sudo apt install xvfb
+
+Then enable `USE_XVFB` in the app settings:
+
+    # custom_settings.py
+    USE_XVFB = True
 
