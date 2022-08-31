@@ -379,7 +379,7 @@
                   {% endif %}
                   </div>
 
-                  <div class="form-group">
+                  <div id="project-build-audio-form-group" class="form-group"{% if not build.build_audio_name %} style="display:none"{% endif %}>
                     <b>Background Audio:</b>
                   {% if user_can_edit and build.id == latest_build.id %}
                     {% if project.build_audio %}
@@ -398,11 +398,18 @@
                       {% else %}
                     {{ project.build_audio_name }}
                       {% endif %}
-                    {% else %}
-                    <i class="text-muted">None</i>
                     {% endif %}
                   {% endif %}
                   </div>
+                {% if user_can_edit and build.id == latest_build.id %}
+                  <div class="build-audio-video-actions">
+                  {% if not project.build_audio %}
+                    <button id="add-project-audio-btn" class="btn btn-sm btn-primary" role="button"><i class="fa fa-music"></i> Add Music</button>
+                  {% endif %}
+                    <button id="add-project-logo-btn" class="btn btn-sm btn-primary" role="button"><i class="fa fa-rebel"></i> Add Logo</button>
+                    <button id="add-project-background-btn" class="btn btn-sm btn-primary" role="button"><i class="fa fa-picture-o"></i> Add Background</button>
+                  </div>
+                {% endif %}
                 </div>
               </div>
               <hr />
@@ -1081,6 +1088,11 @@
                 handleErrorXHR(xhr, err);
             }
         });
+    });
+
+    $('body').on('click', '#add-project-audio-btn', function(e) {
+        $('#project-build-audio-form-group').show();
+        $('#add-project-audio-btn').hide();
     });
   </script>
   {% endverbatim %}

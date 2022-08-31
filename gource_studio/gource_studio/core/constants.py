@@ -132,9 +132,9 @@ GOURCE_OPTIONS = {
         'validator': validate_range(min_value=1, max_value=100)
     },
     'caption-colour': {
-        'label': 'Caption Colour',
+        'label': 'Caption Color',
         'type': 'str',
-        'description': "Caption colour (in RRGGBB hex).",
+        'description': "Caption color (in RRGGBB hex).",
         'parser': str,
         'default': 'FFFFFF',
         'validator': RegexValidator('^[0-9A-F]{6}$', message="Invalid RRGGBB hex value")
@@ -155,6 +155,99 @@ GOURCE_OPTIONS = {
         'default': 0,
         #'validator': validate_range(min_value=0)   # Can be negative?
     },
+    'font-scale': {
+        'label': 'Font Scale',
+        'type': 'float',
+        'description': "Scale the size of all fonts (0.0-10.0).",
+        'parser': float,
+        'default': 1.0,
+        'validator': validate_range(min_value=0.0, max_value=10.0),
+        'version': (0, 50),
+    },
+    'font-size': {
+        'label': 'Font Size',
+        'type': 'int',
+        'description': "Font size used by date and title (1-100).",
+        'parser': int,
+        'default': 16,
+        'validator': validate_range(min_value=1, max_value=100),
+    },
+    'file-font-size': {
+        'label': 'Font Size (Files)',
+        'type': 'int',
+        'description': "Font size used for filenames (1-100).",
+        'parser': int,
+        'default': 14,
+        'validator': validate_range(min_value=1, max_value=100),
+        'version': (0, 50),
+    },
+    'dir-font-size': {
+        'label': 'Font Size (Dirs)',
+        'type': 'int',
+        'description': "Font size used for directory names (1-100).",
+        'parser': int,
+        'default': 14,
+        'validator': validate_range(min_value=1, max_value=100),
+        'version': (0, 50),
+    },
+    'user-font-size': {
+        'label': 'Font Size (Users)',
+        'type': 'int',
+        'description': "Font size used for user names (1-100).",
+        'parser': int,
+        'default': 14,
+        'validator': validate_range(min_value=1, max_value=100),
+        'version': (0, 50),
+    },
+    'font-colour': {
+        'label': 'Font Color',
+        'type': 'str',
+        'description': "Font color used by date and title (in RRGGBB hex).",
+        'parser': str,
+        'default': 'FFFFFF',
+        'validator': RegexValidator('^[0-9A-F]{6}$', message="Invalid RRGGBB hex value")
+    },
+    'background-colour': {
+        'label': 'Background Color',
+        'type': 'str',
+        'description': "Background color (in RRGGBB hex).",
+        'parser': str,
+        'default': '000000',
+        'validator': RegexValidator('^[0-9A-F]{6}$', message="Invalid RRGGBB hex value")
+    },
+    'filename-colour': {
+        'label': 'Filename Color',
+        'type': 'str',
+        'description': "Font color for filenames (in RRGGBB hex).",
+        'parser': str,
+        'default': 'FFFFFF',
+        'validator': RegexValidator('^[0-9A-F]{6}$', message="Invalid RRGGBB hex value")
+    },
+    'dir-colour': {
+        'label': 'Directory Color',
+        'type': 'str',
+        'description': "Font color for directories (in RRGGBB hex).",
+        'parser': str,
+        'default': 'FFFFFF',
+        'validator': RegexValidator('^[0-9A-F]{6}$', message="Invalid RRGGBB hex value")
+    },
+    'logo-offset': {
+        'label': 'Logo Offset',
+        'type': 'str',
+        'description': "Offset position of the logo (XxY format).",
+        'description_help': "This is only used if a logo image has been uploaded.",
+        'parser': str,
+        'default': '20x20',
+        'validator': RegexValidator('^[0-9]+x[0-9]+$', message="Invalid XxY offset value")
+    },
+    'title': {
+        'label': 'Video Title',
+        'type': 'str',
+        'description': "Set a video title.",
+        'description_help': "This is centered in the bottom-left of the video.",
+        'default': '',
+        'parser': str,
+    },
 }
 
 def _make_option(key, value_dict):
@@ -174,6 +267,29 @@ def option_to_dict(key):
         'placeholder': opt.get('placeholder', None),
         'default': opt.get('default', None),
     }
+
+
+def filter_by_version(input_list, version=None):
+    """
+    Given an input list, return options filted by minimum 'version'.
+
+    If 'version' key unavailable, will attempt to look up using 'name'.
+
+    Input `version` should be a string or integer list (X, Y, Z).
+    """
+    if version is None:
+        return input_list
+    if isinstance(version, str):
+        version = tuple([int(n) for n in version.split('.')])
+    def _check(opt):
+        if opt.get('version') is None:
+            if 'name' in opt and opt['name'] in GOURCE_OPTIONS \
+                    and GOURCE_OPTIONS[opt['name']].get('version') is not None:
+                return GOURCE_OPTIONS[opt['name']]['version'] <= version
+            return True
+        return opt['version'] <= version
+    return [opt for opt in input_list if _check(opt)]
+
 
 GOURCE_OPTIONS_LIST = [
     _make_option(k, v) for k, v in GOURCE_OPTIONS.items()

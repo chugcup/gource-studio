@@ -24,7 +24,7 @@ from django.views.static import serve
 # Ignore SSL verification
 ssl._create_default_https_context = ssl._create_unverified_context
 
-from .constants import GOURCE_OPTIONS, GOURCE_OPTIONS_LIST, GOURCE_OPTIONS_JSON, VIDEO_OPTIONS
+from .constants import GOURCE_OPTIONS, GOURCE_OPTIONS_LIST, GOURCE_OPTIONS_JSON, VIDEO_OPTIONS, filter_by_version
 from .exceptions import ProjectBuildAbortedError
 from .models import Project, ProjectBuild, ProjectBuildOption, ProjectCaption, ProjectOption, ProjectUserAvatar, UserAvatar
 from .tasks import generate_gource_build
@@ -35,6 +35,7 @@ from .utils import (
     download_git_tags,      #(url, branch="master"):
     estimate_gource_video_duration,
     generate_gource_video,  #(log_data, video_size='1280x720', framerate=60, gource_options={}):
+    get_gource_version,     #(split=False):
     get_video_duration,     #(video_path):
     get_video_thumbnail,    #(video_path, width=512, secs=None, percent=None):
     remove_background_audio,#(video_path):
@@ -205,6 +206,13 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
                 build.mark_aborted()
                 return HttpResponseRedirect(f'/projects/{project.id}/')
 
+    # Query Gource version to adjust options presented
+    gource_version = None
+    try:
+        gource_version = get_gource_version(split=True)
+    except:
+        pass
+
     context = {
         'document_title': f'Project - {SITE_NAME}',
         'nav_page': 'projects',
@@ -216,9 +224,9 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
             json.dumps(opt.to_dict()) for opt in project_options
         ],
         'video_size_options': VIDEO_OPTIONS,
-        'gource_options': GOURCE_OPTIONS_LIST,
+        'gource_options': filter_by_version(GOURCE_OPTIONS_LIST, gource_version),
         'gource_options_json': [
-            json.dumps(opt) for opt in GOURCE_OPTIONS_JSON
+            json.dumps(opt) for opt in filter_by_version(GOURCE_OPTIONS_JSON, gource_version)
         ],
         'project_captions': project_captions,
         'project_captions_json': [

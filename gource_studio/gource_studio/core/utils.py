@@ -1,4 +1,5 @@
 from datetime import datetime
+import functools
 from io import BytesIO
 import logging
 import math
@@ -31,6 +32,7 @@ def get_gource():
 
 def get_git():
     return get_executable_path('git', 'GIT_PATH')
+
 def get_mercurial():
     return get_executable_path('hg', 'MERCURIAL_PATH')
 
@@ -56,6 +58,84 @@ def get_executable_path(command, setting_name=None):
     raise RuntimeError(f"Executable path for '{command}' not found")
 
 
+@functools.lru_cache
+def get_gource_version(split=False):
+    """
+    Return the current Gource version.
+
+    By default, returns raw string.
+    Use `split=True` to return list of integer components.
+    """
+    return _get_software_version(
+        [get_gource(), '--help'],
+        r'Gource v([0-9.]+)',
+        split=split
+    )
+
+
+@functools.lru_cache
+def get_git_version(split=False):
+    """
+    Return the current Git version.
+
+    By default, returns raw string.
+    Use `split=True` to return list of integer components.
+    """
+    return _get_software_version(
+        [get_git(), '--version'],
+        r'git version ([0-9.]+)',
+        split=split
+    )
+
+
+@functools.lru_cache
+def get_mercurial_version(split=False):
+    """
+    Return the current Mercurial version.
+
+    By default, returns raw string.
+    Use `split=True` to return list of integer components.
+    """
+    return _get_software_version(
+        [get_mercurial(), '--version', '--quiet'],
+        r'Mercurial Distributed SCM \(version ([0-9.]+)\)',
+        split=split
+    )
+
+
+@functools.lru_cache
+def get_ffmpeg_version(split=False):
+    """
+    Return the current FFMpeg version.
+
+    By default, returns raw string.
+    Use `split=True` to return list of integer components.
+    """
+    # NOTE: Often has a build variant afterwards (like "-ubuntu0.1")
+    return _get_software_version(
+        [get_ffmpeg(), '-version'],
+        r'ffmpeg version ([0-9.]+)',
+        split=split
+    )
+
+
+def _get_software_version(cmd, pattern, split=False):
+    """
+    Common parser for software version output.
+
+    `cmd` is a list of commands args passed to `subprocess`.
+    `pattern` is a regex pattern used to extract the version (group 1)
+
+    By default, returns raw string.
+    Use `split=True` to return list of integer components.
+    """
+    output = subprocess.check_output(cmd)
+    version = re.search(pattern, output.decode('utf-8')).group(1)
+    if split:
+        return tuple([int(n) for n in version.split('.')])
+    return version
+
+
 def test_http_url(url):
     if not re.match(r'https?:\/\/', url):
         raise ValueError("URL must be a valid HTTP resource")
@@ -76,21 +156,6 @@ def validate_project_url(url):
     info = urlparse(url)
     if info.netloc not in settings.PROJECT_DOMAINS:
         raise ValueError(f"Unauthorized URL domain: {info.netloc}")
-
-
-def get_git_version(split=False):
-    """
-    Return the current Git version (string).
-
-    By default, returns raw string.
-    Use `split=True` to return list of integer components.
-    """
-    cmd = [get_git(), '--version']
-    git_output = subprocess.check_output([get_git(), '--version'])
-    version = re.search(r'git version (.*)', git_output.decode('utf-8')).group(1)
-    if split:
-        return tuple([int(n) for n in version.split('.')])
-    return version
 
 
 def download_git_log(url, branch="master"):
