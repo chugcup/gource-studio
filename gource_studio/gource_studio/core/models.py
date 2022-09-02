@@ -20,6 +20,9 @@ from .utils import (
 def get_build_logo_path(instance, filename):
     return f'projects/{instance.id}/{filename}'
 
+def get_build_background_path(instance, filename):
+    return f'projects/{instance.id}/{filename}'
+
 def get_build_audio_path(instance, filename):
     return f'projects/{instance.id}/{filename}'
 
@@ -63,9 +66,9 @@ class Project(models.Model):
     video_size = models.CharField(max_length=16, default="1280x720", choices=VIDEO_OPTIONS)
     # Optional name to display in video
     build_title = models.CharField(max_length=256, default="", blank=True)
-    # Optional logo to display in video
-    # TODO: logo location
+    # Optional logo/background to display in video
     build_logo = models.ImageField(upload_to=get_build_logo_path, blank=True, null=True)
+    build_background = models.ImageField(upload_to=get_build_background_path, blank=True, null=True)
     # Optional background music (MP3)
     build_audio = models.FileField(upload_to=get_build_audio_path, blank=True, null=True)
     build_audio_name = models.CharField(max_length=256, null=True, blank=True)
@@ -261,6 +264,12 @@ def get_build_project_log_path(instance, filename):
 def get_build_project_captions_path(instance, filename):
     return f'projects/{instance.project_id}/builds/{instance.id}/captions.txt'
 
+def get_build_project_logo_path(instance, filename):
+    return f'projects/{instance.project_id}/builds/{instance.id}/{filename}'
+
+def get_build_project_background_path(instance, filename):
+    return f'projects/{instance.project_id}/builds/{instance.id}/{filename}'
+
 def get_build_stdout_path(instance, filename):
     return f'projects/{instance.project_id}/builds/{instance.id}/stdout.log'
 
@@ -293,7 +302,10 @@ class ProjectBuild(models.Model):
     project_log_commit_preview = models.CharField(max_length=128, blank=True, null=True)
     # Captions file
     project_captions = models.FileField(upload_to=get_build_project_captions_path, blank=True, null=True)
+    build_logo = models.ImageField(upload_to=get_build_project_logo_path, blank=True, null=True)
+    build_background = models.ImageField(upload_to=get_build_project_background_path, blank=True, null=True)
     # Audio file name (if set)
+    # (don't really want to save audio file repeatedly for builds)
     build_audio_name = models.CharField(max_length=256, null=True, blank=True)
 
     # Video/thumbnail data

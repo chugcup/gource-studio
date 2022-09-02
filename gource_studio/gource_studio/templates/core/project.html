@@ -13,6 +13,16 @@
     #project-captions-list .form-group .form-control {
         display: inline-block;
     }
+    #project-audio-video-settings label b {
+        min-width: 110px;
+        display: inline-block;
+    }
+    #project-audio-video-settings .form-group {
+        margin-bottom: 0;
+    }
+    #project-audio-video-settings .build-audio-video-actions {
+        margin-top: 1rem;
+    }
     .bootstrap-datetimepicker-widget {
         font-size: 0.8em;
     }
@@ -128,9 +138,37 @@
         margin-left: 100px;
     }
   }
+    .project-image-preview {
+        max-height: 128px;
+        max-width: 128px;
+    }
     .project-nav-topbar {
         border-bottom: 1px solid #CCCCCC;
         margin-bottom: 12px;
+    }
+    .gource-option-container {
+        display: flex;
+        width: 100%;
+    }
+    .gource-option-container .gource-option-label {
+        width: 130px;
+        font-size: 12px;
+        line-height: 32px;
+        text-align: right;
+        padding-right: 8px;
+    }
+    .gource-option-container .gource-option-value {
+        flex: 1;
+    }
+    .gource-option-container .gource-option-value input {
+        width: 200px;
+    }
+    .gource-option-container .gource-option-value .gource-option-info {
+        padding-left: 12px;
+    }
+    .gource-option-container .gource-option-value .gource-option-remove {
+        padding-left: 12px;
+        cursor: pointer;
     }
     #project-captions-container {
         margin-top: 12px;
@@ -360,7 +398,7 @@
                 <i class="fa fa-video-camera"></i> &nbsp;
                 Audio / Video Settings
               </h5>
-              <div class="row justify-content-center">
+              <div id="project-audio-video-settings" class="row justify-content-center">
                 <div class="col-12">
                   <div class="form-group form-inline">
                     <label for="project-video-size"><b>Video Size:</b>&nbsp;</label>
@@ -379,8 +417,48 @@
                   {% endif %}
                   </div>
 
-                  <div id="project-build-audio-form-group" class="form-group"{% if not build.build_audio_name %} style="display:none"{% endif %}>
-                    <b>Background Audio:</b>
+                  <div id="project-build-logo-form-group" class="form-group"{% if not project.build_logo %} style="display:none"{% endif %}>
+                    <label><b>Logo Image:</b></label>
+                    {% if project.build_logo %}
+                    <button id="project-build-logo-preview" class="btn btn-sm btn-default" data-src="{% url 'api-project-logo-download' project.id %}">
+                      <i class="fa fa-eye"></i>
+                    </button>
+                    {% endif %}
+                  {% if user_can_edit and build.id == latest_build.id %}
+                    {% if project.build_logo %}
+                    <a id="remove-project-logo-btn" class="btn btn-link text-danger" title="Delete logo"><i class="fa fa-times"></i></a>
+                    {% endif %}
+                    <form id="project_build_logo_file_form" method="POST" action="{% url 'project-build-logo-upload' project.id %}" class="form-inline" enctype="multipart/form-data"{% if project.build_logo %} style="display:none"{% endif %}>
+                        <input id="project_build_logo_file" class="form-control form-control-file form-control-sm" type="file" name="build_logo" style="display:inline-block; width:auto;"/>
+                        <button type="submit" class="btn btn-primary btn-sm">Upload</button>
+                        {% csrf_token %}
+                    </form>
+                  {% else %}
+                  {% endif %}
+                  </div>
+
+                  <div id="project-build-background-form-group" class="form-group"{% if not project.build_background %} style="display:none"{% endif %}>
+                    <label><b>Background:</b></label>
+                    {% if project.build_background %}
+                    <button id="project-build-background-preview" class="btn btn-sm btn-default" data-src="{% url 'api-project-background-download' project.id %}">
+                      <i class="fa fa-eye"></i>
+                    </button>
+                    {% endif %}
+                  {% if user_can_edit and build.id == latest_build.id %}
+                    {% if project.build_background %}
+                    <a id="remove-project-background-btn" class="btn btn-link text-danger" title="Delete background"><i class="fa fa-times"></i></a>
+                    {% endif %}
+                    <form id="project_build_background_file_form" method="POST" action="{% url 'project-build-background-upload' project.id %}" class="form-inline" enctype="multipart/form-data"{% if project.build_background %} style="display:none"{% endif %}>
+                        <input id="project_build_background_file" class="form-control form-control-file form-control-sm" type="file" name="build_background" style="display:inline-block; width:auto;"/>
+                        <button type="submit" class="btn btn-primary btn-sm">Upload</button>
+                        {% csrf_token %}
+                    </form>
+                  {% else %}
+                  {% endif %}
+                  </div>
+
+                  <div id="project-build-audio-form-group" class="form-group"{% if not project.build_audio_name %} style="display:none"{% endif %}>
+                    <b>Background Music:</b>
                   {% if user_can_edit and build.id == latest_build.id %}
                     {% if project.build_audio %}
                     <a href="{% url 'api-project-build-audio-download' project.id %}" target="_blank">{{ project.build_audio_name }}</a>
@@ -389,6 +467,9 @@
                     <form id="project_build_audio_file_form" method="POST" action="{% url 'project-audio-upload' project.id %}" class="form-inline" enctype="multipart/form-data"{% if project.build_audio %} style="display:none"{% endif %}>
                         <input id="project_build_audio_file" class="form-control form-control-file form-control-sm" type="file" name="build_audio" style="display:inline-block; width:auto;"/>
                         <button type="submit" class="btn btn-primary btn-sm">Upload</button>
+                      {% if project.build_audio %}
+                        <a id="remove-project-build-audio-btn" class="btn btn-link text-danger" data-filename="{{ project.build_audio_name }}" title="Delete background music"><i class="fa fa-times"></i></a>
+                      {% endif %}
                         {% csrf_token %}
                     </form>
                   {% else %}
@@ -401,13 +482,12 @@
                     {% endif %}
                   {% endif %}
                   </div>
+
                 {% if user_can_edit and build.id == latest_build.id %}
                   <div class="build-audio-video-actions">
-                  {% if not project.build_audio %}
-                    <button id="add-project-audio-btn" class="btn btn-sm btn-primary" role="button"><i class="fa fa-music"></i> Add Music</button>
-                  {% endif %}
-                    <button id="add-project-logo-btn" class="btn btn-sm btn-primary" role="button"><i class="fa fa-rebel"></i> Add Logo</button>
-                    <button id="add-project-background-btn" class="btn btn-sm btn-primary" role="button"><i class="fa fa-picture-o"></i> Add Background</button>
+                    <button id="add-project-logo-btn" class="btn btn-sm btn-primary" role="button"{% if project.build_logo %} style="display:none"{% endif %}><i class="fa fa-rebel"></i> Add Logo</button>
+                    <button id="add-project-background-btn" class="btn btn-sm btn-primary" role="button"{% if project.build_background %} style="display:none"{% endif %}><i class="fa fa-picture-o"></i> Add Background</button>
+                    <button id="add-project-audio-btn" class="btn btn-sm btn-primary" role="button"{% if project.build_audio %} style="display:none"{% endif %}><i class="fa fa-music"></i> Add Music</button>
                   </div>
                 {% endif %}
                 </div>
@@ -564,6 +644,29 @@
   {% endwith %}
   <hr />
   <br />
+
+<!-- Modal -->
+<div class="modal" id="confirm-delete-file-modal" tabindex="-1" role="dialog" aria-labelledby="confirm-delete-file-title" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirm-delete-file-title">Delete File?</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to delete <span id="confirm-delete-object-name">this file</span>?
+        <h4 id="confirm-delete-file-name" class="text-center"></h4>
+        <div id="confirm-delete-file-image" class="text-center"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-danger confirm-delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block page_js %}
@@ -581,7 +684,7 @@
     }
 
     // Save settings
-    // NOTE: Background Audio saved separately
+    // NOTE: Background Music saved separately
     $('body').on('click', '.save-project-settings-btn', function(e) {
         let video_size = $('#project-video-size').val();
         let gource_options = {};
@@ -624,45 +727,6 @@
                 setTimeout(function() {
                     $('.save-project-settings-btn').attr({disabled: false})
                                                    .find('.fa').remove();
-                }, 1500);
-            }
-        });
-    });
-
-    $('body').on('click', '.remix-audio-btn', function() {
-        let post_data = {
-            'action': 'remix_audio',
-        };
-        $('.remix-audio-btn').attr({disabled: true})
-                             .prepend('<i class="fa fa-spin fa-spinner"></i> ');
-        // FIXME: just queue new build
-        $.ajax({
-            url: "/projects/"+PROJECT_ID+"/actions/",
-            method: 'POST',
-            data: JSON.stringify(post_data),
-            contentType: "application/json",
-            dataType: "json",
-            beforeSend: function(xhr) {
-                // Attach CSRF Token
-                xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
-            },
-            success: function(data, textStatus, xhr) {
-                console.log("Audio saved successfully.");
-                $('.remix-audio-btn').attr({disabled: false}).find('.fa').remove();
-                $('.remix-audio-btn').prepend('<i class="fa fa-check"></i>');
-                $.notify("Audio saved successfully.", {className: "success", position: "top right"});
-            },
-            error: function(xhr, textStatus, err) {
-                // Error
-                console.log("Save error: "+err, xhr);
-                $('.remix-audio-btn').attr({disabled: false}).find('.fa').remove();
-                $('.remix-audio-btn').prepend('<i class="fa fa-times"></i>');
-                handleErrorXHR(xhr, err);
-            },
-            complete: function(xhr, textStatus) {
-                setTimeout(function() {
-                    $('.remix-audio-btn').attr({disabled: false})
-                                         .find('.fa').remove();
                 }, 1500);
             }
         });
@@ -830,20 +894,19 @@
             can_edit: Boolean
         },
         template: `
-          <div class="form-group form-inline gource-option-container" style="display:flex; width:100%;">
-            <div :title="name" style="width:130px; font-size:12px; line-height:32px; text-align:right; padding-right:8px">
+          <div class="form-group form-inline gource-option-container">
+            <div class="gource-option-label" :title="name">
               <b>{{ label }}:</b>
             </div>
-            <div style="flex:1">
-              <input class="form-control form-control-sm" :name="name" type="text" :value="value" v-on:input="$emit('input:value', $event.target.value)" v-on:change="$emit('change:value', $event.target.value)" :placeholder="placeholder" style="width:200px" :readonly="!can_edit" />
-              <!--<span class="gource-option-info" v-on:click="$emit('view-gource-option-info')" style="padding-left:12px; cursor:pointer;" data-toggle="popover" data-trigger="hover" data-placement="top"><i class="fa fa-info-circle"></i></span>-->
-              <span :id="popover_id" style="padding-left:12px;"><i class="fa fa-info-circle"></i></span></span>
+            <div class="gource-option-value">
+              <input class="form-control form-control-sm" :name="name" type="text" :value="value" v-on:input="$emit('input:value', $event.target.value)" v-on:change="$emit('change:value', $event.target.value)" :placeholder="placeholder" :readonly="!can_edit" />
+              <span class="gource-option-info" :id="popover_id"><i class="fa fa-info-circle"></i></span></span>
               <b-popover :target="popover_id" triggers="hover">
                 <p class="popover-setting-description">{{ description }}</p>
                 <p class="popover-setting-description-help" style="font-size:12px">{{ description_help }}</p>
                 <p v-if="value_default" class="popover-setting-default"><b>Default:</b> {{ value_default }}</p>
               </b-popover>
-              <span class="gource-option-remove text-danger" v-if="can_edit" v-on:click="$emit('remove-gource-option')" style="padding-left:12px; cursor:pointer;" title="Delete this setting"><i class="fa fa-times"></i></span>
+              <span class="gource-option-remove text-danger" v-if="can_edit" v-on:click="$emit('remove-gource-option')" title="Delete this setting"><i class="fa fa-times"></i></span>
             </div>
           </div>
         `
@@ -1090,9 +1153,165 @@
         });
     });
 
+    // Logo Image
+    $('body').on('click', '#add-project-logo-btn', function(e) {
+        $('#project-build-logo-form-group').show();
+        $('#add-project-logo-btn').hide();
+    });
+    $('body #project-build-logo-preview').popover({
+        content: function() {
+            let imgsrc = $(this).data('src');
+            if (!imgsrc) {
+                return "N/A";
+            }
+            return '<img class="project-image-preview" src="'+imgsrc+'" />';
+        },
+        html: true,
+        placement: 'right',
+        trigger: 'hover focus'
+    });
+    $('body').on('click', '#remove-project-logo-btn', function(e) {
+        let delete_url = '/api/v1/projects/'+PROJECT_ID+'/build_logo/';
+        // Set title
+        $('#confirm-delete-file-modal #confirm-delete-file-title').text('Delete Logo?');
+        // Set main description
+        $('#confirm-delete-file-modal #confirm-delete-object-name').text('this logo');
+        // Set name
+        $('#confirm-delete-file-modal #confirm-delete-file-name').text('');
+        // Set image preview
+        console.log('--- ',$(e.currentTarget).parents('.form-group'));
+        let imgsrc = $('#project-build-logo-preview').data('src');
+        $('#confirm-delete-file-modal #confirm-delete-file-image').append(
+            '<img class="project-image-preview" src="'+imgsrc+'" />'
+        );
+        let $modal = $('#confirm-delete-file-modal').modal();
+        $modal.on('click', '.confirm-delete', function() {
+            // Delete entry
+            $.ajax({
+                url: delete_url,
+                method: 'DELETE',
+                beforeSend: function(xhr) {
+                    // Attach CSRF Token
+                    xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+                },
+                success: function(data, textStatus, xhr) {
+                    // Dismiss modal
+                    $modal.modal('hide');
+                    // TODO: show success message
+                    window.location.reload();
+                },
+                error: function(xhr, textStatus, err) {
+                    console.log("ERROR: ",err);
+                },
+            });
+        });
+        $modal.on('hidden.bs.modal', function() {
+            $('#confirm-delete-file-modal #confirm-delete-file-title').text('Delete File?');
+            $('#confirm-delete-file-modal #confirm-delete-object-name').text('this file');
+            $('#confirm-delete-file-modal #confirm-delete-file-image').text('');
+        });
+    });
+
+    // Background Image
+    $('body').on('click', '#add-project-background-btn', function(e) {
+        $('#project-build-background-form-group').show();
+        $('#add-project-background-btn').hide();
+    });
+    $('body #project-build-background-preview').popover({
+        content: function() {
+            let imgsrc = $(this).data('src');
+            if (!imgsrc) {
+                return "N/A";
+            }
+            return '<img class="project-image-preview" src="'+imgsrc+'" />';
+        },
+        html: true,
+        placement: 'right',
+        trigger: 'hover focus'
+    });
+    $('body').on('click', '#remove-project-background-btn', function(e) {
+        let delete_url = '/api/v1/projects/'+PROJECT_ID+'/build_background/';
+        // Set title
+        $('#confirm-delete-file-modal #confirm-delete-file-title').text('Delete Background?');
+        // Set main description
+        $('#confirm-delete-file-modal #confirm-delete-object-name').text('this background');
+        // Set name
+        $('#confirm-delete-file-modal #confirm-delete-file-name').text('');
+        // Set image preview
+        let imgsrc = $('#project-build-background-preview').data('src');
+        $('#confirm-delete-file-modal #confirm-delete-file-image').append(
+            '<img class="project-image-preview" src="'+imgsrc+'" />'
+        );
+        let $modal = $('#confirm-delete-file-modal').modal();
+        $modal.on('click', '.confirm-delete', function() {
+            // Delete entry
+            $.ajax({
+                url: delete_url,
+                method: 'DELETE',
+                beforeSend: function(xhr) {
+                    // Attach CSRF Token
+                    xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+                },
+                success: function(data, textStatus, xhr) {
+                    // Dismiss modal
+                    $modal.modal('hide');
+                    // TODO: show success message
+                    window.location.reload();
+                },
+                error: function(xhr, textStatus, err) {
+                    console.log("ERROR: ",err);
+                },
+            });
+        });
+        $modal.on('hidden.bs.modal', function() {
+            $('#confirm-delete-file-modal #confirm-delete-file-title').text('Delete File?');
+            $('#confirm-delete-file-modal #confirm-delete-object-name').text('this file');
+            $('#confirm-delete-file-modal #confirm-delete-file-image').text('');
+        });
+    });
+
+    // Background Music
     $('body').on('click', '#add-project-audio-btn', function(e) {
         $('#project-build-audio-form-group').show();
         $('#add-project-audio-btn').hide();
+    });
+    $('body').on('click', '#remove-project-build-audio-btn', function(e) {
+        let delete_url = '/api/v1/projects/'+PROJECT_ID+'/build_audio/';
+        // Set title
+        $('#confirm-delete-file-modal #confirm-delete-file-title').text('Delete Music?');
+        // Set main description
+        $('#confirm-delete-file-modal #confirm-delete-object-name').text('the background music');
+        // Set name
+        let filename = $(e.currentTarget).data('filename');
+        $('#confirm-delete-file-modal #confirm-delete-file-name').text(filename ? filename : "");
+        // Set image preview
+        $('#confirm-delete-file-modal #confirm-delete-file-image').text('');
+        let $modal = $('#confirm-delete-file-modal').modal();
+        $modal.on('click', '.confirm-delete', function() {
+            // Delete entry
+            $.ajax({
+                url: delete_url,
+                method: 'DELETE',
+                beforeSend: function(xhr) {
+                    // Attach CSRF Token
+                    xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+                },
+                success: function(data, textStatus, xhr) {
+                    // Dismiss modal
+                    $modal.modal('hide');
+                    // TODO: show success message
+                    window.location.reload();
+                },
+                error: function(xhr, textStatus, err) {
+                    console.log("ERROR: ",err);
+                },
+            });
+        });
+        $modal.on('hidden.bs.modal', function() {
+            $('#confirm-delete-file-modal #confirm-delete-file-title').text('Delete File?');
+            $('#confirm-delete-file-modal #confirm-delete-object-name').text('this file');
+            $('#confirm-delete-file-modal #confirm-delete-file-image').text('');
+        });
     });
   </script>
   {% endverbatim %}
@@ -1145,9 +1364,8 @@
             $('#project-gource-options-container').remove();
             // - Save Settings
             $('.save-project-settings-btn').remove();
-            // - Edit Audio File
+            // - Edit Audio (Music) File
             $('.edit-audio-file').remove();
-            $('.remix-audio-btn').remove();
             // - Add/Save Captions
             $('.add-caption-btn').remove();
             $('.project-caption-actions').remove()

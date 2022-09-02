@@ -322,7 +322,7 @@ def retrieve_tags_from_git_repo(repo_path):
     return tags_list
 
 
-def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars=None, default_avatar=None, captions=None, gource_options=None, project_build=None):
+def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars=None, default_avatar=None, captions=None, logo_file=None, background_file=None, gource_options=None, project_build=None):
     """
     Create a new Gource video using provided options.
     """
@@ -387,6 +387,12 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
         # - Add captions file
         if captions:
             cmd += ['--caption-file', captions]
+
+        # - Add logo/background files
+        if logo_file:
+            cmd += ['--logo', logo_file]
+        if background_file:
+            cmd += ['--background-image', background_file]
 
         # - Add resolution options
         cmd += [f'-{video_size}',

@@ -235,7 +235,7 @@ GOURCE_OPTIONS = {
         'label': 'Logo Offset',
         'type': 'str',
         'description': "Offset position of the logo (XxY format).",
-        'description_help': "This is only used if a logo image has been uploaded.",
+        'description_help': "Logo defaults to bottom-right corner. This is only used if a logo image has been uploaded.",
         'parser': str,
         'default': '20x20',
         'validator': RegexValidator('^[0-9]+x[0-9]+$', message="Invalid XxY offset value")

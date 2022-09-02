@@ -459,6 +459,98 @@ class ProjectLogDownload(ProjectPermissionQuerySetMixin, views.APIView):
         return _serve_file_field(request, project, 'project_log')
 
 
+class ProjectLogoDetail(ProjectPermissionQuerySetMixin, views.APIView):
+    """
+    Manage project (Gource) video logo contents.
+    """
+    queryset = Project.objects.all()
+
+    def get_object(self, *args, **kwargs):
+        if 'project_id' in self.kwargs:
+            project = get_object_or_404(self.get_queryset(), **{'id': self.kwargs['project_id']})
+        elif 'project_slug' in self.kwargs:
+            project = get_object_or_404(self.get_queryset(), **{'project_slug': self.kwargs['project_slug']})
+        else:
+            project = get_object_or_404(self.get_queryset(), **{'id': None})    # Force 404
+        return project
+
+    def delete(self, request, *args, **kwargs):
+        project = self.get_object()
+        if project.build_logo:
+            project.build_logo.delete(save=True)
+            project.set_project_changed(True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ProjectLogoDownload(ProjectPermissionQuerySetMixin, views.APIView):
+    """
+    Download project (Gource) video logo contents.
+    """
+    queryset = Project.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        project = get_object_or_404(self.get_queryset(), **{'id': self.kwargs['project_id']})
+        return _serve_file_field(request, project, 'build_logo')
+
+
+class ProjectBackgroundDetail(ProjectPermissionQuerySetMixin, views.APIView):
+    """
+    Manage project (Gource) video background contents.
+    """
+    queryset = Project.objects.all()
+
+    def get_object(self, *args, **kwargs):
+        if 'project_id' in self.kwargs:
+            project = get_object_or_404(self.get_queryset(), **{'id': self.kwargs['project_id']})
+        elif 'project_slug' in self.kwargs:
+            project = get_object_or_404(self.get_queryset(), **{'project_slug': self.kwargs['project_slug']})
+        else:
+            project = get_object_or_404(self.get_queryset(), **{'id': None})    # Force 404
+        return project
+
+    def delete(self, request, *args, **kwargs):
+        project = self.get_object()
+        if project.build_background:
+            project.build_background.delete(save=True)
+            project.set_project_changed(True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ProjectBackgroundDownload(ProjectPermissionQuerySetMixin, views.APIView):
+    """
+    Download project (Gource) video background contents.
+    """
+    queryset = Project.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        project = get_object_or_404(self.get_queryset(), **{'id': self.kwargs['project_id']})
+        return _serve_file_field(request, project, 'build_background')
+
+
+class ProjectBuildAudioDetail(ProjectPermissionQuerySetMixin, views.APIView):
+    """
+    Manage project (Gource) background audio contents.
+    """
+    queryset = Project.objects.all()
+
+    def get_object(self, *args, **kwargs):
+        if 'project_id' in self.kwargs:
+            project = get_object_or_404(self.get_queryset(), **{'id': self.kwargs['project_id']})
+        elif 'project_slug' in self.kwargs:
+            project = get_object_or_404(self.get_queryset(), **{'project_slug': self.kwargs['project_slug']})
+        else:
+            project = get_object_or_404(self.get_queryset(), **{'id': None})    # Force 404
+        return project
+
+    def delete(self, request, *args, **kwargs):
+        project = self.get_object()
+        if project.build_audio:
+            project.build_audio_name = None
+            project.build_audio.delete(save=True)
+            project.set_project_changed(True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class ProjectBuildAudioDownload(ProjectPermissionQuerySetMixin, views.APIView):
     """
     Download project 'build_audio' contents.
@@ -675,6 +767,15 @@ class CreateNewProjectBuild(generics.CreateAPIView):
             )
             build.save()
 
+            # Copy snapshot of `project_log` file
+            build.project_log.save('gource.log', ContentFile(project.project_log.read()))
+
+            # Copy other optional artifacts
+            if project.build_logo:
+                build.build_logo.save(project.build_logo.name, ContentFile(project.build_logo.read()))
+            if project.build_background:
+                build.build_background.save(project.build_background.name, ContentFile(project.build_background.read()))
+
             # Copy over build options from master project
             build_options = []
             for option in project.options.all():
@@ -747,6 +848,36 @@ class ProjectBuildProjectLogDownload(views.APIView):
             'id': self.kwargs['project_build_id']
         })
         return _serve_file_field(request, project_build, 'project_log')
+
+
+class ProjectBuildLogoDownload(views.APIView):
+    """
+    Download project build (Gource) video logo contents.
+    """
+    queryset = ProjectBuild.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+        project_build = get_object_or_404(ProjectBuild, **{
+            'project_id': project.id,
+            'id': self.kwargs['project_build_id']
+        })
+        return _serve_file_field(request, project_build, 'build_logo')
+
+
+class ProjectBuildBackgroundDownload(views.APIView):
+    """
+    Download project build (Gource) video background contents.
+    """
+    queryset = ProjectBuild.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+        project_build = get_object_or_404(ProjectBuild, **{
+            'project_id': project.id,
+            'id': self.kwargs['project_build_id']
+        })
+        return _serve_file_field(request, project_build, 'build_background')
 
 
 class ProjectBuildScreenshotDownload(views.APIView):

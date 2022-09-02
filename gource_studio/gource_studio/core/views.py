@@ -605,6 +605,67 @@ def project_audio_upload(request, project_id=None, project_slug=None):
                 project.build_audio_name = None
             project.build_audio = request.FILES['build_audio']
             project.build_audio_name = project.build_audio.name
+            project.is_project_changed = True
+            project.save()
+            return HttpResponseRedirect(f'/projects/{project.id}/')
+            #response = {"error": False, "message": "Project saved successfully."}
+            #return HttpResponse(json.dumps(response), status=201, content_type="application/json")
+        else:
+            logging.error("Invalid form: %s", form.errors)
+    return HttpResponseRedirect(f'/projects/{project.id}/')
+
+
+class UploadLogoForm(forms.Form):
+    build_logo = forms.FileField()
+
+@ensure_csrf_cookie
+def project_build_logo_upload(request, project_id=None, project_slug=None):
+    "Upload a new project logo image"
+    queryset = Project.objects.filter_permissions(request.user)
+    if project_id:
+        project = get_object_or_404(queryset, **{'id': project_id})
+    elif project_slug:
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
+
+    if request.method == 'POST':
+        form = UploadLogoForm(request.POST, request.FILES)
+        if form.is_valid():
+            # TODO: Validate as image
+            if project.build_logo:
+                #os.remove(project.build_logo.path)
+                project.build_logo.delete()
+            project.build_logo = request.FILES['build_logo']
+            project.is_project_changed = True
+            project.save()
+            return HttpResponseRedirect(f'/projects/{project.id}/')
+            #response = {"error": False, "message": "Project saved successfully."}
+            #return HttpResponse(json.dumps(response), status=201, content_type="application/json")
+        else:
+            logging.error("Invalid form: %s", form.errors)
+    return HttpResponseRedirect(f'/projects/{project.id}/')
+
+
+class UploadBackgroundForm(forms.Form):
+    build_background = forms.FileField()
+
+@ensure_csrf_cookie
+def project_build_background_upload(request, project_id=None, project_slug=None):
+    "Upload a new project background image"
+    queryset = Project.objects.filter_permissions(request.user)
+    if project_id:
+        project = get_object_or_404(queryset, **{'id': project_id})
+    elif project_slug:
+        project = get_object_or_404(queryset, **{'project_slug': project_slug})
+
+    if request.method == 'POST':
+        form = UploadBackgroundForm(request.POST, request.FILES)
+        if form.is_valid():
+            # TODO: Validate as image
+            if project.build_background:
+                #os.remove(project.build_background.path)
+                project.build_background.delete()
+            project.build_background = request.FILES['build_background']
+            project.is_project_changed = True
             project.save()
             return HttpResponseRedirect(f'/projects/{project.id}/')
             #response = {"error": False, "message": "Project saved successfully."}
