@@ -109,7 +109,7 @@ a.navbar-brand:hover > span {
 }
 .project-item-container > .status-container {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     flex-basis: 7rem;
     flex-grow: 1;

@@ -1,16 +1,18 @@
 from django.conf import settings
 
 def app_request_default(request):
+    # (nav_page, label, url, logged_id)
     NAVIGATION_OPTIONS = [
-        ('new', 'New Project', '/new/'),
-        ('projects', 'Projects', '/projects/'),
-        ('queue', 'Queue', '/queue/'),
-        ('avatars', 'Avatars', '/avatars/'),
-#        ('about', 'About', '/about/'),
+        ('new', 'New Project', '/new/', True),
+        ('projects', 'Projects', '/projects/', False),
+        ('queue', 'Queue', '/queue/', False),
+        ('avatars', 'Avatars', '/avatars/', False),
+        ('playlists', 'Playlists', '/playlists/', True),
+#        ('about', 'About', '/about/', False),
     ]
-    # Remove 'New Project' option for anonymous users
+    # Filter some nav options for anonymous users
     if not request.user or request.user.is_anonymous:
-        NAVIGATION_OPTIONS.pop(0)
+        NAVIGATION_OPTIONS = [nav for nav in NAVIGATION_OPTIONS if not nav[3]]
 
     return {
         # Public site name
@@ -29,5 +31,6 @@ def app_request_default(request):
             'view': False,
             'edit': False,
             'delete': False,
-        }
+        },
+        'request_user': request.user,
     }

@@ -12,6 +12,8 @@ from ..models import (
     ProjectUserAvatarAlias,
     UserAvatar,
     UserAvatarAlias,
+    UserPlaylist,
+    UserPlaylistProject,
 )
 
 
@@ -213,3 +215,54 @@ class ProjectUserAvatarSerializer(UserAvatarSerializer):
         model = ProjectUserAvatar
         fields = ('name', 'image', 'aliases')
         read_only_fields = ('name',)
+
+
+class UserPlaylistSerializer(serializers.HyperlinkedModelSerializer):
+    url = serializers.SerializerMethodField()
+    projects = serializers.SerializerMethodField('get_projects_url')
+    projects_count = serializers.SerializerMethodField()
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    def get_url(self, obj):
+        return reverse('api-user-playlist-detail', args=[obj.pk], request=self.context.get('request'))
+
+    def get_projects_url(self, obj):
+        return reverse('api-user-playlist-projects-list', args=[obj.pk], request=self.context.get('request'))
+
+    def get_projects_count(self, obj):
+        return obj.projects.count()
+
+    class Meta:
+        model = UserPlaylist
+        fields = ('id', 'name', 'projects', 'projects_count', 'created_at', 'updated_at', 'url')
+
+
+class UserPlaylistProjectSerializer(serializers.HyperlinkedModelSerializer):
+    url = serializers.SerializerMethodField()
+    #playlist = serializers.SerializerMethodField('get_playlist_url')
+    playlist_id = serializers.PrimaryKeyRelatedField(source='playlist', read_only=True)
+    name = serializers.CharField(source='project.name', read_only=True)
+    project = serializers.SerializerMethodField('get_project_url')
+    project_id = serializers.PrimaryKeyRelatedField(source='project', read_only=True)
+    screenshot_url = serializers.SerializerMethodField()
+    content_url = serializers.SerializerMethodField()
+
+    def get_url(self, obj):
+        return reverse('api-user-playlist-project-detail', args=[obj.playlist_id, obj.pk], request=self.context.get('request'))
+
+    def get_playlist_url(self, obj):
+        return reverse('api-user-playlist-detail', args=[obj.playlist_id], request=self.context.get('request'))
+
+    def get_project_url(self, obj):
+        return reverse('api-project-detail', args=[obj.project_id], request=self.context.get('request'))
+
+    def get_content_url(self, obj):
+        return reverse('project-latest-build-video', args=[obj.project_id], request=self.context.get('request'))
+
+    def get_screenshot_url(self, obj):
+        return reverse('project-latest-build-screenshot', args=[obj.project_id], request=self.context.get('request'))
+
+    class Meta:
+        model = UserPlaylistProject
+        fields = ('id', 'playlist_id', 'project', 'project_id', 'name', 'index', 'content_url', 'screenshot_url', 'url')

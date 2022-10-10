@@ -24,9 +24,10 @@ from django.views.static import serve
 # Ignore SSL verification
 ssl._create_default_https_context = ssl._create_unverified_context
 
+from .api.serializers import UserPlaylistProjectSerializer
 from .constants import GOURCE_OPTIONS, GOURCE_OPTIONS_LIST, GOURCE_OPTIONS_JSON, VIDEO_OPTIONS, filter_by_version
 from .exceptions import ProjectBuildAbortedError
-from .models import Project, ProjectBuild, ProjectBuildOption, ProjectCaption, ProjectOption, ProjectUserAvatar, UserAvatar
+from .models import Project, ProjectBuild, ProjectBuildOption, ProjectCaption, ProjectOption, ProjectUserAvatar, UserAvatar, UserPlaylist
 from .tasks import generate_gource_build
 from .utils import (
     add_background_audio,   #(video_path, audio_path, loop=True):
@@ -965,6 +966,74 @@ def build_queue(request):
     page_obj = paginator.get_page(page_number)
     context['page_obj'] = page_obj
     return render(request, 'core/build_queue.html', context)
+
+
+def user_playlists(request):
+    "User's Playlists page"
+    sort_key = request.GET.get('sort_key', None)
+    if sort_key not in ['id']:
+        sort_key = 'created_at' # Default
+
+    if request.user.is_anonymous:
+        queryset = UserPlaylist.objects.none()
+    else:
+        queryset = UserPlaylist.objects.filter(user=request.user)
+    search = request.GET.get('search', None)
+    if search:
+        queryset = queryset.filter(Q(name__icontains=search)|Q(projects__project__name__contains=search)).distinct()
+    context = {
+        'document_title': f'Playlists - {SITE_NAME}',
+        'nav_page': 'playlists',
+        'playlists': queryset.order_by(f'-{sort_key}'),
+        'search': search,
+    }
+    # Pagination
+    paginator = Paginator(context['playlists'], 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    context['page_obj'] = page_obj
+    return render(request, 'core/playlists.html', context)
+
+
+def user_playlist_details(request, playlist_id):
+    "User's Playlist details (watch) page"
+    index = 0
+    _index = request.GET.get('index', None)
+    if _index is not None:
+        try:
+            _index = int(_index)
+            if _index < 0:
+                raise ValueError
+            index = _index
+        except:
+            pass
+
+    if request.user.is_anonymous:
+        queryset = UserPlaylist.objects.none()
+    else:
+        queryset = UserPlaylist.objects.filter(user=request.user)
+
+    playlist = get_object_or_404(queryset, **{'id': playlist_id})
+    projects_count = playlist.projects.count()
+    index = min(index, projects_count-1)
+    if index < 0:
+        index = 0
+    current_project = playlist.projects.filter(index__gte=index).first()
+    if current_project:
+        current_project = current_project.project
+    context = {
+        'document_title': f'Playlist - {SITE_NAME}',
+        'nav_page': 'playlists',
+        'body_min_padding': True,
+        'playlist': playlist,
+        'playlist_count': projects_count,
+        'current_project': current_project,
+        'index': index,
+        'playlist_projects_json': [
+            UserPlaylistProjectSerializer(upp).data for upp in playlist.projects.all()
+        ]
+    }
+    return render(request, 'core/playlist.html', context)
 
 
 def about(request):

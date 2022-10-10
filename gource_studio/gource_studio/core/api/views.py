@@ -30,6 +30,8 @@ from ..models import (
     ProjectUserAvatarAlias,
     UserAvatar,
     UserAvatarAlias,
+    UserPlaylist,
+    UserPlaylistProject,
 )
 from ..tasks import generate_gource_build
 from ..utils import (
@@ -52,6 +54,8 @@ from .serializers import (
     ProjectUserAvatarSerializer,
     UserAvatarAliasSerializer,
     UserAvatarSerializer,
+    UserPlaylistSerializer,
+    UserPlaylistProjectSerializer,
 )
 
 
@@ -1123,3 +1127,114 @@ class ProjectDurationUtility(views.APIView):
             "duration_str": td_duration
         }
         return Response(response)
+
+
+class UserPlaylistsList(generics.ListCreateAPIView):
+    """
+    Retrieve a list of playlists for the current user.
+
+    """
+    queryset = UserPlaylist.objects.all()
+    serializer_class = UserPlaylistSerializer
+    permission_classes = (ProjectMemberPermission,)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def get_queryset(self):
+        if not self.request.user or self.request.user.is_anonymous:
+            return super().get_queryset().none()
+        return super().get_queryset()\
+                      .filter(user=self.request.user)
+
+
+class UserPlaylistDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = UserPlaylist.objects.all().select_related()
+    serializer_class = UserPlaylistSerializer
+    permission_classes = (ProjectMemberPermission,)
+
+    def get_object(self):
+        playlist = get_object_or_404(UserPlaylist.objects.filter(user=self.request.user), **{'id': self.kwargs['playlist_id']})
+        return get_object_or_404(super().get_queryset(), **{
+            'id': self.kwargs['playlist_id']
+        })
+
+
+class UserPlaylistProjectsList(generics.ListCreateAPIView):
+    """
+    Retrieve a list of projects for a given playlist.
+
+    """
+    queryset = UserPlaylistProject.objects.all()
+    serializer_class = UserPlaylistProjectSerializer
+    permission_classes = (ProjectMemberPermission,)
+    pagination_class = None     # Not paginated
+
+    def get_object(self):
+        return get_object_or_404(UserPlaylist.objects.filter(user=self.request.user), **{'id': self.kwargs['playlist_id']})
+
+    def get_queryset(self):
+        if not self.request.user or self.request.user.is_anonymous:
+            return super().get_queryset().none()
+
+        playlist = self.get_object()
+        return super().get_queryset().filter(playlist=playlist).order_by('index')
+
+    def post(self, request, *args, **kwargs):
+        playlist = self.get_object()
+        # Append one or more projects to playlist
+        if 'projects' in request.data:
+            project_ids_list = request.data['projects']
+            if not isinstance(project_ids_list, (list, tuple)):
+                project_ids_list = [project_ids_list]
+
+            projects_list = []
+            projects_qs = Project.objects.all().filter_permissions(request.user)
+            for project_id in project_ids_list:
+                try:
+                    projects_list.append(
+                        projects_qs.get(id=project_id)
+                    )
+                except Project.DoesNotExist:
+                    return Response({"projects": [f"Invalid project ID: {project_id}"]}, status=status.HTTP_400_BAD_REQUEST)
+            for project in projects_list:
+                playlist.add_project(project)   # Added to end
+            return Response({}, status=status.HTTP_201_CREATED if len(projects_list) else status.HTTP_200_OK)
+
+        return Response({}, status=status.HTTP_200_OK)
+
+
+class UserPlaylistProjectDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = UserPlaylistProject.objects.all().select_related()
+    serializer_class = UserPlaylistProjectSerializer
+    permission_classes = (ProjectMemberPermission,)
+
+    def get_object(self):
+        playlist = get_object_or_404(UserPlaylist.objects.filter(user=self.request.user), **{'id': self.kwargs['playlist_id']})
+        return get_object_or_404(super().get_queryset(), **{
+            'playlist_id': playlist.id,
+            'id': self.kwargs['playlist_project_id']
+        })
+
+    def patch(self, request, *args, **kwargs):
+        playlist_project = self.get_object()
+        playlist = playlist_project.playlist
+        status_code = 200
+        if 'index' in request.data:
+            new_index = request.data['index']
+            try:
+                new_index = int(new_index)
+                if new_index < 0:
+                    raise ValueError
+            except (ValueError, TypeError):
+                return Response({"index": f"Invalid 'index' position: {new_index}"}, status=status.HTTP_400_BAD_REQUEST)
+
+            playlist_project.move_to_index(new_index)
+        result = UserPlaylistProjectSerializer(playlist_project, context={'request': request}).data
+        return Response(result, status_code=status.HTTP_200_PK)
+
+    def delete(self, request, *args, **kwargs):
+        playlist_project = self.get_object()
+        res = super().delete(request, *args, **kwargs)
+        playlist_project.playlist.update_project_indexes()
+        return res

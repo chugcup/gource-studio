@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.core.validators import validate_slug, RegexValidator
 from django.db import models
+from django.db.models import F
 from django.urls import reverse
 from django.utils.functional import SimpleLazyObject
 from django.utils.timezone import make_aware, now as utc_now
@@ -591,3 +592,110 @@ class ProjectMember(models.Model):
 
     def __str__(self):
         return f"{self.project.name} ({self.user.username})"
+
+
+class UserPlaylist(models.Model):
+    """
+    User playlist to manage videos (mainly for autoplay).
+
+    Projects are not unique (and can be added multiple times).
+    The intent is to show the latest video build for any project.
+    """
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='playlists', on_delete=models.CASCADE)
+    name = models.CharField(max_length=256)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ('name',)
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse('user-playlist-detail', args=[self.pk])
+
+    def add_project(self, project, index=None):
+        """
+        Add a new project (video) to the playlist.
+
+        By default, adds to end.  Can insert into `index` using 0-based index.
+
+        Projects can be added multiple times, and playlist `index` values will
+        be corrected automatically at the end.
+        """
+        projects_count = self.projects.count()
+        if index is None or index >= projects_count:
+            index = projects_count   # Add to end
+        else:
+            # Inserting into list; update current set to shift all indexes forward
+            self.projects.filter(index__gte=index).update(index=F('index')+1)
+
+        playlist_project = UserPlaylistProject.objects.create(
+            playlist=self,
+            project=project,
+            index=index
+        )
+        # Update index values (in case of gaps/duplicates)
+        self.update_project_indexes()
+
+    def update_project_indexes(self):
+        """
+        Iterate through list of playlist projects and correct `index` values.
+
+        Used to sort out duplicates or shift to fill gaps due to deletions.
+        """
+        cur_indexes = self.projects.all().order_by('index', 'id')
+        if cur_indexes.count() == 0:
+            return  # Nothing to do
+
+        indexes_changed = []
+        for idx, playlist_project in enumerate(cur_indexes):
+            if playlist_project.index != idx:
+                playlist_project.index = idx
+                indexes_changed.append(playlist_project)
+
+        if indexes_changed:
+            UserPlaylistProject.objects.bulk_update(indexes_changed, ['index'])
+
+
+class UserPlaylistProject(models.Model):
+    """
+    M2M relation between UserPlaylist and Project (video) instance.
+    """
+    playlist = models.ForeignKey(UserPlaylist, related_name='projects', on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    index = models.PositiveIntegerField(default=0)      # Order within playlist
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ('index',)
+
+    def __str__(self):
+        return f'{self.project.name} ({self.index})'
+
+    def get_latest_build(self):
+        """
+        Retrieve the latest successful video build for this project.
+        """
+        return self.project.get_latest_build()
+
+    def move_to_index(self, index):
+        """
+        Move the given project (video) to a new location in playlist.
+        """
+        playlist = self.playlist
+        projects_count = playlist.projects.count()
+        if index is None or index >= projects_count:
+            index = projects_count   # Add to end
+        else:
+            # Inserting into list; update current set to shift all indexes forward
+            playlist.projects.filter(index__gte=index).update(index=F('index')+1)
+
+        self.index = index
+        self.save(update_fields=['index'])
+        # Update index values (in case of gaps/duplicates)
+        playlist.update_project_indexes()

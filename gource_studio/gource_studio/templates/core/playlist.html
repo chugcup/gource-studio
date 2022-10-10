@@ -1,0 +1,466 @@
+{% extends 'core/base.html' %}
+
+{% block page_css %}
+  <style type="text/css">
+    #gource-settings-container .form-group {
+        min-width: 400px;
+    }
+    #gource-settings-container .form-group,
+    #project-captions-list .form-group {
+        margin-bottom: 0;
+    }
+    #gource-settings-container .form-group .form-control,
+    #project-captions-list .form-group .form-control {
+        display: inline-block;
+    }
+    #project-audio-video-settings label b {
+        min-width: 110px;
+        display: inline-block;
+    }
+    #project-audio-video-settings .form-group {
+        margin-bottom: 0;
+    }
+    #project-audio-video-settings .build-audio-video-actions {
+        margin-top: 1rem;
+    }
+    .bootstrap-datetimepicker-widget {
+        font-size: 0.8em;
+    }
+    .bootstrap-datetimepicker-widget table td.day {
+        padding: .3em .5em;
+    }
+    .bootstrap-datetimepicker-widget table td,
+    .bootstrap-datetimepicker-widget table th {
+        padding: .5em 0;
+    }
+    .nav-link.active {
+        font-weight: bold;
+    }
+
+    .nav-link > .fa.fa-external-link {
+        font-size: 0.75em;
+    }
+    .project-nav-topbar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    .project-nav-topbar .nav-link.active {
+        border-bottom: 1px solid #CCCCCC;
+    }
+    .project-nav-topbar li.nav-item:not(:first-child) {
+        border-left: 1px solid #EEEEEE;
+    }
+  @media(max-width: 577px) {
+    .project-nav-topbar .nav-link {
+        padding: 0.5rem 0.5rem;
+    }
+  }
+    .project-nav-sidebar {
+        white-space: nowrap;
+    }
+    .project-nav-sidebar .nav-item {
+        width: 100px;
+    }
+    .project-nav-sidebar .nav-link.active::before {
+        content: "❮";
+        margin-left: -14px;
+        padding-right: 6px;
+    }
+    .project-nav-sidebar .nav-item.separator {
+        margin-left: 10px;
+        width: 80px;
+        border-bottom: 1px solid #DDDDDD;
+    }
+    #project-video-container {
+        text-align: center;
+        background: #000000;
+    }
+    #project-video-container .project-video-empty {
+        max-height: 80vh;
+        height: 600px;
+        color: #FFFFFF;
+        vertical-align: middle;
+        padding: 230px 0;
+        line-height: 36px;
+    }
+    .project-video {
+        max-height: 80vh;
+        width: 100%;
+    }
+    #project-video-container .queue-project-build-btn {
+        opacity: 0.6;
+    }
+    #project-video-container .queue-project-build-btn:hover {
+        opacity: 1.0;
+    }
+    #project-details-container .project-changed-notice {
+        position: absolute;
+        left: 0;
+        z-index: 1;
+        background: #F5F5F5;
+        border: 1px solid #999999;
+        padding: 2px 8px;
+        border-radius: 0 10px 10px 0;
+        text-align: center;
+    }
+    #project-details-container .project-changed-notice > div {
+        font-size: 12px;
+        padding-bottom: 4px;
+    }
+    .project-url-link {
+        font-weight: bold;
+        color: #333333;
+    }
+    .project-url-link:hover {
+        color: #333333;
+        text-decoration: underline;
+    }
+    .project-url-nolink {
+        font-weight: bold;
+        color: #999999;
+    }
+    #project-details-pane .row b {
+        display: inline-block;
+        width: 120px;
+        text-align: right;
+    }
+  @media(max-width: 577px) {
+    #project-details-pane .row b,
+    #project-details-pane .row span {
+        width: auto;
+        text-align: center;
+        display: block;
+    }
+  }
+  @media(min-width: 992px) {
+    #project-details-pane .row b {
+        margin-left: 100px;
+    }
+  }
+    .project-image-preview {
+        max-height: 128px;
+        max-width: 128px;
+    }
+    .project-nav-topbar {
+        border-bottom: 1px solid #CCCCCC;
+        margin-bottom: 12px;
+    }
+    .gource-option-container {
+        display: flex;
+        width: 100%;
+    }
+    .gource-option-container .gource-option-label {
+        width: 130px;
+        font-size: 12px;
+        line-height: 32px;
+        text-align: right;
+        padding-right: 8px;
+    }
+    .gource-option-container .gource-option-value {
+        flex: 1;
+    }
+    .gource-option-container .gource-option-value input {
+        width: 200px;
+    }
+    .gource-option-container .gource-option-value .gource-option-info {
+        padding-left: 12px;
+    }
+    .gource-option-container .gource-option-value .gource-option-remove {
+        padding-left: 12px;
+        cursor: pointer;
+    }
+    #project-captions-container {
+        margin-top: 12px;
+    }
+    #project-captions-list {
+        min-width: 400px;
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    #project-captions-list input.gource-caption-datetimepicker {
+        border-radius: .2rem 0 0 .2rem;
+        background: #F9F9F9;
+        width: 150px;
+        font-size: 12px;
+        line-height: 32px;
+    }
+    #project-captions-list input.gource-caption-text {
+        border-radius: 0 .2rem .2rem 0;
+        width: 70%;
+        min-width: 200px;
+        font-size: 12px;
+        line-height: 32px;
+    }
+  @media(max-width: 993px) {
+    #project-captions-list input.gource-caption-text {
+        width: 50%;
+    }
+  }
+  @media(max-width: 751px) {
+    #project-captions-list input.gource-caption-text {
+        width: 40%;
+    }
+  }
+    #project-gource-options-container {
+        display: flex;
+        width: 100%;
+        margin-top: 12px;
+    }
+    .project-links-container .input-group {
+        padding-bottom: 12px;
+    }
+    .project-links-container .input-group .form-control[readonly] {
+        background-color: #FFFFFF;
+    }
+    .project-links-container .input-group-prepend .input-group-text {
+        font-size: 12px;
+        width: 120px;
+        justify-content: flex-end;
+    }
+    .popover {
+        max-width: 300px;   /* default: 276px */
+    }
+    .playlist-project-link-btn {
+        color: #333333;
+    }
+    .playlist-project-link-btn:hover {
+        text-decoration: underline;
+    }
+    #current-playlist-title a {
+        font-weight: bold;
+        max-width: 47%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    #playlist-prev-container,
+    #playlist-next-container {
+        background: rgba(0, 0, 0, 0.7);
+        color: #FFFFFF;
+        width: 200px;
+        min-height: 1px;
+    }
+    #playlist-prev-container a,
+    #playlist-next-container a {
+        display: inline-block;
+        padding: 8px 12px;
+        color: #FFFFFF;
+        width: 200px;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+  @media(max-width: 751px) {
+    #current-playlist-title a {
+        max-width: 37%;
+    }
+    #playlist-prev-container,
+    #playlist-next-container {
+        width: 170px;
+    }
+    #playlist-prev-container a,
+    #playlist-next-container a {
+        font-size: 0.7em;
+        width: 170px;
+        padding: 6px 10px;
+    }
+  }
+  @media(max-width: 577px) {
+    #current-playlist-title a {
+        max-width: 30%;
+    }
+    #playlist-prev-container,
+    #playlist-next-container {
+        width: 150px;
+    }
+    #playlist-prev-container a,
+    #playlist-next-container a {
+        font-size: 0.7em;
+        width: 150px;
+        padding: 6px 10px;
+    }
+  }
+    #playlist-prev-container a:hover,
+    #playlist-next-container a:hover {
+        text-decoration: none;
+        opacity: 0.8;
+    }
+    #playlist-prev-container a::before {
+        content: '«';
+        float: left;
+        padding-right: 4px;
+    }
+    #playlist-next-container a::before {
+        content: '»';
+        float: right;
+        padding-left: 4px;
+    }
+    #playlist-prev-container {
+        border-radius: 0 0 8px 0;
+    }
+    #playlist-next-container {
+        text-align: right;
+        border-radius: 0 0 0 8px;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  {% with latest_build=current_project.latest_build %}
+  <div id="project-video-container">
+  {% if latest_build.content %}
+    <video id="playlist-video-player" class="project-video" controls poster="{% url 'project-build-screenshot' current_project.id latest_build.id %}" preload="metadata">
+      <source src="{% url 'project-build-video' current_project.id latest_build.id %}" type="video/mp4">
+    </video>
+  {% else %}
+    <div class="project-video-empty">
+        <div>No video available.</div>
+    </div>
+  {% endif %}
+  </div>
+
+  <div id="playlist-details-container">
+    <div id="playlist-prev-container" class="pull-left"></div>
+    <div id="playlist-next-container" class="pull-right"></div>
+
+    <div id="current-playlist-title" class="justify-content-center text-center">
+    {% if latest_build and latest_build.content %}
+      <a class="playlist-project-link-btn btn btn-link" href="{% url 'project-details' current_project.id %}" title="View project details">
+        {{ current_project.name }}
+      </a>
+    {% endif %}
+    </div>
+  </div>
+  <!-- /.container -->
+
+  {% endwith %}
+  <hr />
+  <br />
+{% endblock %}
+
+{% block page_js %}
+  <script type="text/javascript">
+    let PLAYLIST_ID = {{ playlist.id }};
+    let PLAYLIST_URL = "{% url 'user-playlist-details' playlist.id %}";
+    let PLAYLIST_CURRENT_INDEX = {{ index }};
+    // Current playlist contents
+    let PLAYLIST_CONTENTS = [{% for playlist_json in playlist_projects_json %}
+        {{ playlist_json|safe }},{% endfor %}
+    ];
+
+    let play_video_at_index = function(index, delay) {
+        if (delay === undefined) {
+            delay = 0;
+        }
+        if (index === PLAYLIST_CURRENT_INDEX) {
+            return false;
+        }
+        else if (index < 0 || index >= PLAYLIST_CONTENTS.length) {
+            console.log("Index "+index+" outside playlist length");
+            return false;
+        }
+        let video_player = document.getElementById('playlist-video-player');
+        let next_video = PLAYLIST_CONTENTS[index];
+        video_player.children[0].src = next_video.content_url;
+        video_player.poster = next_video.screenshot_url;
+        video_player.load();
+        // Update index value
+        PLAYLIST_CURRENT_INDEX = index;
+        // Update URL state
+        const url = new URL(window.location);
+        if (url.searchParams.get('index') === null && index === 0) {
+            url.searchParams.set('index', index);
+            window.history.replaceState({index: index}, '', url);  // Unset (implies page 0)
+        } else if (url.searchParams.get('index') != ""+index) {
+            url.searchParams.set('index', index);
+            window.history.pushState({index: index}, '', url);
+        }
+
+        // Update title and prev/next links
+        update_video_links(index);
+
+        setTimeout(function() {
+            video_player.play();
+        }, delay);      // Short delay before starting next video
+        return next_video;
+    };
+
+    // Update the current video title and prev/next buttons
+    let update_video_links = function(index) {
+        if (index < 0 || index >= PLAYLIST_CONTENTS.length) {
+            console.log("Index "+index+" outside playlist length");
+            return false;
+        }
+
+        // Update current title
+        let next_video = PLAYLIST_CONTENTS[index];
+        let $playlist_title = $('#current-playlist-title');
+        $playlist_title.html(
+          $('<a class="playlist-project-link-btn btn btn-link" href="/projects/'+next_video.project_id+'/" title="View project details"></a>').text(next_video.name)
+        );
+        // Update document title
+        document.title = 'Playlist - '+next_video.name+' - Gource Studio';
+
+        // Update prev/next links
+        if (PLAYLIST_CONTENTS.length <= 1) {
+            $('#playlist-prev-container').text('');
+            $('#playlist-next-container').text('');
+            return;
+        }
+        if (index > 0) {
+            $('#playlist-prev-container').html(
+                $('<a href="/playlists/'+PLAYLIST_ID+'/?index='+(index-1)+'"></a>').text(PLAYLIST_CONTENTS[index-1].name)
+            );
+        } else {
+            $('#playlist-prev-container').text('');
+        }
+        if (index < PLAYLIST_CONTENTS.length-1) {
+            $('#playlist-next-container').html(
+                $('<a href="/playlists/'+PLAYLIST_ID+'/?index='+(index+1)+'"></a>').text(PLAYLIST_CONTENTS[index+1].name)
+            );
+        } else {
+            $('#playlist-next-container').text('');
+        }
+    };
+
+
+    //let IS_READONLY = !CAN_USER_EDIT || !IS_LATEST_BUILD;
+    $(document).ready(function() {
+        $('[data-toggle="tooltip"]').tooltip();
+        let video_player = document.getElementById('playlist-video-player');
+        video_player.addEventListener('ended', function(e) {
+            if (!e) {
+                e = window.event;
+            }
+            // TODO: shuffle (random) mode
+            if (PLAYLIST_CURRENT_INDEX < PLAYLIST_CONTENTS.length-1) {
+                setTimeout(function() {
+                    play_video_at_index(PLAYLIST_CURRENT_INDEX+1, 1000);
+                }, 3000);   // Short delay before moving to next video
+            } else {
+                // TODO: If loop, redirect to first video
+            }
+        }, false);
+        window.addEventListener('popstate', function(e) {
+            console.log('popstate: ',e.state)
+            if (e.state && !isNaN(e.state.index)
+                    && _.isNumber(e.state.index)
+                    && e.state.index !== PLAYLIST_CURRENT_INDEX) {
+                play_video_at_index(e.state.index);
+            }
+            else if (e.state === null) {
+                const url = new URL(window.location);
+                // Should return 'null' if not set
+                let url_index = url.searchParams.get('index');
+                url_index = (url_index === null) ? 0 : parseInt(url_index);
+                if (!isNaN(url_index) && _.isNumber(url_index) && url_index !== PLAYLIST_CURRENT_INDEX) {
+                    play_video_at_index(url_index);
+                }
+            }
+        });
+
+        update_video_links(PLAYLIST_CURRENT_INDEX);
+    });
+  </script>
+{% endblock %}

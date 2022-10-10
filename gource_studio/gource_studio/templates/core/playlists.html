@@ -1,0 +1,254 @@
+{% extends 'core/base.html' %}
+
+{% block page_css %}
+  <style type="text/css">
+    .project-item-container .status-container {
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+    .project-item-container .status-container b {
+        display: block;
+        width: 100%;
+        text-align: center;
+    }
+    .playlists-list {
+    }
+    .playlists-list.playlist-card-empty {
+        border: 1px solid #CCCCCC;
+    }
+    .playlists-list.playlist-card-empty .card-body-scroll h5 {
+        padding: 12px;
+    }
+    .card-header .dropdown-toggle {
+        margin-top: -2px;
+    }
+    .card-header .dropdown-toggle::after {
+        content: none;  /* Remove caret */
+    }
+    .card-header .dropdown-menu a {
+        cursor: pointer;
+    }
+    .card-body {
+        padding: 0;
+    }
+    .card-body-scroll {
+        overflow-x: hidden;
+        overflow-y: auto;
+        max-height: 140px;
+    }
+    .card-body-scroll > div {
+        border-bottom: 1px solid #999999;
+    }
+    .card-body-scroll > div:last-child {
+        border-bottom: none;
+    }
+    .card-body-scroll > div a {
+        padding: 8px 4px;
+        cursor: pointer;
+        display: block;
+        color: #333333;
+    }
+    .card-body-scroll > div a:hover {
+        text-decoration: none;
+        background: #EEEEEE;
+    }
+    .card-body-scroll > div a .playlist-index-display {
+        display: inline-block;
+        padding-left: 8px;
+        margin-right: 8px;
+        min-width: 36px;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="main-container container">
+  {% if not request_user or request_user.is_anonymous %}
+    <h4 class="text-center">You must be logged in to use this feature.</h4>
+    <br /><br />
+    <div class="text-center">
+      <a href="{% url 'login' %}" class="btn btn-lg btn-primary">Go to Login</a>
+    </div>
+  {% else %}
+    <div>
+      <h3 class="float-left" style="margin-right:40px">Playlists</h3>
+      <form action="{% url 'user-playlists' %}" method="GET" class="playlists-search-container" style="display:inline-block; width: 600px;">
+        <div class="input-group">
+          <input type="text" name="search" class="form-control playlists-search" placeholder="Name, ..." value="{{ search|default_if_none:"" }}" />
+          <div class="input-group-append">
+            <button class="btn btn-default btn-outline-secondary" type="button">Search</button>
+          </div>
+        </div>
+      </form>
+      <hr />
+    </div>
+
+    <!-- Page Features -->
+    <div class="row text-center">
+    {% for entry in page_obj %}
+      {% with project_count=entry.projects.count %}
+      <div class="col-lg-12 col-md-12 mb-12">
+        <div class="playlists-list card mb-3{% if project_count == 0 %} playlist-card-empty{% endif %}">
+          <div class="row no-gutters project-item-container">
+            <div class="status-container col-md-2">
+              <a href="{% url 'user-playlist-details' entry.id %}">
+                <img class="card-img-top" src="https://via.placeholder.com/185x100/D0D0D0/808080?text=No Preview" alt="No Preview" />
+              </a>
+              {% if project_count > 0 %}<b>{{ project_count }} Project{{ project_count|pluralize }}</b>{% endif %}
+            </div>
+            <div class="content-container col-md-10">
+              <div class="card-header" style="padding:.25rem .1rem .25rem 1.25rem;">
+                <div class="pull-right">
+                  <button type="button" class="btn btn-sm btn-link dropdown-toggle" data-toggle="dropdown">
+                    <i class="fa fa-ellipsis-h"></i>
+                  </button>
+                  <div class="dropdown-menu">
+                    <a class="dropdown-item delete-playlist-btn" data-playlist-id="{{ entry.id }}" data-name="{{ entry.name }}">Delete Playlist</a>
+                  </div>
+                </div>
+                <h5 class="card-title text-left" style="margin-bottom:0">
+                  <a href="{% url 'user-playlist-details' entry.id %}">
+                  {% if entry.name %}
+                    {{ entry.name }}
+                  {% else %}
+                    <em class="text-muted">No Name</em>
+                  {% endif %}
+                  </a>
+                </h5>
+              </div>
+              <div class="card-body text-left">
+                <div class="card-body-scroll">
+                  {% for project in entry.projects.all %}
+                  <div class="playlist-project-card-row">
+                    <a href="{% url 'user-playlist-details' entry.id %}{% if forloop.counter0 > 0 %}?index={{forloop.counter0}}{% endif %}">
+                      <span class="playlist-index-display">{{ forloop.counter }}</span>
+                      {{ project.project.name }}
+                    </a>
+                  </div>
+                  {% empty %}
+                    <h5 class="text-muted text-left"><i>No projects yet</i></h5>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endwith %}
+    {% empty %}
+      <div class="col-lg-12 col-md-12 col-sm-12">
+        <h5 class="text-center text-muted">
+        {% if search %}
+          <i>No playlists found</i>
+        {% else %}
+          <i>No playlists yet</i>
+        {% endif %}
+        </h5>
+      </div>
+    {% endfor %}
+    </div>
+
+    <div class="row">
+      <div class="col-lg-12 col-md-12 col-sm-12">
+        <nav aria-label="Project pages">
+        {% if page_obj.has_other_pages %}
+          <ul class="pagination" style="align-items: center; justify-content:center">
+            {% if page_obj.has_previous %}
+              <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+            {% endif %}
+            {% for i in page_obj.paginator.page_range %}
+              {% if page_obj.number == i %}
+              <li class="page-item active"><span class="page-link">{{ i }} <span class="sr-only">(current)</span></span></li>
+              {% else %}
+              <li><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+              {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+              <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+            {% endif %}
+          </ul>
+        {% endif %}
+        </nav>
+      </div>
+    </div>
+    <!-- /.row -->
+    <br />
+  {% endif %}
+  </div>
+<!--Delete XXX Modal -->
+<div class="modal" id="confirm-delete-playlist-modal" tabindex="-1" role="dialog" aria-labelledby="confirm-delete-playlist-title" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirm-delete-playlist-title">Delete Playlist?</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to delete this playlist?
+        <h4 id="confirm-delete-playlist-name" class="text-center"></h4>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-danger confirm-delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script type="text/javascript">
+function handleErrorXHR(xhr, err) {
+    // TODO fallback on 'responseText'?
+    if (xhr.responseJSON) {
+        for (let key in xhr.responseJSON) {
+            $.notify(xhr.responseJSON[key], {autoHide: false, position: 'top center'});
+        }
+    } else {
+        $.notify(err, {autoHide: false, position: 'top center'});
+    }
+}
+$(document).ready(function() {
+    $('.delete-playlist-btn').on('click', function(e) {
+        let playlist_id = $(e.currentTarget).attr('data-playlist-id');
+        if (!playlist_id) {
+            return;
+        }
+        let delete_url = '/api/v1/playlists/'+playlist_id+'/';
+        // Set name
+        let name = $(e.currentTarget).attr('data-name');
+        $('#confirm-delete-playlist-modal #confirm-delete-playlist-name').text(name ? name : "N/A");
+        let $modal = $('#confirm-delete-playlist-modal').modal();
+        $modal.on('click', '.confirm-delete', function() {
+            // Delete entry
+            $.ajax({
+                url: delete_url,
+                method: 'DELETE',
+                beforeSend: function(xhr) {
+                    // Attach CSRF Token
+                    xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+                },
+                success: function(data, textStatus, xhr) {
+                    // Dismiss modal
+                    $modal.modal('hide');
+                    // TODO: show success message
+                    window.location.reload();
+                },
+                error: function(xhr, textStatus, err) {
+                    console.log("ERROR: ",err);
+                },
+            });
+        });
+        $modal.on('hidden.bs.modal', function() {
+            $('#confirm-delete-playlist-modal #confirm-delete-playlist-name').text('');
+        });
+    });
+});
+</script>
+{% endblock %}

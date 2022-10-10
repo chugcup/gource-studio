@@ -221,6 +221,25 @@
     .popover {
         max-width: 300px;   /* default: 276px */
     }
+    .playlist-select-options-list li {
+        list-style-type: none;
+        position: relative;
+    }
+    .playlist-select-options-list li input[type="checkbox"] {
+        height: 20px;
+        width: 20px;
+        top: 9px;
+        position: absolute;
+    }
+    .playlist-select-options-list li > label {
+        font-size: 24px;
+        display: inline-block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 200px;
+        margin-left: 32px;
+    }
   </style>
 {% endblock %}
 
@@ -280,8 +299,8 @@
     </ul>
   </div>
   <div id="project-details-container" class="container">
-  {% if user_can_edit and project.is_project_changed and not project.has_build_waiting %}
-    <div class="project-changed-notice">
+  {% if user_can_edit %}
+    <div class="project-changed-notice"{% if not project.is_project_changed or project.has_build_waiting %} style="display:none"{% endif %}>
       <div>Project was changed</div>
       <button class="queue-project-build-btn btn btn-sm btn-danger" type="button">
         Build Now
@@ -300,11 +319,6 @@
             {% else %}
               <span class="project-url-nolink">{{ project.name }}</span>
             {% endif %}
-              {% if build.content %}
-              <a class="btn btn-link" href="{% url 'project-build-video' project.id build.id %}" download="video-{{ build.id }}.mp4" title="Download video ({{ build.content.size|filesizeformat }})"$>
-                <i class="fa fa-download"></i>
-              </a>
-              {% endif %}
             </div>
           </div>
 
@@ -312,6 +326,19 @@
 
           <div class="tab-content" id="project-tab-content">
             <div class="tab-pane show active" id="project-details-pane" role="tabpanel">
+              <div id="project-details-actions-container" class="pull-right">
+              {% if request.user and not request.user.is_anonymous %}
+                <a id="add-to-playlist-btn" class="btn btn-default btn-sm" title="Add to Playlist"$>
+                  <i class="fa fa-plus-square"></i>
+                </a>
+              {% endif %}
+              {% if build.content %}
+                <a class="btn btn-default btn-sm" href="{% url 'project-build-video' project.id build.id %}" download="video-{{ build.id }}.mp4" title="Download video ({{ build.content.size|filesizeformat }})"$>
+                  <i class="fa fa-download"></i>
+                </a>
+              {% endif %}
+              </div>
+  
               <div class="row">
                 <div class="col-12">
                   <b>Branch:</b>
@@ -324,11 +351,11 @@
                     [{{ build.project_log_commit_time|date:"M j, Y" }}]
                   {{ build.project_log_commit_preview }}
                 {% if build.project_log %}
-                    <a class="btn btn-link" href="{% url 'project-build-project-log' project.id build.id %}" download="project.log">
+                    <a class="btn btn-link" href="{% url 'project-build-project-log' project.id build.id %}" download="project.log" title="Download project log">
                       <i class="fa fa-file-text-o"></i>
                     </a>
                 {% elif project.project_log %}
-                    <a class="btn btn-link" href="{% url 'project-project-log' project.id %}" download="project.log">
+                    <a class="btn btn-link" href="{% url 'project-project-log' project.id %}" download="project.log" title="Download project log">
                       <i class="fa fa-file-text-o"></i>
                     </a>
                 {% endif %}
@@ -372,7 +399,7 @@
                     <div class="input-group-prepend">
                         <span class="input-group-text">Direct Video Link</span>
                     </div>
-                    <input id="project-video-direct-link" class="form-control" type="text" value="{{ request.scheme }}://{{ request.META.HTTP_HOST }}{% url 'project-build-video' project.id build.id %}" readonly />
+                    <input id="project-video-direct-link" class="form-control" type="text" value="{{ request.scheme }}://{{ request.META.HTTP_HOST }}{% if build.id == latest_build.id %}{% url 'project-latest-build-video' project.id %}{% else %}{% url 'project-build-video' project.id build.id %}{% endif %}" readonly />
                     <div class="input-group-append" title="Copy to clipboard">
                         <button class="btn btn-outline-secondary copy-clipboard-url" type="button"><i class="fa fa-clipboard"></i></span>
                     </div>
@@ -645,7 +672,7 @@
   <hr />
   <br />
 
-<!-- Modal -->
+<!--Delete XXX Modal -->
 <div class="modal" id="confirm-delete-file-modal" tabindex="-1" role="dialog" aria-labelledby="confirm-delete-file-title" aria-hidden="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
@@ -663,6 +690,45 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
         <button type="button" class="btn btn-danger confirm-delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Add to Playlist Modal -->
+<div class="modal" id="confirm-add-to-playlist-modal" tabindex="-1" role="dialog" aria-labelledby="confirm-add-to-playlist-title" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirm-add-to-playlist-title">Add to Playlist</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="add-to-playlist-modal-options">
+          <h3 class="text-center">
+            <i class="fa fa-spin fa-spinner"></i>
+          </h3>
+        </div>
+        <div class="add-new-playlist-region" style="display:none">
+          <hr />
+          <div class="add-to-playlist-modal-additional-options">
+            <ul class="playlist-select-options-list"></ul>
+          </div>
+          <div class="input-group">
+            <input class="form-control" type="text" placeholder="New Playlist" />
+            <div class="input-group-append">
+              <button class="create-playlist-btn btn btn-sm btn-success" role="button">
+                <i class="fa fa-plus"></i>
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary confirm-save">Add Video</button>
       </div>
     </div>
   </div>
@@ -1311,6 +1377,111 @@
             $('#confirm-delete-file-modal #confirm-delete-file-title').text('Delete File?');
             $('#confirm-delete-file-modal #confirm-delete-object-name').text('this file');
             $('#confirm-delete-file-modal #confirm-delete-file-image').text('');
+        });
+    });
+    $('body').on('click', '#add-to-playlist-btn', function(e) {
+        // Open modal and load list of available playlists
+        let $modal = $('#confirm-add-to-playlist-modal').modal();
+        // - If additional options loaded, empty them
+        $modal.find('.add-to-playlist-modal-additional-options ul').html('');
+
+        $.ajax({
+            url: '/api/v1/playlists/?per_page=50',
+            success: function(data, textStatus, xhr) {
+                // Display list of playlists
+                if (data.count === 0) {
+                    // Empty
+                    $modal.find('.add-to-playlist-modal-options').html(
+                        '<div class="text-center"><i class="text-muted">No playlists yet.</i></div>'
+                    );
+                } else {
+                    // Display list of playlists
+                    $modal.find('.add-to-playlist-modal-options').text('');
+                    let $ul = $('<ul class="playlist-select-options-list"></ul>');
+                    _.each(data.results, function(item) {
+                        $ul.append($(
+                            _.template('<li><input type="checkbox" id="playlist-add-id-<%- id %>" value="<%- id %>" /><label for="playlist-add-id-<%- id %>"><%- name %></label></li>')(item)
+                        ));
+                    });
+                    $modal.find('.add-to-playlist-modal-options').html($ul);
+                }
+                $modal.find('.add-new-playlist-region').show();
+                // FIXME
+                // Bind save event
+                $modal.on('click', '.create-playlist-btn', function() {
+                    let new_name = $modal.find('input[type="text"]').val();
+                    $modal.find('input[type="text"]').removeClass('is-invalid');
+                    if (!new_name) {
+                        $modal.find('input[type="text"]').addClass('is-invalid');
+                        return false;
+                    }
+                    $.ajax({
+                        url: '/api/v1/playlists/',
+                        method: 'POST',
+                        data: JSON.stringify({"name": new_name}),
+                        contentType: "application/json",
+                        dataType: "json",
+                        beforeSend: function(xhr) {
+                            // Attach CSRF Token
+                            xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+                        },
+                        success: function(data, textStatus, xhr) {
+                            // Add to auxillary section
+                            $modal.find('.add-to-playlist-modal-additional-options ul').html(
+                                _.template('<li><input type="checkbox" id="playlist-add-id-<%- id %>" value="<%- id %>" /><label for="playlist-add-id-<%- id %>"><%- name %></label></li>')(data)
+                            );
+                            $modal.find('input[type="text"]').val('');
+                        },
+                        error: function(xhr, textStatus, err) {
+                            console.log('Error creating new playlist: ', err, xhr);
+                        }
+                    });
+                });
+                $modal.on('click', '.confirm-save', function() {
+                    let playlist_ids = [];
+                    // Locate IDs of playlists to add project (video) to
+                    _.each($modal.find('.add-to-playlist-modal-options input[type="checkbox"]:checkbox:checked'), function(elem) {
+                        playlist_ids.push( parseInt($(elem).val()) );
+                    });
+
+                    _.each($modal.find('.add-to-playlist-modal-additional-options input[type="checkbox"]:checkbox:checked'), function(elem) {
+                        playlist_ids.push( parseInt($(elem).val()) );
+                    });
+                    console.log('save clicked:', playlist_ids);
+                    if (playlist_ids.length === 0) {
+                        $modal.modal('hide');
+                        return;     // None selected
+                    }
+                    _.each(playlist_ids, function(playlist_id) {
+                        $.ajax({
+                            url: '/api/v1/playlists/'+playlist_id+'/projects/',
+                            method: 'POST',
+                            data: JSON.stringify({"projects": [PROJECT_ID]}),
+                            contentType: "application/json",
+                            dataType: "json",
+                            beforeSend: function(xhr) {
+                                // Attach CSRF Token
+                                xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
+                            },
+                            success: function(data, textStatus, xhr) {
+                            },
+                            error: function(xhr, textStatus, err) {
+                                console.log("[ERROR] Error adding to playlist (ID="+playlist_id+"): ", err);
+                            }
+                        });
+                    });
+
+                    $modal.modal('hide');   // Hide immediately
+                });
+            },
+            error: function(xhr, textStatus, err) {
+                console.log('Error loading list of playlists: ', err);
+            }
+        });
+        $modal.on('hidden.bs.modal', function() {
+            $modal.find('.add-to-playlist-modal-options').text('');
+            $modal.find('.add-new-playlist-region').hide();
+            $modal.find('.add-to-playlist-modal-additional-options ul').html('');
         });
     });
   </script>

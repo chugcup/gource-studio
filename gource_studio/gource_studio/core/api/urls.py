@@ -10,6 +10,10 @@ urlpatterns = [
     re_path(r'^avatars/(?P<avatar_id>\d+)/?$', views.UserAvatarDetail.as_view(), name='api-useravatar-detail'),
     re_path(r'^avatars/(?P<avatar_id>\d+)/download/?$', views.UserAvatarImageDownload.as_view(), name='api-useravatar-image-download'),
     re_path(r'^builds/?$', views.ProjectBuildsList.as_view(), name='api-project-builds-list'),
+    re_path(r'^playlists/?$', views.UserPlaylistsList.as_view(), name='api-user-playlists-list'),
+    re_path(r'^playlists/(?P<playlist_id>\d+)/?$', views.UserPlaylistDetail.as_view(), name='api-user-playlist-detail'),
+    re_path(r'^playlists/(?P<playlist_id>\d+)/projects/?$', views.UserPlaylistProjectsList.as_view(), name='api-user-playlist-projects-list'),
+    re_path(r'^playlists/(?P<playlist_id>\d+)/projects/(?P<playlist_project_id>\d+)/?$', views.UserPlaylistProjectDetail.as_view(), name='api-user-playlist-project-detail'),
     # - Projects
     re_path(r'^projects/?$', views.ProjectsList.as_view(), name='api-projects-list'),
     re_path(r'^projects/(?P<project_id>\d+)/?$', views.ProjectDetail.as_view(), name='api-project-detail'),
