@@ -338,7 +338,7 @@
                 </a>
               {% endif %}
               </div>
-  
+
               <div class="row">
                 <div class="col-12">
                   <b>Branch:</b>
@@ -1386,7 +1386,7 @@
         $modal.find('.add-to-playlist-modal-additional-options ul').html('');
 
         $.ajax({
-            url: '/api/v1/playlists/?per_page=50',
+            url: '/api/v1/playlists/?per_page=50&include_project_ids=True',
             success: function(data, textStatus, xhr) {
                 // Display list of playlists
                 if (data.count === 0) {
@@ -1399,9 +1399,17 @@
                     $modal.find('.add-to-playlist-modal-options').text('');
                     let $ul = $('<ul class="playlist-select-options-list"></ul>');
                     _.each(data.results, function(item) {
-                        $ul.append($(
-                            _.template('<li><input type="checkbox" id="playlist-add-id-<%- id %>" value="<%- id %>" /><label for="playlist-add-id-<%- id %>"><%- name %></label></li>')(item)
-                        ));
+                        if (item.project_ids && item.project_ids.includes(PROJECT_ID)) {
+                            // Already assigned to playlist; show disabled checkbox
+                            $ul.append($(
+                                _.template('<li><input type="checkbox" value="" checked="checked" disabled /><label for="playlist-add-id-<%- id %>"><%- name %></label></li>')(item)
+                            ));
+                        } else {
+                            // Show regular checkbox
+                            $ul.append($(
+                                _.template('<li><input type="checkbox" id="playlist-add-id-<%- id %>" value="<%- id %>" /><label for="playlist-add-id-<%- id %>"><%- name %></label></li>')(item)
+                            ));
+                        }
                     });
                     $modal.find('.add-to-playlist-modal-options').html($ul);
                 }
@@ -1441,7 +1449,9 @@
                     let playlist_ids = [];
                     // Locate IDs of playlists to add project (video) to
                     _.each($modal.find('.add-to-playlist-modal-options input[type="checkbox"]:checkbox:checked'), function(elem) {
-                        playlist_ids.push( parseInt($(elem).val()) );
+                        if ($(elem).val()) {
+                            playlist_ids.push( parseInt($(elem).val()) );
+                        }
                     });
 
                     _.each($modal.find('.add-to-playlist-modal-additional-options input[type="checkbox"]:checkbox:checked'), function(elem) {

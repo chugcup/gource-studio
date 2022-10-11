@@ -6,7 +6,25 @@
         flex-direction: column;
         justify-content: flex-start;
     }
-    .project-item-container .status-container b {
+    .project-item-container > .status-container a {
+        background: #D0D0D0;
+    }
+    .project-item-container > .status-container a .card-img-top {
+        border-radius: 0;
+        width: 185px;
+        height: 100px;
+    }
+    .project-item-container > .status-container a .card-img-top.card-compact {
+        width: 92px;
+        height: 50px;
+        float: left;
+        border-bottom: 1px solid #FFFFFF;
+    }
+    .project-item-container > .status-container a .card-img-top.card-compact:nth-child(odd) {
+        border-right: 1px solid #FFFFFF;
+    }
+    .project-item-container > .status-container a .card-img-top.card-empty {}
+    .project-item-container > .status-container b {
         display: block;
         width: 100%;
         text-align: center;
@@ -37,10 +55,13 @@
         max-height: 140px;
     }
     .card-body-scroll > div {
-        border-bottom: 1px solid #999999;
+        border-bottom: 1px solid #CCCCCC;
+    }
+    .card-body-scroll > div:nth-child(even) {
+        background: #F5F5F5;
     }
     .card-body-scroll > div:last-child {
-        border-bottom: none;
+        /*border-bottom: none; */
     }
     .card-body-scroll > div a {
         padding: 8px 4px;
@@ -91,8 +112,20 @@
         <div class="playlists-list card mb-3{% if project_count == 0 %} playlist-card-empty{% endif %}">
           <div class="row no-gutters project-item-container">
             <div class="status-container col-md-2">
-              <a href="{% url 'user-playlist-details' entry.id %}">
-                <img class="card-img-top" src="https://via.placeholder.com/185x100/D0D0D0/808080?text=No Preview" alt="No Preview" />
+              <a href="{% url 'user-playlist-details' entry.id %}" class="text-left">
+              {% if project_count == 0 %}
+                <img class="card-img-top card-empty" src="https://via.placeholder.com/185x100/D0D0D0/808080?text=No Preview" alt="No Preview" />
+              {% else %}
+                {% if project_count == 1 %}
+                  {% with proj=entry.projects.first %}
+                <img class="card-img-top" src="{% url 'project-build-thumbnail' proj.project_id proj.project.latest_build.id %}" title="{{ proj.project.name }}" alt="{{ proj.project.name }}" />
+                  {% endwith %}
+                {% else %}
+                  {% for proj in entry.projects.all|slice:":4" %}
+                <img class="card-img-top card-compact" src="{% url 'project-build-thumbnail' proj.project_id proj.project.latest_build.id %}" title="{{ proj.project.name }}" alt="{{ proj.project.name }}" />
+                  {% endfor %}
+                {% endif %}
+              {% endif %}
               </a>
               {% if project_count > 0 %}<b>{{ project_count }} Project{{ project_count|pluralize }}</b>{% endif %}
             </div>

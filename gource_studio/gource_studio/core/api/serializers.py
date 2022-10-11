@@ -238,6 +238,21 @@ class UserPlaylistSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('id', 'name', 'projects', 'projects_count', 'created_at', 'updated_at', 'url')
 
 
+class UserPlaylistProjectField(serializers.RelatedField):
+    # Custom field to help serialize `.project_id` for M2M playlist-project relations
+    def to_representation(self, value):
+        return value.project_id
+
+
+class UserPlaylistWithProjectIDsSerializer(UserPlaylistSerializer):
+    project_ids = UserPlaylistProjectField(source='projects', many=True, read_only=True)
+
+    class Meta:
+        model = UserPlaylist
+        fields = ('id', 'name', 'projects', 'projects_count', 'project_ids',
+                  'created_at', 'updated_at', 'url')
+
+
 class UserPlaylistProjectSerializer(serializers.HyperlinkedModelSerializer):
     url = serializers.SerializerMethodField()
     #playlist = serializers.SerializerMethodField('get_playlist_url')

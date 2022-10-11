@@ -56,6 +56,7 @@ from .serializers import (
     UserAvatarSerializer,
     UserPlaylistSerializer,
     UserPlaylistProjectSerializer,
+    UserPlaylistWithProjectIDsSerializer,
 )
 
 
@@ -1133,6 +1134,9 @@ class UserPlaylistsList(generics.ListCreateAPIView):
     """
     Retrieve a list of playlists for the current user.
 
+    Set `include_project_ids=True` query param to return an ordered list of
+    Project IDs assigned to each playlist.
+
     """
     queryset = UserPlaylist.objects.all()
     serializer_class = UserPlaylistSerializer
@@ -1140,6 +1144,13 @@ class UserPlaylistsList(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    def get_serializer_class(self):
+        # `include_project_ids=True` to return alternate serialize with `project_ids`
+        if 'include_project_ids' in self.request.query_params \
+                and str(self.request.query_params['include_project_ids']).lower() in ['1', 't', 'true']:
+            return UserPlaylistWithProjectIDsSerializer
+        return self.serializer_class
 
     def get_queryset(self):
         if not self.request.user or self.request.user.is_anonymous:
@@ -1149,9 +1160,23 @@ class UserPlaylistsList(generics.ListCreateAPIView):
 
 
 class UserPlaylistDetail(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Retrieve an individual playlist for the current user.
+
+    Set `include_project_ids=True` query param to return an ordered list of
+    Project IDs assigned to this playlist.
+
+    """
     queryset = UserPlaylist.objects.all().select_related()
     serializer_class = UserPlaylistSerializer
     permission_classes = (ProjectMemberPermission,)
+
+    def get_serializer_class(self):
+        # `include_project_ids=True` to return alternate serialize with `project_ids`
+        if 'include_project_ids' in self.request.query_params \
+                and str(self.request.query_params['include_project_ids']).lower() in ['1', 't', 'true']:
+            return UserPlaylistWithProjectIDsSerializer
+        return self.serializer_class
 
     def get_object(self):
         playlist = get_object_or_404(UserPlaylist.objects.filter(user=self.request.user), **{'id': self.kwargs['playlist_id']})
