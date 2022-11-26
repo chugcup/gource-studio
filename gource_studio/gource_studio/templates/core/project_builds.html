@@ -54,6 +54,11 @@
             </div>
             <div class="content-container">
               <div class="card-header">
+              {% if build.build_audio_name %}
+                <div class="float-right text-muted" style="padding: 0 8px 0 0; margin-left:-8px;">
+                  <i class="fa fa-volume-up" title="Contains background audio"></i>
+                </div>
+              {% endif %}
                 <h5 class="card-title text-left" style="margin-bottom:0">
                   <small class="build-time-notice float-right">
                     {{ build.created_at }}

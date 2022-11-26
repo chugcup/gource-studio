@@ -3,8 +3,25 @@
 #############################################################################
 # Generate Gource log from current project and upload to server.
 #############################################################################
+# Version: 1.0.0
+#############################################################################
+
+
+#------------------------------------------------
+# Update the following to use as defaults
+#------------------------------------------------
+DEFAULT_HOST    = None      # "http://..."
+DEFAULT_ID      = None      # Project ID -or-
+DEFAULT_SLUG    = None      #  Project Slug
+DEFAULT_TOKEN   = None      # API access token
+#------------------------------------------------
+
+
+##### Main Script ###########################################################
 
 import argparse
+from datetime import datetime
+import getpass
 import json
 import os
 import shutil
@@ -28,26 +45,31 @@ def main(host, token, project_path, project_id=None, project_slug=None):
     server_host = f"{o.scheme}://{o.netloc}"
 
     # Determine latest commit details (SHA1 hash, commit subject)
-    author_timestamp = None
+    author_timestamp = None     # UNIX timestamp
+    author_timestamp_str = None # Human-readable time
     commit_hash = None
     commit_subject = None
     if project_type == 'git':
         author_timestamp, commit_hash, commit_subject = get_latest_git_commit(project_path)
     elif project_type == 'mercurial':
         author_timestamp, commit_hash, commit_subject = get_latest_mercurial_commit(project_path)
-    print(author_timestamp)
-    print(commit_hash)
-    print(commit_subject)
+    if author_timestamp:
+        author_timestamp_str = datetime.utcfromtimestamp(author_timestamp).strftime('%c %z')
+    print("#"*78)
+    print(f' Last Timestamp: {author_timestamp_str}')
+    print(f'    Commit Hash: {commit_hash}')
+    print(f' Commit Subject: {commit_subject}')
+    print("#"*78)
 
     gource_path = get_gource_path()
     # Generate log in temp directory
     output_log = tempfile.mkstemp(suffix=".log", prefix="gource_")[1]
-    print(output_log)
+    #print(f' - Temporary log path: {output_log}')
     try:
-        print("Generating Gource log...", end='')
+        print("+ Generating Gource log...", end='')
         sys.stdout.flush()
         generate_log(project_path, output_log)
-        print("")
+        print(" DONE")
         sys.stdout.flush()
 
         # Submit log to server
@@ -63,7 +85,7 @@ def main(host, token, project_path, project_id=None, project_slug=None):
             "project_id": project_id if project_id else project_slug
         })
 
-        print("Sending update to server...", end='')
+        print("++ Sending update to server...", end='')
         sys.stdout.flush()
         # Submit using Token authentication
         req = urllib.request.Request(log_url, method="PUT", data=json.dumps(put_data).encode('utf-8'), headers={
@@ -71,10 +93,11 @@ def main(host, token, project_path, project_id=None, project_slug=None):
             'Authorization': f'Token {token}'
         })
         res = urllib.request.urlopen(req)
-        print("")
         if res.status not in [200, 201]:
-            print(f"ERROR: Unexpected HTTP response: {res.status} {res.reason}", file=sys.stderr)
+            print("ERROR")
+            print(f"  !! Unexpected HTTP response: {res.status} {res.reason}", file=sys.stderr)
             return
+        print(" DONE")
         #shutil.copyfile(output_log, f'./{os.path.basename(output_log)}')
     finally:
         # Cleanup
