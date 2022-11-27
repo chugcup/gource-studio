@@ -237,52 +237,13 @@
 {% endblock %}
 
 {% block page_js %}
-<script type="text/javascript">
-function handleErrorXHR(xhr, err) {
-    // TODO fallback on 'responseText'?
-    if (xhr.responseJSON) {
-        for (let key in xhr.responseJSON) {
-            $.notify(xhr.responseJSON[key], {autoHide: false, position: 'top center'});
-        }
-    } else {
-        $.notify(err, {autoHide: false, position: 'top center'});
-    }
-}
-$(document).ready(function() {
-    $('.delete-playlist-btn').on('click', function(e) {
-        let playlist_id = $(e.currentTarget).attr('data-playlist-id');
-        if (!playlist_id) {
-            return;
-        }
-        let delete_url = '/api/v1/playlists/'+playlist_id+'/';
-        // Set name
-        let name = $(e.currentTarget).attr('data-name');
-        $('#confirm-delete-playlist-modal #confirm-delete-playlist-name').text(name ? name : "N/A");
-        let $modal = $('#confirm-delete-playlist-modal').modal();
-        $modal.on('click', '.confirm-delete', function() {
-            // Delete entry
-            $.ajax({
-                url: delete_url,
-                method: 'DELETE',
-                beforeSend: function(xhr) {
-                    // Attach CSRF Token
-                    xhr.setRequestHeader("X-CSRFToken", getCookie("csrftoken"));
-                },
-                success: function(data, textStatus, xhr) {
-                    // Dismiss modal
-                    $modal.modal('hide');
-                    // TODO: show success message
-                    window.location.reload();
-                },
-                error: function(xhr, textStatus, err) {
-                    console.log("ERROR: ",err);
-                },
-            });
-        });
-        $modal.on('hidden.bs.modal', function() {
-            $('#confirm-delete-playlist-modal #confirm-delete-playlist-name').text('');
-        });
+  <script src="/static/js/pages/playlists.js"></script>
+  <script type="text/javascript">
+    $(document).ready(function() {
+        "use strict";
+
+        // Initialize page object
+        App.pages.playlists.init({});
     });
-});
-</script>
+  </script>
 {% endblock %}

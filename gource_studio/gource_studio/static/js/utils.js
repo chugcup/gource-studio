@@ -1,6 +1,12 @@
+"use strict";
+
+window.App = window.App || {};
+window.App.utils = {};
+
+
 // https://docs.djangoproject.com/en/dev/ref/csrf/#ajax
 // - See also: https://github.com/js-cookie/js-cookie/
-function getCookie(name) {
+App.utils.getCookie = function(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
         const cookies = document.cookie.split(';');
@@ -14,4 +20,16 @@ function getCookie(name) {
         }
     }
     return cookieValue;
-}
+};
+
+
+App.utils.handleErrorXHR = function(xhr, err) {
+    // TODO fallback on 'responseText'?
+    if (xhr.responseJSON) {
+        for (let key in xhr.responseJSON) {
+            $.notify(xhr.responseJSON[key], {autoHide: false, position: 'top center'});
+        }
+    } else {
+        $.notify(err, {autoHide: false, position: 'top center'});
+    }
+};
