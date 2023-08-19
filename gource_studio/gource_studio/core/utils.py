@@ -58,7 +58,7 @@ def get_executable_path(command, setting_name=None):
     raise RuntimeError(f"Executable path for '{command}' not found")
 
 
-@functools.lru_cache
+@functools.lru_cache(maxsize=128)
 def get_gource_version(split=False):
     """
     Return the current Gource version.
@@ -73,7 +73,7 @@ def get_gource_version(split=False):
     )
 
 
-@functools.lru_cache
+@functools.lru_cache(maxsize=128)
 def get_git_version(split=False):
     """
     Return the current Git version.
@@ -88,7 +88,7 @@ def get_git_version(split=False):
     )
 
 
-@functools.lru_cache
+@functools.lru_cache(maxsize=128)
 def get_mercurial_version(split=False):
     """
     Return the current Mercurial version.
@@ -103,7 +103,7 @@ def get_mercurial_version(split=False):
     )
 
 
-@functools.lru_cache
+@functools.lru_cache(maxsize=128)
 def get_ffmpeg_version(split=False):
     """
     Return the current FFMpeg version.
