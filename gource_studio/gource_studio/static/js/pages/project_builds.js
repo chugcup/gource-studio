@@ -20,7 +20,7 @@ App.pages.project_builds.init = function(project_id, page_options) {
         options = options || {};
         $('body #queue-project-build-modal .error-message').text('');
         return $.ajax({
-            url: "/api/v1/projects/{{project.id}}/builds/new/",
+            url: "/api/v1/projects/"+App.pages.project_builds.project_id+"/builds/new/",
             method: 'POST',
             data: JSON.stringify(options),
             contentType: 'application/json',
@@ -31,7 +31,7 @@ App.pages.project_builds.init = function(project_id, page_options) {
             success: function(data, textStatus, xhr) {
                 console.log("SUCCESS: ", data);
                 // Redirect/reload
-                window.location = '/projects/{{project.id}}/builds/';
+                window.location = "/projects/"+App.pages.project_builds.project_id+"/builds/";
             },
             error: function(xhr, textStatus, err) {
                 // Error
