@@ -168,7 +168,6 @@ def download_git_log(url, branch="master"):
         raise ValueError("URL must be a valid HTTP resource")
 
     tempdir = tempfile.mkdtemp(prefix="gource_")
-    print(f"DOWNLOAD TEMPDIR = {tempdir}")
     try:
         tempdir_path = Path(tempdir)
         destdir = tempdir_path / 'vcs_source'
@@ -263,7 +262,6 @@ def download_git_tags(url, branch="master"):
         raise ValueError("URL must be a valid HTTP resource")
 
     tempdir = tempfile.mkdtemp(prefix="gource_")
-    print(f"DOWNLOAD TEMPDIR = {tempdir}")
     try:
         tempdir_path = Path(tempdir)
         destdir = tempdir_path / 'vcs_source'
@@ -646,7 +644,10 @@ def rescale_image(image_path, width=256):
     img = Image.open(image_path)
     wpercent = (width / float(img.size[0]))
     hsize = int((float(img.size[1]) * float(wpercent)))
-    img = img.resize((width, hsize), Image.ANTIALIAS)
+    if hasattr(Image, "Resampling"):
+        img = img.resize((width, hsize), Image.Resampling.LANCZOS)
+    else:
+        img = img.resize((width, hsize), Image.ANTIALIAS)   # Pillow < 9.1.0
     bf = BytesIO()
     img.save(bf, "JPEG")
     return bf

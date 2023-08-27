@@ -21,7 +21,9 @@ class ProjectQuerySet(models.QuerySet):
             ).distinct()
 
     def with_latest_build(self):
-        "Cache 'builds' prefetch with latest build available first"
+        """
+        Cache 'builds' prefetch with latest build available first
+        """
         from .models import ProjectBuild
         return self.prefetch_related(
             Prefetch('builds', to_attr='_cached_latest_build',

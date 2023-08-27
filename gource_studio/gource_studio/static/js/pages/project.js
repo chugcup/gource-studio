@@ -286,7 +286,7 @@ App.pages.project.init = function(project_id, page_options) {
                     id: id,
                     timestamp: timestamp,
                     text: text,
-                    can_edit: App.project.pages.can_user_edit,
+                    can_edit: App.pages.project.can_user_edit,
                 });
             },
             removeOption: function(id) {

@@ -53,7 +53,8 @@ class Project(models.Model):
     # VCS software used
     project_vcs = models.CharField(max_length=16, choices=VCS_CHOICES, default="git")
     # URL slug (optional)
-    project_slug = models.SlugField(max_length=256, blank=True, null=True, unique=True)
+    project_slug = models.SlugField(max_length=256, blank=True, null=True, unique=True,
+                                    error_messages={"unique": "Project with this slug already exists."})
 
     # Latest version of project Gource log (used for setting analysis)
     project_log = models.FileField(upload_to=get_project_log_path, blank=True, null=True)

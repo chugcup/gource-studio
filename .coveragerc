@@ -1,0 +1,7 @@
+[run]
+source = gource_studio
+omit =
+    gource_studio/gource_studio/asgi.py
+    gource_studio/gource_studio/custom_settings.py
+    gource_studio/gource_studio/wsgi.py
+    gource_studio/manage.py

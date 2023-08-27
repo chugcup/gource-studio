@@ -1,0 +1,7 @@
+# Base requirements
+-r requirements.txt
+
+# Test framework
+coverage
+pytest
+pytest-django

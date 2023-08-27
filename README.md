@@ -3,8 +3,8 @@ Requirements
 
 The project uses the following software:
 
-- Python (3.6+)
-- Django (3.0+)
+- Python (3.8+)
+- Django (3.2+)
 - Celery
 - FFmpeg (4.0+)
 - Gource (0.50+)
@@ -15,21 +15,17 @@ The project uses the following software:
 First Steps
 =================
 
-Ubuntu 18.04 LTS
------------------
+Ubuntu 20.04 / 22.04 LTS
+------------------------
 
     sudo apt install ffmpeg git gource libjpeg8-dev libpng-dev mercurial python3 python3-dev python3-venv redis-server sqlite3 zlib1g-dev
 
-The version of `ffmpeg` (3.4.8) included with Ubuntu 18.04 has some bugs related
-to looping audio, which affects the audio mixing process.
-While the application will run on 18.04, you should include a custom version
-of FFmpeg on the system and set the `FFMPEG_PATH` setting to its local path.
+The version of `gource` (0.50/0.51) included with these Ubuntu versions has an issue
+where the font scale is not applied to the file extension sidebar.  On larger
+resolutions (1920x1080 or higher) this can make the widget text too small to recognize.
 
-
-Ubuntu 20.04 LTS
------------------
-
-    sudo apt install ffmpeg git gource libjpeg8-dev libpng-dev mercurial python3 python3-dev python3-venv redis-server sqlite3 zlib1g-dev
+To address this, you can manually include a newer version of ``gource`` on the system
+and set the absolute path using the ``GOURCE_PATH`` setting.
 
 
 Python Setup
@@ -50,11 +46,7 @@ environment variable to prevent Xcode from building the wrong binary type
 Initialize App
 =================
 
-With environment active, run initial migrations
-
-    python3 gource_studio/manage.py migrate
-
-Next, copy the sample settings override file into place (and make any needed changes):
+First, copy the sample settings override file into place (and make any needed changes):
 
     cd gource_studio/gource_studio
     cp custom_settings.py.example custom_settings.py
@@ -62,6 +54,10 @@ Next, copy the sample settings override file into place (and make any needed cha
 By default, this will initialize using a SQLite database (`app.db`)
 To configure an alternate DB storage, edit the `DATABASES` dictionary
 within the `custom_settings.py` file.
+
+Next, with the virtual environment active run the initial migrations
+
+    python3 gource_studio/manage.py migrate
 
 Lastly, create a default superuser account for the application
 
@@ -87,6 +83,20 @@ Last, start the main Django application service
 
 Other Notes
 ==================
+
+Test Suite
+==================
+
+Unit tests can be run by first installing test requirements
+
+    source env/bin/activate     # Activate virtualenv
+    pip install -c constraints.txt -r requirements-test.txt
+
+Then, use the provided script
+
+    # Run pytest (optionally with coverage)
+    ./run_tests.sh
+
 
 Run Headless with Xvfb (Linux)
 ----------------------------------

@@ -116,7 +116,7 @@ class ProjectsList(ProjectPermissionQuerySetMixin, generics.ListCreateAPIView):
                       .annotate(
                         latest_build_time=Coalesce(
                           Max('builds__completed_at'),
-                          Value('1970-01-01 00:00:00', output_field=DateTimeField())
+                          Value('1970-01-01 00:00:00.000000+00:00', output_field=DateTimeField())
                         )
                       )\
                       .annotate(
