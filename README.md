@@ -9,7 +9,7 @@ The project uses the following software:
 - FFmpeg (4.0+)
 - Gource (0.50+)
 - Redis
-- SQLite
+- SQLite / PostgreSQL
 
 
 First Steps
@@ -20,8 +20,8 @@ Ubuntu 20.04 / 22.04 LTS
 
     sudo apt install ffmpeg git gource libjpeg8-dev libpng-dev mercurial python3 python3-dev python3-venv redis-server sqlite3 zlib1g-dev
 
-The version of `gource` (0.50/0.51) included with these Ubuntu versions has an issue
-where the font scale is not applied to the file extension sidebar.  On larger
+**NOTE:** The version of `gource` (0.50/0.51) included with these Ubuntu versions has
+an issue where the font scale is not applied to the file extension sidebar.  On larger
 resolutions (1920x1080 or higher) this can make the widget text too small to recognize.
 
 To address this, you can manually include a newer version of ``gource`` on the system
@@ -85,7 +85,7 @@ Other Notes
 ==================
 
 Test Suite
-==================
+----------------------------------
 
 Unit tests can be run by first installing test requirements
 

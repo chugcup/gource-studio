@@ -85,11 +85,14 @@ class Project(models.Model):
 
     objects = ProjectQuerySet.as_manager()
 
+    class Meta:
+        ordering = ('id',)
+
     def __str__(self):
         return self.name
 
     def get_absolute_url(self):
-        return reverse('project-detail', args=[self.pk])
+        return reverse('api-project-detail', args=[self.pk])
 
     def clean(self):
         if self.project_slug is not None:
@@ -204,11 +207,11 @@ class ProjectOption(models.Model):
     value = models.CharField(max_length=1024)
     value_type = models.CharField(max_length=32, blank=False)
 
+    class Meta:
+        ordering = ('name',)
+
     def __str__(self):
         return '{0}={1}'.format(self.name, self.value)
-
-    #def get_absolute_url(self):
-    #    return reverse('project-detail', args=[self.pk])
 
     def to_dict(self):
         return {
@@ -236,9 +239,6 @@ class ProjectCaption(models.Model):
 
     def __str__(self):
         return self.text
-
-    #def get_absolute_url(self):
-    #    return reverse('project-detail', args=[self.pk])
 
     def to_dict(self):
         return {
@@ -335,11 +335,14 @@ class ProjectBuild(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ('id',)
+
     def __str__(self):
         return self.created_at.isoformat()
 
     def get_absolute_url(self):
-        return reverse('project-build-detail', args=[self.project_id, self.pk])
+        return reverse('api-project-build-detail', args=[self.project_id, self.pk])
 
     @property
     def video_url(self):
@@ -454,11 +457,11 @@ class ProjectBuildOption(models.Model):
     value = models.CharField(max_length=1024)
     value_type = models.CharField(max_length=32, blank=False)
 
+    class Meta:
+        ordering = ('name',)
+
     def __str__(self):
         return '{0}={1}'.format(self.name, self.value)
-
-    #def get_absolute_url(self):
-    #    return reverse('project-detail', args=[self.pk])
 
     def to_dict(self):
         return {

@@ -1,0 +1,15 @@
+This is the sample GitHub project
+
+    https://github.com/octocat/Hello-World
+
+Last commit:
+
+    commit 7fd1a60b01f91b314f59955a4e4d4e80d8edf11d
+    Merge: 553c207 7629413
+    Author: The Octocat <octocat@nowhere.com>
+    Date:   Tue Mar 6 15:06:50 2012 -0800
+
+        Merge pull request #6 from Spaceghost/patch-1
+
+        New line at end of file.
+

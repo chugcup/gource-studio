@@ -14,7 +14,7 @@ import time
 import urllib
 from urllib.parse import urlparse
 
-from django.conf import settings
+from django.conf import settings as django_settings
 from PIL import Image
 
 from .constants import VIDEO_OPTIONS
@@ -49,8 +49,8 @@ def get_xvfb_run():
 def get_executable_path(command, setting_name=None):
     # If set, use custom path configured in settings
     if setting_name:
-        if hasattr(settings, setting_name) and getattr(settings, setting_name):
-            return getattr(settings, setting_name)
+        if hasattr(django_settings, setting_name) and getattr(django_settings, setting_name):
+            return getattr(django_settings, setting_name)
     # Locate path using `which`
     _which = shutil.which(command)
     if _which:
@@ -154,7 +154,7 @@ def validate_project_url(url):
 
     # Only allow projects from whitelisted domains (in settings)
     info = urlparse(url)
-    if info.netloc not in settings.PROJECT_DOMAINS:
+    if info.netloc not in django_settings.PROJECT_DOMAINS:
         raise ValueError(f"Unauthorized URL domain: {info.netloc}")
 
 
@@ -355,7 +355,7 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
         fifo_path = tempdir_path / 'gource.fifo'
         os.mkfifo(str(fifo_path), 0o666)
 
-        if settings.DEBUG:
+        if django_settings.DEBUG:
             p0_output = subprocess.check_output([get_gource(), '--help'])
             gource_version = re.search(r'Gource (v0\.\d\d)', p0_output.decode('utf-8')).group(1)
             print(f" ~ Using Gource {gource_version}")
@@ -403,7 +403,7 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
         # If configured, run with `xvfb-run` (X11 Virtual Frame Buffer)
         #####################################################################
         gource_display = ''
-        if hasattr(settings, 'USE_XVFB') and settings.USE_XVFB:
+        if hasattr(django_settings, 'USE_XVFB') and django_settings.USE_XVFB:
             try:
                 xvfb_run = get_xvfb_run()
                 # Prepend `gource` execution with `xvfb-run` command
