@@ -47,4 +47,32 @@ App.pages.playlists.init = function(page_options) {
             $('#confirm-delete-playlist-modal #confirm-delete-playlist-name').text('');
         });
     });
+
+    // Bind click action to delete playlist entry
+    // NOTE: does not require confirmation
+    $('.delete-playlist-entry-btn').on('click', function(e) {
+        let playlist_id = $(e.currentTarget).attr('data-playlist-id');
+        let playlist_project_id = $(e.currentTarget).attr('data-playlist-project-id');
+        if (!playlist_id || !playlist_project_id) {
+            return;
+        }
+        let delete_url = '/api/v1/playlists/'+playlist_id+'/projects/'+playlist_project_id+'/';
+
+        // Delete entry
+        $.ajax({
+            url: delete_url,
+            method: 'DELETE',
+            beforeSend: function(xhr) {
+                // Attach CSRF Token
+                xhr.setRequestHeader("X-CSRFToken", App.utils.getCookie("csrftoken"));
+            },
+            success: function(data, textStatus, xhr) {
+                // TODO: show success message
+                window.location.reload();
+            },
+            error: function(xhr, textStatus, err) {
+                console.log("ERROR: ",err);
+            },
+        });
+    });
 };

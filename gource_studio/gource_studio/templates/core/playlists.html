@@ -64,7 +64,7 @@
         /*border-bottom: none; */
     }
     .card-body-scroll > div a {
-        padding: 8px 4px;
+        padding: 4px;
         cursor: pointer;
         display: block;
         color: #333333;
@@ -78,6 +78,21 @@
         padding-left: 8px;
         margin-right: 8px;
         min-width: 36px;
+    }
+    .playlist-project-card-row {
+        position: relative
+    }
+    .playlist-project-card-row > .playlist-entry-actions {
+        display: none;
+        position: absolute;
+        right: 1px;
+        top: 1px;
+    }
+    .playlist-project-card-row:hover > .playlist-entry-actions {
+        display: block;
+    }
+    .playlist-project-card-row > .playlist-entry-actions > .btn {
+        padding: 2px 10px;
     }
   </style>
 {% endblock %}
@@ -115,7 +130,7 @@
             <div class="status-container col-md-2">
               <a href="{% url 'user-playlist-details' entry.id %}" class="text-left">
               {% if project_count == 0 %}
-                <img class="card-img-top card-empty" src="https://via.placeholder.com/185x100/D0D0D0/808080?text=No Preview" alt="No Preview" />
+                <img class="card-img-top card-empty" src="/static/img/no-preview-185x100.png" alt="No Preview" />
               {% else %}
                 {% if project_count == 1 %}
                   {% with proj=entry.projects.first %}
@@ -154,6 +169,9 @@
                 <div class="card-body-scroll">
                   {% for project in entry.projects.all %}
                   <div class="playlist-project-card-row">
+                    <div class="playlist-entry-actions">
+                      <a class="btn btn-link delete-playlist-entry-btn" data-playlist-id="{{ entry.id }}" data-playlist-project-id="{{ project.id }}" data-playlist-project-index="{{ project.index }}" title="Delete project item"><i class="fa fa-times"></i></a>
+                    </div>
                     <a href="{% url 'user-playlist-details' entry.id %}{% if forloop.counter0 > 0 %}?index={{forloop.counter0}}{% endif %}">
                       <span class="playlist-index-display">{{ forloop.counter }}</span>
                       {{ project.project.name }}
@@ -184,7 +202,7 @@
 
     <div class="row">
       <div class="col-lg-12 col-md-12 col-sm-12">
-        <nav aria-label="Project pages">
+        <nav aria-label="Playlists pages">
         {% if page_obj.has_other_pages %}
           <ul class="pagination" style="align-items: center; justify-content:center">
             {% if page_obj.has_previous %}

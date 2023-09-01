@@ -50,7 +50,7 @@
           {% if latest_build.thumbnail %}
             <img class="card-img-top" src="{% url 'project-build-thumbnail' project.id latest_build.id %}" alt="" style=""/>
           {% else %}
-            <img class="card-img-top" src="https://via.placeholder.com/185x100/D0D0D0/808080?text=No Preview" alt="No Preview" />
+            <img class="card-img-top" src="/static/img/no-preview-185x100.png" alt="No Preview" />
           {% endif %}
           </a>
           <div class="card-body">
