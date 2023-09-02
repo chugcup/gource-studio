@@ -14,7 +14,7 @@ from django.utils.timezone import make_aware, now as utc_now
 from django.views.static import serve
 from rest_framework import generics, parsers, status, views
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import BasePermission, IsAuthenticated, SAFE_METHODS
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, SAFE_METHODS
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 
@@ -76,7 +76,7 @@ class ProjectPermissionQuerySetMixin:
         return self.queryset.filter_permissions(self.request.user)
 
 
-class ProjectMemberPermission(BasePermission):
+class ProjectMemberPermission(IsAuthenticatedOrReadOnly):
     "Checks membership of request user in Project to allow CRUD operations"
     def has_object_permission(self, request, view, obj):
         if request.method in SAFE_METHODS:
@@ -276,13 +276,17 @@ class ProjectDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateDestr
                             return Response(response, status=status.HTTP_400_BAD_REQUEST)
                     else:
                         logging.warning(f"Unrecognized option: {option}")
+                        response['gource_options'] = f"Invalid Gource option '{option}'"
+                        return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
                 # Delete old options
                 project.options.all().delete()
                 # Add new set
                 ProjectOption.objects.bulk_create(new_options)
             else:
                 logging.error(f"Invalid 'gource_options' provided: {request.data['gource_options']}")
-            request.data['gource_options']
+                response['gource_options'] = "Invalid Gource options type (must be a dict)"
+                return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
         # Project Captions list
         # TODO: Move to new endpoint
@@ -318,7 +322,8 @@ class ProjectDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateDestr
             # Mark 'is_project_changed' on Project to indicate build needed
             if not project.is_project_changed:
                 project.set_project_changed(True)
-                res.data = ProjectSerializer(project, context={'request': request}).data
+            project.refresh_from_db()
+            res.data = ProjectSerializer(project, context={'request': request}).data
         return res
 
     def delete(self, request, *args, **kwargs):

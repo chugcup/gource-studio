@@ -5,3 +5,6 @@ omit =
     gource_studio/gource_studio/custom_settings.py
     gource_studio/gource_studio/wsgi.py
     gource_studio/manage.py
+
+[report]
+show_missing = true
