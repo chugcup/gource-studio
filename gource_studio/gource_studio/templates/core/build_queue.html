@@ -41,8 +41,13 @@
           {% else %}
             <div class="status-container bg-light">
           {% endif %}
-              <div class="" style="line-height:73px">
+              <div class="">
                 {{ build.status|capfirst }}
+              </div>
+              <div class="build-stage-container">
+              {% if build.status == "running" %}
+                <i class="fa fa-spin fa-spinner"></i>
+              {% endif %}
               </div>
             </div>
             <div class="content-container">
@@ -74,7 +79,7 @@
                   </small>
                 </h5>
               </div>
-              <div class="card-body" style="padding:10px">
+              <div class="card-body">
             {% if user_can_edit %}{# FIXME - per-build #}
               {% if build.is_finished %}
                 <div class="float-right">
@@ -94,7 +99,7 @@
                 </div>
               {% endif %}
             {% endif %}
-                <p class="card-text" style="font-size:12px; text-align:left;">
+                <p class="card-text">
                 {% if build.error_description %}
                   {{ build.error_description }}
                 {% else %}
@@ -106,6 +111,19 @@
                   <b style="margin-left:20px">Size:</b>
                   <span title="{{ build.size }} bytes">{{ build.size|filesizeformat }}</span>
                   {% endif %}
+                {% endif %}
+                {% if build.status == 'running' %}
+                <div class="build-progress-container">
+                  <div class="progress" title="{{ build.build_stage_percent }}%{% if build.running_at %} -- Build Time: {{ build.current_build_duration|duration }}{% endif %}">
+                    <div class="progress-bar" style="width: {{ build.build_stage_percent }}%" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                  </div>
+                {% if build.build_stage_information.0 and build.current_build_message %}
+                  <div>
+                    <b>Stage {{ build.build_stage_information.0 }}/{{ build.build_stage_information.1 }}:</b>
+                    {{ build.current_build_message }}
+                  </div>
+                {% endif %}
+                </div>
                 {% endif %}
                 {% if build.completed_at %}
                   <br />

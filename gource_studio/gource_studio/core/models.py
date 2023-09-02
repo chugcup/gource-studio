@@ -8,7 +8,7 @@ from django.db import models
 from django.db.models import F
 from django.urls import reverse
 from django.utils.functional import SimpleLazyObject
-from django.utils.timezone import make_aware, now as utc_now
+from django.utils import timezone
 
 #from .managers import ProjectManager
 from .constants import VIDEO_OPTIONS
@@ -326,6 +326,8 @@ class ProjectBuild(models.Model):
     errored_at = models.DateTimeField(null=True)
 
     ## Build fields
+    current_build_stage = models.CharField(max_length=64, blank=True, null=True)
+    current_build_message = models.CharField(max_length=512, blank=True, null=True)
     # Process output logging
     stdout = models.FileField(upload_to=get_build_stdout_path, blank=True, null=True)
     stderr = models.FileField(upload_to=get_build_stderr_path, blank=True, null=True)
@@ -370,13 +372,27 @@ class ProjectBuild(models.Model):
     def is_waiting(self):
         return self.status in ['pending', 'queued']
 
+    @property
+    def build_stage_information(self):
+        return self.get_build_stage_information()
+
+    @property
+    def build_stage_percent(self):
+        return self.get_build_stage_percent()
+
+    @property
+    def current_build_duration(self):
+        if self.status == 'running' and self.running_at:
+            return (timezone.now()-self.running_at).total_seconds()
+        return None
+
     ## Status transition methods
 
     def mark_queued(self):
         "Queue build for processing"
         if self.status == 'pending':
             self.status = 'queued'
-            self.queued_at = utc_now()
+            self.queued_at = timezone.now()
             self.save(update_fields=['status', 'queued_at'])
         else:
             raise ValueError("Cannot queue build from \"%s\" status", self.status)
@@ -385,7 +401,7 @@ class ProjectBuild(models.Model):
         "Mark pending/queued build as canceled"
         if self.status in ['pending', 'queued']:
             self.status = 'canceled'
-            self.aborted_at = utc_now()
+            self.aborted_at = timezone.now()
             self.save(update_fields=['status', 'aborted_at'])
         else:
             raise ValueError("Cannot mark build canceled from \"%s\" status", self.status)
@@ -394,7 +410,7 @@ class ProjectBuild(models.Model):
         "Mark build running"
         if self.status == 'queued':
             self.status = 'running'
-            self.running_at = utc_now()
+            self.running_at = timezone.now()
             self.save(update_fields=['status', 'running_at'])
         else:
             raise ValueError("Cannot mark build running from \"%s\" status", self.status)
@@ -403,7 +419,7 @@ class ProjectBuild(models.Model):
         "Mark running build as aborted"
         if self.status == 'running':
             self.status = 'aborted'
-            self.aborted_at = utc_now()
+            self.aborted_at = timezone.now()
             self.save(update_fields=['status', 'aborted_at'])
         else:
             raise ValueError("Cannot mark build aborted from \"%s\" status", self.status)
@@ -412,7 +428,7 @@ class ProjectBuild(models.Model):
         "Mark build as completed"
         if self.status == 'running':
             self.status = 'completed'
-            self.completed_at = utc_now()
+            self.completed_at = timezone.now()
             self.save(update_fields=['status', 'completed_at'])
         else:
             raise ValueError("Cannot mark build completed from \"%s\" status", self.status)
@@ -423,13 +439,35 @@ class ProjectBuild(models.Model):
         update_fields = []
         if self.status != 'errored':
             self.status = 'errored'
-            self.errored_at = utc_now()
+            self.errored_at = timezone.now()
             update_fields += ['status', 'errored_at']
         if error_description is not None:
             self.error_description = error_description
             update_fields.append('error_description')
         if update_fields:
             self.save(update_fields=update_fields)
+
+    def set_build_stage(self, stage, message=None):
+        "Set the current build stage (optionally with message)"
+        self.current_build_stage = stage
+        self.current_build_message = message
+        self.save(update_fields=['current_build_stage', 'current_build_message'])
+
+    def get_build_stage_information(self):
+        build_stages = ["init", "gource", "thumbnail", "success"]
+        if bool(self.build_audio_name):
+            build_stages = ["init", "gource", "audio", "thumbnail", "success"]
+        max_stages = len(build_stages)-1    # Success doesn't count
+
+        if self.current_build_stage == "success":
+            return [max_stages, max_stages]
+
+        if self.current_build_stage in build_stages:
+            return [
+                build_stages.index(self.current_build_stage)+1,
+                max_stages
+            ]
+        return [None, None]
 
     def get_build_duration(self):
         "Returns total runtime duration of build (from 'running' -> 'completed'|'errored')"
@@ -440,6 +478,50 @@ class ProjectBuild(models.Model):
         elif self.errored_at:
             return (self.errored_at - self.running_at).total_seconds()
         return None
+
+    def get_previous_build(self, success=True):
+        qs = ProjectBuild.objects.filter(project=self.project, id__lt=self.id)
+        if success:
+            qs = qs.exclude(content='')
+        return qs.order_by('-id').first()
+
+    def get_build_stage_percent(self):
+        """
+        Provide a guess (0-100%) of how far along the build is.
+        """
+        if self.status == 'completed':
+            return 100
+        elif self.status in ['pending', 'queued', 'canceled', 'aborted']:
+            return 0
+        elif self.status in ['errored', 'aborted']:
+            return 10   # Controversial, I know
+        elif self.running_at:
+            # Running - here's where we do work
+            # 1. If there is a previously successful build, use that duration
+            #    as the anticipated amount.  Unless they tweaked settings, it
+            #    should be at least close.
+            prev_build_time = None
+            prev_successful_build = self.get_previous_build(success=True)
+            if prev_successful_build:
+                prev_build_time = prev_successful_build.get_build_duration()
+            if prev_build_time:
+                cur_duration = (timezone.now()-self.running_at).total_seconds()
+                if cur_duration < 0:
+                    cur_duration = 0
+                build_percent = int((cur_duration / prev_build_time)*100)
+            # 2. If no prior build, guess based on number of stages
+            else:
+                cur_stage, max_stage = self.get_build_stage_information()
+                if cur_stage is not None:
+                    return int((cur_stage/max_stage)*100)
+            # Set some upper/lower bounds to give *some* progress
+            # (due to its active running state)
+            if build_percent >= 99:
+                build_percent = 99
+            elif build_percent < 5:
+                build_percent = 5
+            return build_percent
+        return 0
 
 
 class ProjectBuildOption(models.Model):

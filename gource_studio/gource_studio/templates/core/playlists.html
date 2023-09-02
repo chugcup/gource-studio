@@ -2,98 +2,6 @@
 
 {% block page_css %}
   <style type="text/css">
-    .project-item-container .status-container {
-        flex-direction: column;
-        justify-content: flex-start;
-    }
-    .project-item-container > .status-container a {
-        background: #D0D0D0;
-    }
-    .project-item-container > .status-container a .card-img-top {
-        border-radius: 0;
-        width: 185px;
-        height: 100px;
-    }
-    .project-item-container > .status-container a .card-img-top.card-compact {
-        width: 92px;
-        height: 50px;
-        float: left;
-        border-bottom: 1px solid #FFFFFF;
-    }
-    .project-item-container > .status-container a .card-img-top.card-compact:nth-child(odd) {
-        border-right: 1px solid #FFFFFF;
-    }
-    .project-item-container > .status-container a .card-img-top.card-empty {}
-    .project-item-container > .status-container b {
-        display: block;
-        width: 100%;
-        text-align: center;
-    }
-    .playlists-list {
-    }
-    .playlists-list.playlist-card-empty {
-        border: 1px solid #CCCCCC;
-    }
-    .playlists-list.playlist-card-empty .card-body-scroll h5 {
-        padding: 12px;
-    }
-    .card-header .dropdown-toggle {
-        margin-top: -2px;
-    }
-    .card-header .dropdown-toggle::after {
-        content: none;  /* Remove caret */
-    }
-    .card-header .dropdown-menu a {
-        cursor: pointer;
-    }
-    .card-body {
-        padding: 0;
-    }
-    .card-body-scroll {
-        overflow-x: hidden;
-        overflow-y: auto;
-        max-height: 140px;
-    }
-    .card-body-scroll > div {
-        border-bottom: 1px solid #CCCCCC;
-    }
-    .card-body-scroll > div:nth-child(even) {
-        background: #F5F5F5;
-    }
-    .card-body-scroll > div:last-child {
-        /*border-bottom: none; */
-    }
-    .card-body-scroll > div a {
-        padding: 4px;
-        cursor: pointer;
-        display: block;
-        color: #333333;
-    }
-    .card-body-scroll > div a:hover {
-        text-decoration: none;
-        background: #EEEEEE;
-    }
-    .card-body-scroll > div a .playlist-index-display {
-        display: inline-block;
-        padding-left: 8px;
-        margin-right: 8px;
-        min-width: 36px;
-    }
-    .playlist-project-card-row {
-        position: relative
-    }
-    .playlist-project-card-row > .playlist-entry-actions {
-        display: none;
-        position: absolute;
-        right: 1px;
-        top: 1px;
-    }
-    .playlist-project-card-row:hover > .playlist-entry-actions {
-        display: block;
-    }
-    .playlist-project-card-row > .playlist-entry-actions > .btn {
-        padding: 2px 10px;
-    }
   </style>
 {% endblock %}
 
@@ -126,7 +34,7 @@
       {% with project_count=entry.projects.count %}
       <div class="col-lg-12 col-md-12 mb-12">
         <div class="playlists-list card mb-3{% if project_count == 0 %} playlist-card-empty{% endif %}">
-          <div class="row no-gutters project-item-container">
+          <div class="row no-gutters playlist-item-container">
             <div class="status-container col-md-2">
               <a href="{% url 'user-playlist-details' entry.id %}" class="text-left">
               {% if project_count == 0 %}

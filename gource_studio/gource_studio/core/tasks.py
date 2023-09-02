@@ -40,6 +40,7 @@ def generate_gource_build(build_id):
 
     # Begin processing
     build.mark_running()
+    build.set_build_stage("init", "Preparing project assets")
     start_time = time.monotonic()
 
     tempdir = tempfile.mkdtemp(prefix="gource_")
@@ -100,6 +101,8 @@ def generate_gource_build(build_id):
         background_file = None
         if build.build_background:
             background_file = build.build_background.path
+
+        build.set_build_stage("gource", "Capturing Gource video")
         try:
             final_path = generate_gource_video(
                 log_data,
@@ -123,6 +126,7 @@ def generate_gource_build(build_id):
         # TODO support abort
         try:
             if build.project.build_audio:
+                build.set_build_stage("audio", "Mixing audio")
                 audio_path = build.project.build_audio.path
                 if os.path.isfile(audio_path):
                     logger.info("Beginning audio mixing...")
@@ -136,7 +140,8 @@ def generate_gource_build(build_id):
         with open(final_path, 'rb') as f:
             build.content.save('video.mp4', File(f))
 
-        logger.info("Generating screenshots...")
+        logger.info("Generating thumbnails...")
+        build.set_build_stage("thumbnail", "Generating thumbnails")
         try:
             screen_data = get_video_thumbnail(final_path, secs=-1, width=1280)
             build.screenshot.save('screenshot.jpg', screen_data)
@@ -153,6 +158,7 @@ def generate_gource_build(build_id):
 
         # Finishing steps
         build.mark_completed()
+        build.set_build_stage("success", "")
 
     except Exception as e:
         build.mark_errored(error_description=str(e))
