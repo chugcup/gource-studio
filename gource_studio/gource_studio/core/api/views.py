@@ -1097,8 +1097,8 @@ class ProjectDurationUtility(views.APIView):
         # Check for project log and read contents
         if not bool(project.project_log):
             return Response({"detail": "Project has no project log available for estimation."}, status=status.HTTP_400_BAD_REQUEST)
-        with open(project.project_log.path, 'r') as f:
-            data = f.read()
+        with open(project.project_log.path, 'r') as _file:
+            data = _file.read()
 
         # Parse project log and determine action counts
         added = 0

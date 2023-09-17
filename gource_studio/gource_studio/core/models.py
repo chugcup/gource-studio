@@ -20,16 +20,16 @@ from .utils import (
 )
 
 
-def get_build_logo_path(instance, filename):
+def get_project_build_logo_path(instance, filename):
     return f'projects/{instance.id}/{filename}'
 
-def get_build_background_path(instance, filename):
+def get_project_build_background_path(instance, filename):
     return f'projects/{instance.id}/{filename}'
 
-def get_build_audio_path(instance, filename):
+def get_project_build_audio_path(instance, filename):
     return f'projects/{instance.id}/{filename}'
 
-def get_project_log_path(instance, filename):
+def get_project_project_log_path(instance, filename):
     return f'projects/{instance.id}/gource.log'
 
 ## TODO: Use custom OverwriteStorage() class
@@ -59,7 +59,7 @@ class Project(models.Model):
                                     error_messages={"unique": "Project with this slug already exists."})
 
     # Latest version of project Gource log (used for setting analysis)
-    project_log = models.FileField(upload_to=get_project_log_path, blank=True, null=True)
+    project_log = models.FileField(upload_to=get_project_project_log_path, blank=True, null=True)
     project_log_updated_at = models.DateTimeField(blank=True, null=True)
     # - Latest commit info cache
     project_log_commit_hash = models.CharField(max_length=64, blank=True, null=True)
@@ -71,10 +71,10 @@ class Project(models.Model):
     # Optional name to display in video
     build_title = models.CharField(max_length=256, default="", blank=True)
     # Optional logo/background to display in video
-    build_logo = models.ImageField(upload_to=get_build_logo_path, blank=True, null=True)
-    build_background = models.ImageField(upload_to=get_build_background_path, blank=True, null=True)
+    build_logo = models.ImageField(upload_to=get_project_build_logo_path, blank=True, null=True)
+    build_background = models.ImageField(upload_to=get_project_build_background_path, blank=True, null=True)
     # Optional background music (MP3)
-    build_audio = models.FileField(upload_to=get_build_audio_path, blank=True, null=True)
+    build_audio = models.FileField(upload_to=get_project_build_audio_path, blank=True, null=True)
     build_audio_name = models.CharField(max_length=256, null=True, blank=True)
 
     # Determine if project is publicly-visible or restricted to project members
@@ -137,8 +137,8 @@ class Project(models.Model):
         """
         if not self.project_log or not os.path.isfile(self.project_log.path):
             raise RuntimeError("No Gource log found for this project")
-        with open(self.project_log.path, 'r') as f:
-            return analyze_gource_log(f.read())
+        with open(self.project_log.path, 'r') as _file:
+            return analyze_gource_log(_file.read())
 
     def generate_captions_file(self):
         """
@@ -223,12 +223,21 @@ class Project(models.Model):
         )
 
         # Copy snapshot of `project_log` file
-        build.project_log.save('gource.log', ContentFile(self.project_log.read()))
+        with open(self.project_log.path, 'rb') as _file:
+            build.project_log.save('gource.log', ContentFile(_file.read()))
         # Copy other optional artifacts
+        if self.build_audio:
+            # Background audio
+            with open(self.build_audio.path, 'rb') as _file:
+                build.build_audio.save(self.build_audio.name, ContentFile(_file.read()))
         if self.build_logo:
-            build.build_logo.save(self.build_logo.name, ContentFile(self.build_logo.read()))
+            # Project logo
+            with open(self.build_logo.path, 'rb') as _file:
+                build.build_logo.save(self.build_logo.name, ContentFile(_file.read()))
         if self.build_background:
-            build.build_background.save(self.build_background.name, ContentFile(self.build_background.read()))
+            # Project background
+            with open(self.build_background.path, 'rb') as _file:
+                build.build_background.save(self.build_background.name, ContentFile(_file.read()))
 
         # Copy over build options for archival
         build_options = []
@@ -313,10 +322,13 @@ def get_build_project_log_path(instance, filename):
 def get_build_project_captions_path(instance, filename):
     return f'projects/{instance.project_id}/builds/{instance.id}/captions.txt'
 
-def get_build_project_logo_path(instance, filename):
+def get_build_logo_path(instance, filename):
     return f'projects/{instance.project_id}/builds/{instance.id}/{filename}'
 
-def get_build_project_background_path(instance, filename):
+def get_build_background_path(instance, filename):
+    return f'projects/{instance.project_id}/builds/{instance.id}/{filename}'
+
+def get_build_audio_path(instance, filename):
     return f'projects/{instance.project_id}/builds/{instance.id}/{filename}'
 
 def get_build_stdout_path(instance, filename):
@@ -351,10 +363,10 @@ class ProjectBuild(models.Model):
     project_log_commit_preview = models.CharField(max_length=128, blank=True, null=True)
     # Captions file
     project_captions = models.FileField(upload_to=get_build_project_captions_path, blank=True, null=True)
-    build_logo = models.ImageField(upload_to=get_build_project_logo_path, blank=True, null=True)
-    build_background = models.ImageField(upload_to=get_build_project_background_path, blank=True, null=True)
-    # Audio file name (if set)
-    # (don't really want to save audio file repeatedly for builds)
+    build_logo = models.ImageField(upload_to=get_build_logo_path, blank=True, null=True)
+    build_background = models.ImageField(upload_to=get_build_background_path, blank=True, null=True)
+    # Optional background music (MP3)
+    build_audio = models.FileField(upload_to=get_build_audio_path, blank=True, null=True)
     build_audio_name = models.CharField(max_length=256, null=True, blank=True)
 
     # Video/thumbnail data
@@ -583,6 +595,89 @@ class ProjectBuild(models.Model):
         self.mark_queued()
         generate_gource_build.delay(self.id)
         return True
+
+    def clone_build(self, *, defer_queue=False):
+        """
+        Create a new ProjectBuild instance from this ProjectBuild.
+
+        By default, build will be immediately queued for processing by
+        background Celery instance.  This can be disabled and deferred
+        to a later time using
+
+            clone_build(defer_queue=True)
+
+        Returns new ProjectBuiild instance
+        """
+        if not bool(self.project_log):
+            raise RuntimeError("Project does not have a valid 'project_log'")
+
+        # Create new build (immediately in "queued" state)
+        build = ProjectBuild.objects.create(
+            project=self.project,
+            project_branch=self.project_branch,
+            project_log_commit_hash=self.project_log_commit_hash,
+            project_log_commit_time=self.project_log_commit_time,
+            project_log_commit_preview=self.project_log_commit_preview,
+            build_audio_name=self.build_audio_name,
+            video_size=self.video_size,
+            status='queued' if not defer_queue else 'pending',
+            queued_at=timezone.now() if not defer_queue else None
+        )
+
+       # Copy snapshot of `project_log` file
+        with open(self.project_log.path, 'rb') as _file:
+            build.project_log.save('gource.log', ContentFile(_file.read()))
+        # Copy other optional artifacts
+        if self.build_audio:
+            # Background audio
+            with open(self.build_audio.path, 'rb') as _file:
+                build.build_audio.save(self.build_audio.name, ContentFile(_file.read()))
+        if self.build_logo:
+            # Project logo
+            with open(self.build_logo.path, 'rb') as _file:
+                build.build_logo.save(self.build_logo.name, ContentFile(_file.read()))
+        if self.build_background:
+            # Project background
+            with open(self.build_background.path, 'rb') as _file:
+                build.build_background.save(self.build_background.name, ContentFile(_file.read()))
+
+        # Copy over build options for archival
+        build_options = []
+        for option in self.options.all():
+            build_options.append(
+                ProjectBuildOption(
+                    build=build,
+                    name=option.name,
+                    value=option.value,
+                    value_type=option.value_type
+                )
+            )
+        if build_options:
+            ProjectBuildOption.objects.bulk_create(build_options)
+
+        # Copy over captions for archival
+        build_captions = []
+        for caption in self.captions.all():
+            build_captions.append(
+                ProjectBuildCaption(
+                    build=build,
+                    timestamp=caption.timestamp,
+                    text=caption.text,
+                )
+            )
+        if build_captions:
+            ProjectBuildCaption.objects.bulk_create(build_captions)
+
+            # Copy captions file from prior build
+            if self.project_captions:
+                with open(self.project_captions.path, 'rb') as _file:
+                    build.project_captions.save(self.project_captions.name, ContentFile(_file.read()))
+
+        # Send to background worker
+        if not defer_queue:
+            generate_gource_build.delay(build.id)
+
+        return build
 
 
 class ProjectBuildOption(models.Model):

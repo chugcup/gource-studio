@@ -14,16 +14,16 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='project',
             name='build_background',
-            field=models.ImageField(blank=True, null=True, upload_to=gource_studio.core.models.get_build_background_path),
+            field=models.ImageField(blank=True, null=True, upload_to=gource_studio.core.models.get_project_build_background_path),
         ),
         migrations.AddField(
             model_name='projectbuild',
             name='build_background',
-            field=models.ImageField(blank=True, null=True, upload_to=gource_studio.core.models.get_build_project_background_path),
+            field=models.ImageField(blank=True, null=True, upload_to=gource_studio.core.models.get_build_background_path),
         ),
         migrations.AddField(
             model_name='projectbuild',
             name='build_logo',
-            field=models.ImageField(blank=True, null=True, upload_to=gource_studio.core.models.get_build_project_logo_path),
+            field=models.ImageField(blank=True, null=True, upload_to=gource_studio.core.models.get_build_logo_path),
         ),
     ]

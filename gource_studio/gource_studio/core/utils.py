@@ -242,8 +242,8 @@ def download_git_log(url, branch="master"):
             logging.error("Error retrieving tags from Git repo: ", str(e))
 
         # Return result
-        with destlog.open() as f:
-            data = f.read()
+        with destlog.open() as _file:
+            data = _file.read()
         return data, commit_hash, commit_subject, tags_list
 
     finally:
@@ -692,8 +692,8 @@ def get_video_thumbnail(video_path, width=512, secs=None, percent=None):
         if p.returncode:
             # Error
             raise RuntimeError(f"[{p.returncode}] Error: {_stderr}")
-        with thumb_output.open('rb') as f:
-            return BytesIO(f.read())
+        with thumb_output.open('rb') as _file:
+            return BytesIO(_file.read())
     finally:
         shutil.rmtree(tempdir)
 

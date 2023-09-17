@@ -79,12 +79,13 @@ class TestProjects:
         #   {timestamp}|{author}|{action}|{filepath}
         project = Project.objects.create(name="test")
 
-        # Use static project log from test assets
+        # Add a project log file
+        # - Use static project log from test assets
         sample_log = os.path.join(ASSETS_PATH, "Hello-World", "Hello-World.log")
-        # For completeness, fill out commit info cache
-        project_log_commit_hash = "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d"
-        project_log_commit_time = timezone.make_aware(datetime(2012, 3, 6, 15, 6, 50))
-        project_log_commit_preview = "Merge pull request #6 from Spaceghost/patch-1"
+        # - For completeness, fill out commit info cache
+        project.project_log_commit_hash = "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d"
+        project.project_log_commit_time = timezone.make_aware(datetime(2012, 3, 6, 15, 6, 50))
+        project.project_log_commit_preview = "Merge pull request #6 from Spaceghost/patch-1"
         project.project_log_updated_at = timezone.now()
         with open(sample_log, 'r') as f:
             project.project_log.save('gource.log', ContentFile(f.read()))
@@ -145,3 +146,84 @@ class TestProjects:
         assert sample_captions is not None
         assert len(sample_captions) == 3
         assert sample_captions[0].endswith('|Caption 3')
+
+    def test_create_project_build(self):
+        # From a `Project` instance, create a new `ProjectBuild`
+        # and verify settings/captions/etc. copied
+        project = Project.objects.create(name="test")
+
+        # Without a `project_log`, verify creation fails
+        with pytest.raises(RuntimeError):
+            project.create_build(defer_queue=True)
+
+        # Add some options
+        po1 = ProjectOption.objects.create(project=project, name='seconds-per-day', value='0.5', value_type='float')
+        po2 = ProjectOption.objects.create(project=project, name='caption-size', value='20', value_type='int')
+        # Add a caption
+        pc1 = ProjectCaption.objects.create(project=project, timestamp=timezone.now(), text='Caption 1')
+        # Add a project log file
+        # - Use static project log from test assets
+        sample_log = os.path.join(ASSETS_PATH, "Hello-World", "Hello-World.log")
+        # - For completeness, fill out commit info cache
+        project.project_log_commit_hash = "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d"
+        project.project_log_commit_time = timezone.make_aware(datetime(2012, 3, 6, 15, 6, 50))
+        project.project_log_commit_preview = "Merge pull request #6 from Spaceghost/patch-1"
+        project.project_log_updated_at = timezone.now()
+        with open(sample_log, 'r') as f:
+            project.project_log.save('gource.log', ContentFile(f.read()))
+        # Add an audio file
+        sample_audio = os.path.join(ASSETS_PATH, "vivaldi-winter.mp3")
+        with open(sample_log, 'rb') as f:
+            project.build_audio.save('vivaldi-winter.mp3', ContentFile(f.read()))
+        # Add a background and logo
+        sample_background = os.path.join(ASSETS_PATH, "background.jpg")
+        with open(sample_background, 'rb') as f:
+            project.build_background.save('background.jpg', ContentFile(f.read()))
+        sample_logo = os.path.join(ASSETS_PATH, "globe.png")
+        with open(sample_logo, 'rb') as f:
+            project.build_logo.save('globe.png', ContentFile(f.read()))
+
+        assert project.builds.count() == 0
+
+        # Create a new build from current project settings
+        build1 = project.create_build(defer_queue=True)
+        assert build1.status == "pending"
+        assert build1.project_log.size == project.project_log.size
+        assert build1.build_audio.size == project.build_audio.size
+        assert build1.build_logo.size == project.build_logo.size
+        assert build1.build_background.size == project.build_background.size
+        assert build1.options.count() == 2
+        assert [str(opt) for opt in build1.options.all()] == \
+               [str(opt) for opt in project.options.all()]
+        assert build1.captions.count() == 1
+        assert [str(cpt) for cpt in build1.captions.all()] == \
+               [str(cpt) for cpt in project.captions.all()]
+        assert project.builds.count() == 1
+        # Create another new build and verify different from first
+        build2 = project.create_build(defer_queue=True)
+        assert build2.status == "pending"
+        assert build2.project_log.size == project.project_log.size
+        assert build1.pk != build2.pk
+        assert project.builds.count() == 2
+
+        # Test cloning a ProjectBuild from an existing one
+        # - To verify it is using targeted build, modify Project
+        # + Remove one option
+        po2.delete()
+        # + Add a caption
+        pc2 = ProjectCaption.objects.create(project=project, timestamp=timezone.now()+timedelta(hours=1), text='Caption 2')
+
+        # Clone the build
+        build3 = build2.clone_build(defer_queue=True)
+        assert build3.status == "pending"
+        assert build3.project_log.size == build2.project_log.size
+        assert build3.project_captions.size == build2.project_captions.size
+        assert build3.pk != build2.pk
+        # Check against source ProjectBuild
+        assert build1.options.count() == 2  # Project has 1
+        assert [str(opt) for opt in build2.options.all()] == \
+               [str(opt) for opt in build3.options.all()]
+        assert build1.captions.count() == 1 # Project has 2
+        assert [str(cpt) for cpt in build2.captions.all()] == \
+               [str(cpt) for cpt in build3.captions.all()]
+        assert project.builds.count() == 3

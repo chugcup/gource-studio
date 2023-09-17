@@ -1247,8 +1247,8 @@ def estimate_project_duration(request, project_id):
     project = get_object_or_404(queryset, **{'pk': project_id})
     latest_build = project.latest_build
 
-    with open(project.project_log.path, 'r') as f:
-        data = f.read()
+    with open(project.project_log.path, 'r') as _file:
+        data = _file.read()
 
     added = 0
     modded = 0
@@ -1289,8 +1289,8 @@ def estimate_video_duration(request, project_id):
     project = get_object_or_404(Project, **{'pk': project_id})
     latest_build = project.latest_build
 
-    with open(project.project_log.path, 'r') as f:
-        data = f.read()
+    with open(project.project_log.path, 'r') as _file:
+        data = _file.read()
 
     added = 0
     modded = 0

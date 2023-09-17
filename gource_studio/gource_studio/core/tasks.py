@@ -50,8 +50,8 @@ def generate_gource_build(build_id):
         tempdir_path = Path(tempdir)
 
         # Read in project Gource log
-        with open(build.project.project_log.path, 'r') as f:
-            log_data = f.read()
+        with open(build.project.project_log.path, 'r') as _file:
+            log_data = _file.read()
 
         log_info = analyze_gource_log(log_data)
         contributors = set(log_info['users'])
