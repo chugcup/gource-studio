@@ -11,7 +11,6 @@ from django.core.files.base import ContentFile
 
 from .constants import GOURCE_OPTIONS
 from .exceptions import ProjectBuildAbortedError
-from .models import Project, ProjectBuild, UserAvatar, ProjectUserAvatar
 from .utils import (
     add_background_audio,   #(video_path, audio_path, loop=True):
     analyze_gource_log,     #(data):
@@ -28,6 +27,8 @@ logger = logging.getLogger(__name__)
 
 @shared_task
 def generate_gource_build(build_id):
+    from .models import Project, ProjectBuild, UserAvatar, ProjectUserAvatar
+
     try:
         build = ProjectBuild.objects.get(id=build_id)
     except ProjectBuild.DoesNotExist:

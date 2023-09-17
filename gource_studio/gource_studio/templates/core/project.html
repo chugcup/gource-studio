@@ -2,16 +2,26 @@
 
 {% block page_css %}
   <style type="text/css">
-    #gource-settings-container .form-group {
+    #gource-settings-container .form-group,
+    #gource-settings-container-view .form-group {
         min-width: 400px;
     }
     #gource-settings-container .form-group,
-    #project-captions-list .form-group {
+    #gource-settings-container-view .form-group,
+    #project-captions-list .form-group,
+    #build-captions-list .form-group {
         margin-bottom: 0;
     }
     #gource-settings-container .form-group .form-control,
-    #project-captions-list .form-group .form-control {
+    #gource-settings-container-view .form-group .form-control,
+    #project-captions-list .form-group .form-control,
+    #build-captions-list .form-group .form-control {
         display: inline-block;
+    }
+    #project-manage-container .form-group label {
+        width: 175px;
+        justify-content: flex-end;
+        margin-right: 12px;
     }
     #project-audio-video-settings label b {
         min-width: 110px;
@@ -37,6 +47,17 @@
         font-weight: bold;
     }
 
+    a.nav-link-alt {
+        color: #FF0000;
+    }
+    a.nav-link-alt:hover {
+        color: #FF6600;
+    }
+    a.nav-link-sub {
+        font-size: 0.9em;
+        padding-left: 26px;
+    }
+
     .nav-link > .fa.fa-external-link {
         font-size: 0.75em;
     }
@@ -58,14 +79,21 @@
   }
     .project-nav-sidebar {
         white-space: nowrap;
+        margin-left: -24px;
+    }
+
+    @media(max-width: 992px) {
+        .project-nav-sidebar {
+            margin-left: -48px;
+        }
     }
     .project-nav-sidebar .nav-item {
         width: 100px;
     }
-    .project-nav-sidebar .nav-link.active::before {
-        content: "❮";
-        margin-left: -14px;
-        padding-right: 6px;
+    .project-nav-sidebar .nav-link.active::after {
+        content: "❯";
+        margin-right: -14px;
+        padding-left: 6px;
     }
     .project-nav-sidebar .nav-item.separator {
         margin-left: 10px;
@@ -94,9 +122,15 @@
     #project-video-container .queue-project-build-btn:hover {
         opacity: 1.0;
     }
+    #project-details-container .tab-pane {
+        padding-top: 12px;
+    }
+    #project-details-container #project-details-pane.tab-pane {
+        padding-top: 0;
+    }
     #project-details-container .project-changed-notice {
         position: absolute;
-        left: 0;
+        right: 0;
         z-index: 1;
         background: #F5F5F5;
         border: 1px solid #999999;
@@ -163,21 +197,23 @@
     .gource-option-container .gource-option-value input {
         width: 200px;
     }
-    .gource-option-container .gource-option-value .gource-option-info {
-        padding-left: 12px;
-    }
     .gource-option-container .gource-option-value .gource-option-remove {
         padding-left: 12px;
         cursor: pointer;
     }
-    #project-captions-container {
-        margin-top: 12px;
+    .gource-option-info {
+        padding-left: 12px;
     }
+
+    #project-captions-container {
+    }
+    #build-captions-list,
     #project-captions-list {
         min-width: 400px;
         max-height: 600px;
         overflow-y: auto;
     }
+    #build-captions-list input.gource-caption-datetimepicker,
     #project-captions-list input.gource-caption-datetimepicker {
         border-radius: .2rem 0 0 .2rem;
         background: #F9F9F9;
@@ -185,21 +221,30 @@
         font-size: 12px;
         line-height: 32px;
     }
+    #build-captions-list input.gource-caption-text,
     #project-captions-list input.gource-caption-text {
         border-radius: 0 .2rem .2rem 0;
-        width: 70%;
+        width: 60%;
         min-width: 200px;
+        max-width: 500px;
         font-size: 12px;
         line-height: 32px;
     }
   @media(max-width: 993px) {
+    #build-captions-list input.gource-caption-text,
     #project-captions-list input.gource-caption-text {
         width: 50%;
     }
   }
   @media(max-width: 751px) {
+    #build-captions-list input.gource-caption-text,
     #project-captions-list input.gource-caption-text {
         width: 40%;
+    }
+    .project-caption-actions,
+    .project-manage-actions,
+    .project-setting-actions {
+        margin-top: -65px;
     }
   }
     #project-gource-options-container {
@@ -287,7 +332,7 @@
       </li>
     {% if user_can_edit %}
       <li class="nav-item">
-        <a class="nav-link" href="#project-manage-pane" data-toggle="tab" role="tab">Manage</a>
+        <a class="nav-link nav-link-alt" href="#project-manage-pane" data-toggle="tab" role="tab">Manage</a>
       </li>
     {% endif %}
       <li class="nav-item">
@@ -308,24 +353,57 @@
     </div>
   {% endif %}
     <div class="row">
-      <div class="col-1"></div>
+      <div class="col-1">
+        <!-- Nav sidebar (desktop) -->
+        <ul class="project-nav-sidebar nav flex-column d-none d-md-block" id="project-nav-tabs" role="tablist">
+          <li class="nav-item">
+            <a class="nav-link active" href="#project-details-pane" data-toggle="tab" role="tab">Build</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link nav-link-sub" href="#build-settings-pane" data-toggle="tab" role="tab">Settings</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link nav-link-sub" href="#build-captions-pane" data-toggle="tab" role="tab">Captions</a>
+          </li>
+        {% if user_can_edit %}
+          <li class="nav-item separator"></li>
+          <li class="nav-item">
+            <a class="nav-link nav-link-alt" href="#project-manage-pane" data-toggle="tab" role="tab">Project</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link nav-link-alt nav-link-sub" href="#project-settings-pane" data-toggle="tab" role="tab">Settings</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link nav-link-alt nav-link-sub" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
+          </li>
+        {% endif %}
+          <li class="nav-item separator"></li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'project-avatars' project.id %}">Avatars <i class="fa fa-external-link"></i></a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'project-builds' project.id %}">Builds <i class="fa fa-external-link"></i></a>
+          </li>
+        </ul>
+      </div>
+
       <div class="col-10">
-        <!-- Project details -->
         <div class="container">
-          <div class="row justify-content-center text-center">
-            <div class="col-12">
-            {% if project.project_url %}
-              <a href="{{ project.project_url }}" class="project-url-link" target="_blank">{{ project.project_url }}</a>
-            {% else %}
-              <span class="project-url-nolink">{{ project.name }}</span>
-            {% endif %}
-            </div>
-          </div>
-
-          <hr />
-
           <div class="tab-content" id="project-tab-content">
+            <!-- Project Details -->
             <div class="tab-pane show active" id="project-details-pane" role="tabpanel">
+              <div class="row justify-content-center text-center">
+                <div class="col-12">
+                {% if project.project_url %}
+                  <a href="{{ project.project_url }}" class="project-url-link" target="_blank">{{ project.project_url }}</a>
+                {% else %}
+                  <span class="project-url-nolink">{{ project.name }}</span>
+                {% endif %}
+                </div>
+              </div>
+
+              <hr />
+
               <div id="project-details-actions-container" class="float-right">
               {% if request.user and not request.user.is_anonymous %}
                 <a id="add-to-playlist-btn" class="btn btn-default btn-sm" title="Add to Playlist"$>
@@ -388,7 +466,7 @@
                     <div class="input-group-prepend">
                         <span class="input-group-text">Project Link</span>
                     </div>
-                    <input id="project-video-link" class="form-control" type="text" value="{{ request.scheme }}://{{ request.META.HTTP_HOST }}{% url 'project-details' project.id %}" readonly />
+                    <input id="project-video-link" class="form-control" type="text" value="{{ request.scheme }}://{{ request.META.HTTP_HOST }}{% if project.project_slug %}{% url 'project-details' project.project_slug %}{% else %}{% url 'project-details' project.id %}{% endif %}" readonly />
                     <div class="input-group-append" title="Copy to clipboard">
                         <button class="btn btn-outline-secondary copy-clipboard-url" type="button"><i class="fa fa-clipboard"></i></span>
                     </div>
@@ -399,7 +477,11 @@
                     <div class="input-group-prepend">
                         <span class="input-group-text">Direct Video Link</span>
                     </div>
+                {% if project.project_slug %}
+                    <input id="project-video-direct-link" class="form-control" type="text" value="{{ request.scheme }}://{{ request.META.HTTP_HOST }}{% if build.id == latest_build.id %}{% url 'project-latest-build-video' project.project_slug %}{% else %}{% url 'project-build-video' project.project_slug build.id %}{% endif %}" readonly />
+                {% else %}
                     <input id="project-video-direct-link" class="form-control" type="text" value="{{ request.scheme }}://{{ request.META.HTTP_HOST }}{% if build.id == latest_build.id %}{% url 'project-latest-build-video' project.id %}{% else %}{% url 'project-build-video' project.id build.id %}{% endif %}" readonly />
+                {% endif %}
                     <div class="input-group-append" title="Copy to clipboard">
                         <button class="btn btn-outline-secondary copy-clipboard-url" type="button"><i class="fa fa-clipboard"></i></span>
                     </div>
@@ -414,17 +496,114 @@
               </div>
               {% endif %}
             </div>
-            <div class="tab-pane" id="project-settings-pane" role="tabpanel">
-            {% if user_can_edit %}
-              <div class="float-right">
-                <button class="btn btn-success save-project-settings-btn"><i class="fa fa-disk"></i> Save</button>
-              </div>
-            {% endif %}
-
+            <!-- Build Settings -->
+            <div class="tab-pane" id="build-settings-pane" role="tabpanel">
               <h5>
                 <i class="fa fa-video-camera"></i> &nbsp;
                 Audio / Video Settings
               </h5>
+              <hr />
+              <div id="project-audio-video-settings-view" class="row justify-content-center">
+                <div class="col-12">
+                  <div class="form-group form-inline">
+                    <label><b>Video Size:</b>&nbsp;</label>
+                    {% if build.video_size %}
+                    <span>{{ build.video_size }}</span>
+                    {% else %}
+                    <span class="text-muted">N/A</span>
+                    {% endif %}
+                  </div>
+
+                  <div id="project-build-logo-form-group-view" class="form-group"{% if not project.build_logo %} style="display:none"{% endif %}>
+                    <label><b>Logo Image:</b></label>
+                    {% if project.build_logo %}
+                    <button id="project-build-logo-preview-view" class="btn btn-sm btn-default" data-src="{% url 'api-project-logo-download' project.id %}">
+                      <i class="fa fa-eye"></i>
+                    </button>
+                    {% endif %}
+                  </div>
+
+                  <div id="project-build-background-form-group-view" class="form-group"{% if not project.build_background %} style="display:none"{% endif %}>
+                    <label><b>Background:</b></label>
+                    {% if project.build_background %}
+                    <button id="project-build-background-preview-view" class="btn btn-sm btn-default" data-src="{% url 'api-project-background-download' project.id %}">
+                      <i class="fa fa-eye"></i>
+                    </button>
+                    {% endif %}
+                  </div>
+
+                  <div id="project-build-audio-form-group-view" class="form-group"{% if not project.build_audio_name %} style="display:none"{% endif %}>
+                    <b>Background Music:</b>
+                    {% if build.build_audio_name %}
+                      {% if project.build_audio and project.build_audio_name == build.build_audio_name %}
+                    <a href="{% url 'api-project-build-audio-download' project.id %}" target="_blank">{{ project.build_audio_name }}</a>
+                      {% else %}
+                    {{ project.build_audio_name }}
+                      {% endif %}
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+              <hr />
+              <div>
+                <h5 class="float-left" style="padding-right: 36px">
+                  <i class="fa fa-sliders"></i> &nbsp;
+                  Gource Settings
+                </h5>
+              </div>
+              <div class="clearfix"></div>
+              <div id="gource-settings-region-view">
+                <div id="gource-settings-container-view">
+                    <gource-option-view v-for="option in options_selected"
+                                        v-on:remove-gource-option="removeOption(option.name)"
+                                        v-on:change:value="updateValue(option, $event)"
+                                        v-bind:key="option.name"
+                                        v-bind="option"></gource-option-view>
+                </div>
+              </div>
+            </div>
+
+            <!-- Build Captions -->
+            <div id="build-captions-pane" class="tab-pane" role="tabpanel">
+              <div id="build-captions-region">
+                <h5>
+                  <i class="fa fa-tag"></i> &nbsp;
+                  Video Captions
+                </h5>
+                <hr />
+                <div class="row justify-content-center">
+                  <div class="col-12">
+                    <div id="build-captions-container">
+                      <div id="build-captions-list">
+                        <div class="text-muted text-center" v-if="!captions_list.length">No captions set.</div>
+                        <project-caption-view
+                              v-for="caption in captions_list"
+                              v-on:remove-caption="removeOption(caption.id)"
+                              v-on:change-timestamp:timestamp="updateTimestamp(caption, $event)"
+                              v-on:change-text:text="updateTimestamp(caption, $event)"
+                              v-bind:key="caption.id"
+                              v-bind="caption"></project-caption-view>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Project Settings -->
+            <div class="tab-pane" id="project-settings-pane" role="tabpanel">
+              <h5>
+                <i class="fa fa-video-camera"></i> &nbsp;
+                Audio / Video Settings
+              </h5>
+              <hr />
+
+            {% if user_can_edit %}
+              <div class="project-setting-actions float-right">
+                <button class="btn btn-success save-project-settings-btn"><i class="fa fa-disk"></i> Save</button>
+              </div>
+            {% endif %}
+
               <div id="project-audio-video-settings" class="row justify-content-center">
                 <div class="col-12">
                   <div class="form-group form-inline">
@@ -558,8 +737,16 @@
                 </div>
               </div>
             </div>
+            <!-- Project Captions -->
             <div id="project-captions-pane" class="tab-pane" role="tabpanel">
               <div id="project-captions-region">
+                <h5>
+                  <i class="fa fa-tag"></i> &nbsp;
+                  Video Captions
+                </h5>
+
+                <hr />
+
               {% if user_can_edit %}
                 <div class="project-caption-actions float-right">
                 {% if project.project_url_active %}
@@ -573,11 +760,7 @@
                   <button class="btn btn-success save-project-captions-btn"><i class="fa fa-disk"></i> Save</button>
                 </div>
               {% endif %}
-                <h5>
-                  <i class="fa fa-tag"></i> &nbsp;
-                  Video Captions
-                </h5>
-                <div class="clearfix"></div>
+
                 <div class="row justify-content-center">
                   <div class="col-12">
                     <div id="project-captions-container">
@@ -602,33 +785,44 @@
               </div>
             </div>
         {% if user_can_edit %}
+            <!-- Project Manage -->
             <div id="project-manage-pane" class="tab-pane" role="tabpanel">
               <div id="project-manage-region">
-                <div class="project-manage-actions float-right">
-                  <button class="btn btn-success save-project-manage-btn"><i class="fa fa-disk"></i> Save</button>
-                </div>
                 <h5>
                   <i class="fa fa-wrench"></i> &nbsp;
                   Manage Project
                 </h5>
-                <div class="clearfix"></div>
+
+                <hr />
+
+                <div class="project-manage-actions float-right">
+                  <button class="btn btn-success save-project-manage-btn"><i class="fa fa-disk"></i> Save</button>
+                </div>
                 <div class="row justify-content-center">
                   <div class="col-12">
-                    <div id="project-manage-container"></div>
-                    <div class="form-group form-inline">
-                      <label for="project-slug"><b>Project Slug:</b>&nbsp;</label>
-                      <input id="project-slug" type="text" name="project-slug" class="form-control form-control-sm" value="{{ project.project_slug|default_if_none:"" }}" />
+                    <div id="project-manage-container">
+                      <div class="form-group form-inline">
+                        <label for="project-name"><b>Project Name:</b>&nbsp;</label>
+                        <input id="project-name" type="text" name="name" class="form-control form-control-sm" value="{{ project.name|default_if_none:"" }}" />
+                      </div>
+                      <div class="form-group form-inline">
+                        <label for="project-slug"><b>Project Slug:</b>&nbsp;</label>
+                        <input id="project-slug" type="text" name="project-slug" class="form-control form-control-sm" value="{{ project.project_slug|default_if_none:"" }}" />
+                        <span class="gource-option-info" data-toggle="popover" data-trigger="hover" data-content="This is a unique identifier for the project and is used in URL links.">
+                          <i class="fa fa-info-circle"></i>
+                        </span>
+                      </div>
+                      <div class="form-group form-inline">
+                        <label for="project-is-public"><b>Public Project:</b>&nbsp;</label>
+                        <input id="project-is-public" type="checkbox" name="project-public" class="form-control" {% if project.is_public %}checked="checked"{% endif %}/>
+                      </div>
+                    {% if project.created_by %}
+                      <div class="form-group form-inline">
+                        <label><b>Created By:</b>&nbsp;</label>
+                        <span>{{ project.created_by.username }}</span>
+                      </div>
+                    {% endif %}
                     </div>
-                    <div class="form-group form-inline">
-                      <label for="project-is-public"><b>Public Project:</b>&nbsp;</label>
-                      <input id="project-is-public" type="checkbox" name="project-public" class="form-control" {% if project.is_public %}checked="checked"{% endif %}/>
-                    </div>
-                  {% if project.created_by %}
-                    <div>
-                      <label><b>Created By:</b>&nbsp;</label>
-                      <span>{{ project.created_by.username }}</span>
-                    </div>
-                  {% endif %}
                   </div>
                 </div>
               </div>
@@ -638,32 +832,7 @@
         </div>
       </div>
 
-      <div class="col-1">
-        <!-- Nav sidebar (desktop) -->
-        <ul class="project-nav-sidebar nav flex-column d-none d-md-block" id="project-nav-tabs" role="tablist">
-          <li class="nav-item">
-            <a class="nav-link active" href="#project-details-pane" data-toggle="tab" role="tab">Details</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#project-settings-pane" data-toggle="tab" role="tab">Settings</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
-          </li>
-        {% if user_can_edit %}
-          <li class="nav-item">
-            <a class="nav-link" href="#project-manage-pane" data-toggle="tab" role="tab">Manage</a>
-          </li>
-        {% endif %}
-          <li class="nav-item separator"></li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'project-avatars' project.id %}">Avatars <i class="fa fa-external-link"></i></a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'project-builds' project.id %}">Builds <i class="fa fa-external-link"></i></a>
-          </li>
-        </ul>
-      </div>
+      <div class="col-1"></div>
     </div>
   </div>
   <!-- /.container -->
@@ -753,6 +922,7 @@
         });
 
         $('[data-toggle="tooltip"]').tooltip();
+        $('#project-manage-pane [data-toggle="popover"]').popover();
         // Load all available build options for Gource
         let gource_options = [{% for gource_opt in gource_options_json %}
             {{ gource_opt|safe }},{% endfor %}
@@ -763,30 +933,48 @@
         }, this);
 
         // Load current build options
-        let init_gource_options = [{% for option_json in project_options_json %}
+        let init_project_options = [{% for option_json in project_options_json %}
             {{ option_json|safe }},{% endfor %}
         ];
-        App.pages.project.settings_container.loadAvailable(gource_options);
+        let init_build_options = [{% for option_json in build_options_json %}
+            {{ option_json|safe }},{% endfor %}
+        ];
+        App.pages.project.project_settings_container.loadAvailable(gource_options);
+        App.pages.project.build_settings_container.loadAvailable(App.utils.cloneJSON(gource_options));
 
-        _.each(init_gource_options, function(item) {
+        _.each(init_project_options, function(item) {
             App.debug && console.log("Initial setting: ", item);
-            App.pages.project.settings_container.addOption(item.name, item.value, true);
+            App.pages.project.project_settings_container.addOption(item.name, item.value, true);
         });
+        _.each(init_build_options, function(item) {
+            App.debug && console.log("Initial build setting: ", item);
+            App.pages.project.build_settings_container.addOption(item.name, item.value, true);
+        });
+
         App.pages.project.refreshGourceDuration();
 
         let init_project_captions = [{% for caption_json in project_captions_json %}
             {{ caption_json|safe }},{% endfor %}
         ];
+        let init_build_captions = [{% for caption_json in build_captions_json %}
+            {{ caption_json|safe }},{% endfor %}
+        ];
+
 
         if (init_project_captions.length > 0) {
             _.each(init_project_captions, function(item) {
                 let moment_timestamp = moment(item.timestamp);
                 item.timestamp = moment_timestamp.format('YYYY-MM-DD HH:mm:ss');
                 item.can_edit = !IS_READONLY;
-                App.pages.project.captions_container.captions_list.push(item);
+                App.pages.project.project_captions_container.captions_list.push(item);
             });
-        } else if (IS_READONLY) {
-            // Empty...
+        }
+        if (init_build_captions.length > 0) {
+            _.each(init_build_captions, function(item) {
+                let moment_timestamp = moment(item.timestamp);
+                item.timestamp = moment_timestamp.format('YYYY-MM-DD HH:mm:ss');
+                App.pages.project.build_captions_container.captions_list.push(item);
+            });
         }
 
         if (IS_READONLY) {

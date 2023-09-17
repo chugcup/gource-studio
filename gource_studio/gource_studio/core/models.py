@@ -3,6 +3,7 @@ import os
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
+from django.core.files.base import ContentFile
 from django.core.validators import validate_slug, RegexValidator
 from django.db import models
 from django.db.models import F
@@ -13,6 +14,7 @@ from django.utils import timezone
 #from .managers import ProjectManager
 from .constants import VIDEO_OPTIONS
 from .managers import ProjectQuerySet
+from .tasks import generate_gource_build
 from .utils import (
     analyze_gource_log,     #(data):
 )
@@ -192,6 +194,81 @@ class Project(models.Model):
 
         return ValueError(f"Invalid 'action' given: {action}")
 
+    def create_build(self, *, defer_queue=False):
+        """
+        Create a new ProjectBuild instance from this Project.
+
+        By default, build will be immediately queued for processing by
+        background Celery instance.  This can be disabled and deferred
+        to a later time using
+
+            create_build(defer_queue=True)
+
+        Returns new ProjectBuiild instance
+        """
+        if not bool(self.project_log):
+            raise RuntimeError("Project does not have a valid 'project_log'")
+
+        # Create new build (immediately in "queued" state)
+        build = ProjectBuild.objects.create(
+            project=self,
+            project_branch=self.project_branch,
+            project_log_commit_hash=self.project_log_commit_hash,
+            project_log_commit_time=self.project_log_commit_time,
+            project_log_commit_preview=self.project_log_commit_preview,
+            build_audio_name=self.build_audio_name,
+            video_size=self.video_size,
+            status='queued' if not defer_queue else 'pending',
+            queued_at=timezone.now() if not defer_queue else None
+        )
+
+        # Copy snapshot of `project_log` file
+        build.project_log.save('gource.log', ContentFile(self.project_log.read()))
+        # Copy other optional artifacts
+        if self.build_logo:
+            build.build_logo.save(self.build_logo.name, ContentFile(self.build_logo.read()))
+        if self.build_background:
+            build.build_background.save(self.build_background.name, ContentFile(self.build_background.read()))
+
+        # Copy over build options for archival
+        build_options = []
+        for option in self.options.all():
+            build_options.append(
+                ProjectBuildOption(
+                    build=build,
+                    name=option.name,
+                    value=option.value,
+                    value_type=option.value_type
+                )
+            )
+        if build_options:
+            ProjectBuildOption.objects.bulk_create(build_options)
+
+        # Copy over captions for archival
+        build_captions = []
+        for caption in self.captions.all():
+            build_captions.append(
+                ProjectBuildCaption(
+                    build=build,
+                    timestamp=caption.timestamp,
+                    text=caption.text,
+                )
+            )
+        if build_captions:
+            ProjectBuildCaption.objects.bulk_create(build_captions)
+
+            # Save captions to file prior to build
+            captions_list = self.generate_captions_file()
+            if captions_list is not None:
+                captions_data = "\n".join(captions_list)
+                build.project_captions.save('captions.txt', ContentFile(captions_data))
+
+        # Send to background worker
+        if not defer_queue:
+            generate_gource_build.delay(build.id)
+
+        return build
+
 
 class ProjectOption(models.Model):
     """
@@ -219,36 +296,6 @@ class ProjectOption(models.Model):
             "value": self.value,
             "value_type": self.value_type
         }
-
-
-class ProjectCaption(models.Model):
-    """
-    Caption entry for Gource video
-
-    Format line:
-
-        TIMESTAMP|TEXT
-
-    """
-    project = models.ForeignKey(Project, related_name='captions', on_delete=models.CASCADE)
-    timestamp = models.DateTimeField(null=False)
-    text = models.CharField(max_length=256)
-
-    class Meta:
-        ordering = ('timestamp',)
-
-    def __str__(self):
-        return self.text
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "timestamp": self.timestamp.isoformat(),
-            "text": self.text,
-        }
-
-    def to_text(self):
-        return f"{int(self.timestamp.timestamp())}|{self.text}"
 
 
 def get_video_build_path(instance, filename):
@@ -523,6 +570,20 @@ class ProjectBuild(models.Model):
             return build_percent
         return 0
 
+    def queue_build(self):
+        """
+        Queue the current buiid for video processing.
+
+        Only used if ProjectBuild initialize in 'pending' state.
+
+        Returns True if build queued successfully; False otherwise
+        """
+        if self.status != 'pending':
+            return False
+        self.mark_queued()
+        generate_gource_build.delay(self.id)
+        return True
+
 
 class ProjectBuildOption(models.Model):
     """
@@ -551,6 +612,74 @@ class ProjectBuildOption(models.Model):
             "value": self.value,
             "value_type": self.value_type
         }
+
+
+class BaseCaption(models.Model):
+    """
+    Abstract class for Caption entries.
+
+    Format line:
+
+        TIMESTAMP|TEXT
+
+    """
+    timestamp = models.DateTimeField(null=False)
+    text = models.CharField(max_length=256)
+
+    class Meta:
+        ordering = ('timestamp',)
+        abstract = True
+
+    def __str__(self):
+        return self.text
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp.isoformat(),
+            "text": self.text,
+        }
+
+    def to_text(self):
+        return f"{int(self.timestamp.timestamp())}|{self.text}"
+
+
+class ProjectCaption(BaseCaption):
+    """
+    Caption entry for Gource video project.
+
+    Intended to be the latest version of captions for ongoing builds.
+
+    Format line:
+
+        TIMESTAMP|TEXT
+
+    """
+    project = models.ForeignKey(Project, related_name='captions', on_delete=models.CASCADE)
+    #timestamp = models.DateTimeField(null=False)
+    #text = models.CharField(max_length=256)
+
+    class Meta:
+        ordering = ('timestamp',)
+
+
+class ProjectBuildCaption(BaseCaption):
+    """
+    Caption entry for individual Gource video build.
+
+    Intended to be readonly archive of captions for each build.
+
+    Format line:
+
+        TIMESTAMP|TEXT
+
+    """
+    build = models.ForeignKey(ProjectBuild, related_name='captions', on_delete=models.CASCADE)
+    #timestamp = models.DateTimeField(null=False)
+    #text = models.CharField(max_length=256)
+
+    class Meta:
+        ordering = ('timestamp',)
 
 
 def get_global_avatar_path(instance, filename):

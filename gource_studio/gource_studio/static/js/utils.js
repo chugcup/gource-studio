@@ -33,3 +33,14 @@ App.utils.handleErrorXHR = function(xhr, err) {
         $.notify(err, {autoHide: false, position: 'top center'});
     }
 };
+
+
+// Simple way to "deep" cloning JSON object
+App.utils.cloneJSON = function(data) {
+    if (_.isArray(data) || _.isObject(data)) {
+        return JSON.parse(
+            JSON.stringify(data)
+        );
+    }
+    return data;    // Not really a cloneable object
+};

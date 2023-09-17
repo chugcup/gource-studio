@@ -178,18 +178,23 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
 
     build = None
     is_latest_build = True
+    project_options = project.options.all()
+    project_captions = project.captions.all().order_by('timestamp')
+    build_options = None
+    build_captions = None
     if build_id is not None:
         # Explicit build being referenced
         build = get_object_or_404(ProjectBuild, **{'project_id': project.id, 'id': build_id})
         # project_options = project.options.all()
-        project_options = build.options.all() if build else project.options.all()
+        build_options = build.options.all()
+        build_captions = build.captions.all().order_by('timestamp')
         is_latest_build = build.id == project.latest_build.id if project.latest_build else False
     else:
         # Latest build/view
         build = project.latest_build
-        project_options = project.options.all()
+        build_options = build.options.all() if build else None
+        build_captions = build.captions.all().order_by('timestamp') if build else None
         is_latest_build = True
-    project_captions = project.captions.all().order_by('timestamp')
 
     # Allow for deleting build
     if build_id and request.method == 'DELETE':
@@ -215,7 +220,7 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
         pass
 
     context = {
-        'document_title': f'Project - {SITE_NAME}',
+        'document_title': f'{project.name} - {SITE_NAME}',
         'nav_page': 'projects',
         'body_min_padding': True,
         'project': project,
@@ -224,6 +229,10 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
         'project_options_json': [
             json.dumps(opt.to_dict()) for opt in project_options
         ],
+        'build_options': build_options if build_options is not None else [],
+        'build_options_json': [
+            json.dumps(opt.to_dict()) for opt in build_options
+        ] if build_options is not None else [],
         'video_size_options': VIDEO_OPTIONS,
         'gource_options': filter_by_version(GOURCE_OPTIONS_LIST, gource_version),
         'gource_options_json': [
@@ -233,6 +242,10 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
         'project_captions_json': [
             json.dumps(cpt.to_dict()) for cpt in project_captions
         ],
+        'build_captions': build_captions if build_captions is not None else [],
+        'build_captions_json': [
+            json.dumps(opt.to_dict()) for opt in build_captions
+        ] if build_captions is not None else [],
         'build': build,
         'is_latest_build': is_latest_build,
         'user_can_edit': project.check_permission(request.user, 'edit')
@@ -416,7 +429,7 @@ def project_builds(request, project_id=None, project_slug=None):
     elif project_slug:
         project = get_object_or_404(queryset, **{'project_slug': project_slug})
     context = {
-        'document_title': f'Project Builds - {SITE_NAME}',
+        'document_title': f'{project.name} - Builds - {SITE_NAME}',
         'nav_page': 'projects',
         'project': project,
         'project_permissions': _get_project_permissions(project, request.user),
@@ -709,41 +722,7 @@ def project_queue_build(request, project_id=None, project_slug=None):
             project.project_log.save('gource.log', ContentFile(log_data))
 
         # Create new build (immediately in "queued" state)
-        build = ProjectBuild(
-            project=project,
-            project_branch=project.project_branch,
-            project_log_commit_hash=project.project_log_commit_hash,
-            project_log_commit_time=project.project_log_commit_time,
-            project_log_commit_preview=project.project_log_commit_preview,
-            build_audio_name=project.build_audio_name,
-            video_size=project.video_size,
-            status='queued',
-            queued_at=utc_now()
-        )
-        build.save()
-
-        # Copy over build options from master project
-        build_options = []
-        for option in project.options.all():
-            build_options.append(
-                ProjectBuildOption(
-                    build=build,
-                    name=option.name,
-                    value=option.value,
-                    value_type=option.value_type
-                )
-            )
-        if build_options:
-            ProjectBuildOption.objects.bulk_create(build_options)
-
-        # Save captions to file prior to build
-        captions = project.generate_captions_file()
-        if captions is not None:
-            captions_data = "\n".join(captions)
-            build.project_captions.save('captions.txt', ContentFile(captions_data))
-
-        # Send to background worker
-        generate_gource_build.delay(build.id)
+        build = project.create_build()
 
         response = 'Build has been queued successfully.<br /><br />'
         response += f'Project Page: <a href="/projects/{project.id}/">/projects/{project.id}/</a><br />'
@@ -922,7 +901,7 @@ def project_avatars(request, project_id=None, project_slug=None):
                 mod for mod in list(avatars) + list(global_avatars)
             ], key=lambda x: x.name.lower())
     context = {
-        'document_title': f'Project Avatars - {SITE_NAME}',
+        'document_title': f'{project.name} - Avatars - {SITE_NAME}',
         'nav_page': 'projects',
         'project': project,
         'project_permissions': _get_project_permissions(project, request.user),

@@ -67,12 +67,20 @@ App.pages.project.init = function(project_id, page_options) {
 
     // Save settings from Manage tab (project slug, public, ...)
     $('body').on('click', '.save-project-manage-btn', function(e) {
+        $('#project-manage-container input').removeClass('is-invalid');
+        let project_name = $('#project-name').val().trim();
+        if (project_name === "") {
+            $('#project-name').addClass('is-invalid');
+            return;
+        }
+
         let project_slug = $('#project-slug').val().trim();
         if (project_slug === "") {
             project_slug = null;
         }
         let project_is_public = $('#project-is-public').is(':checked');
         let patch_data = {
+            'name': project_name,
             'project_slug': project_slug,
             'is_public': project_is_public
         };
@@ -109,7 +117,7 @@ App.pages.project.init = function(project_id, page_options) {
     });
 
     // Gource settings container
-    this.settings_container = new Vue({
+    this.project_settings_container = new Vue({
         el: '#gource-settings-region',
         data: {
             options_selected: [],
@@ -174,6 +182,44 @@ App.pages.project.init = function(project_id, page_options) {
             },
         },
     });
+    this.build_settings_container = new Vue({
+        el: '#gource-settings-region-view',
+        data: {
+            options_selected: [],
+            options_available: [],
+        },
+        methods: {
+            loadAvailable: function(available_list) {
+                App.debug && console.log('loadAvailable: ',available_list);
+                _.each(available_list, function(item) {
+                    this.options_available.push(item);
+                }, this);
+            },
+            addOption: function(name, value, skip_duration) {
+                App.debug && console.log('addOption', name, value, skip_duration);
+                let new_option = _.findWhere(this.options_available, {name: name});
+                if (!new_option) {
+                    console.log("Invalid option: "+name);
+                    return;
+                }
+                // Set value (if provided)
+                if (!_.isUndefined(value) && !_.isNull(value)) {
+                    new_option.value = value;
+                } else if (new_option.hasOwnProperty('default')) {
+                    new_option.value = new_option.default;
+                } else {
+                    new_option.value = "";
+                }
+                new_option.can_edit = false;
+                new_option.popover_id = "gource-option-view-popover-"+new_option.name;
+                new_option.value_default = new_option.default;  // Alias to avoid JS keyword
+                // Add to selected list
+                this.options_selected.push(new_option);
+                // Remove from available list
+                this.options_available = _.filter(this.options_available, function(item) { return item.name != name; });
+            },
+        }
+    });
 
     // Recalculate estimated video duration based on entered settings
     const refreshGourceDuration = this.refreshGourceDuration = function(changed_field) {
@@ -185,7 +231,7 @@ App.pages.project.init = function(project_id, page_options) {
             }
         }
         let gource_options = {};
-        _.each(App.pages.project.settings_container.options_selected, function(item) {
+        _.each(App.pages.project.project_settings_container.options_selected, function(item) {
             if (VALID_FIELDS.includes(item.name)) {
                 gource_options[item.name] = item.value;
             }
@@ -210,7 +256,7 @@ App.pages.project.init = function(project_id, page_options) {
     // ---- OPTIONS
     // ---------------------------------------
 
-    Vue.component('gource-option-edit', {
+    let GourceOptionMixin = {
         props: {
             name: String,
             label: String,
@@ -239,7 +285,17 @@ App.pages.project.init = function(project_id, page_options) {
             </div>
           </div>
         `
+    };
+    Vue.component('gource-option-edit', {
+        mixins: [GourceOptionMixin]
     });
+    Vue.component('gource-option-view', {
+        mixins: [GourceOptionMixin],
+        created: function() {
+            this.can_edit = false;
+        }
+    });
+
     Vue.component('gource-option-select', {
         props: {
             name: String,
@@ -261,7 +317,7 @@ App.pages.project.init = function(project_id, page_options) {
         if ($option.length === 0) { return false; }
 
         // Pluck from <select> and add to section
-        App.pages.project.settings_container.addOption($option.val());
+        App.pages.project.project_settings_container.addOption($option.val());
     });
 
     $('body').on('click', '.edit-audio-file', function(e) {
@@ -272,8 +328,8 @@ App.pages.project.init = function(project_id, page_options) {
     // ---- CAPTIONS
     // ---------------------------------------
 
-    // Project captions container
-    this.captions_container = new Vue({
+    // Project captions container (editable)
+    this.project_captions_container = new Vue({
         el: '#project-captions-region',
         data: {
             captions_list: [],
@@ -308,7 +364,44 @@ App.pages.project.init = function(project_id, page_options) {
         },
     });
 
-    Vue.component('project-caption-edit', {
+    // Build captions container (readonly)
+    this.build_captions_container = new Vue({
+        el: '#build-captions-region',
+        data: {
+            captions_list: [],
+        },
+        methods: {
+            addOption: function(id, timestamp, text) {
+                App.debug && console.log('[Caption] addOption', id, timestamp, text);
+                // Add to selected list
+                this.captions_list.push({
+                    id: id,
+                    timestamp: timestamp,
+                    text: text,
+                    can_edit: false,
+                });
+            },
+            removeOption: function(id) {
+                App.debug && console.log('removeOption', id);
+                let target_caption = _.findWhere(this.captions_list, {id: id});
+                if (!target_caption) {
+                    console.log("Invalid caption: "+id);
+                    return;
+                }
+                // Remove from selected list
+                this.captions_list = _.filter(this.captions_list, function(item) { return item.id != id; });
+            },
+            updateTimestamp: function(caption, timestamp) {
+                caption.timestamp = timestamp;
+            },
+            updateText: function(caption, text) {
+                caption.text = text;
+            },
+        },
+    });
+
+
+    let BaseCaptionMixin = {
         props: {
             id: [String, Number],
             timestamp: String,
@@ -327,7 +420,18 @@ App.pages.project.init = function(project_id, page_options) {
             <span class="project-caption-remove text-danger" v-if="can_edit" v-on:click="$emit('remove-caption')" style="padding-left:12px; cursor:pointer;" title="Delete this caption"><i class="fa fa-times"></i></span>
           </div>
         `
+    };
+
+    Vue.component('project-caption-edit', {
+        mixins: [BaseCaptionMixin]
     });
+    Vue.component('project-caption-view', {
+        mixins: [BaseCaptionMixin],
+        created: function() {
+            this.can_edit = false;
+        }
+    });
+
 
     $('body').on('click', '.load-captions-from-project-tags-btn', function(e) {
         var post_data = {
@@ -424,7 +528,7 @@ App.pages.project.init = function(project_id, page_options) {
       +'</div>');
 
     $('body').on('click', '.add-caption-btn', function(e) {
-        App.pages.project.captions_container.addOption('tmp-'+_.random(0, 999999));
+        App.pages.project.project_captions_container.addOption('tmp-'+_.random(0, 999999));
     });
 
     // Button to copy URL to clipboard

@@ -572,13 +572,68 @@ class ProjectBuildAudioDownload(ProjectPermissionQuerySetMixin, views.APIView):
         return _serve_file_field(request, project, 'build_audio')
 
 
-class ProjectMembersList(generics.ListAPIView):
+class ProjectMembersList(generics.ListCreateAPIView):
     """
     Retrieve the current list of members for a project.
+
+    To add a new user to the project:
+
+        {
+            "username": <username>,
+            "role": <developer|maintainer>,
+        }
+
     """
     queryset = ProjectMember.objects.all()
     serializer_class = ProjectMemberSerializer
+    permission_classes = (ProjectMemberPermission,)
     pagination_class = None
+
+    def get_queryset(self):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+        return super().get_queryset().filter(project=project)
+
+    def post(self, request, *args, **kwargs):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+        response = {}
+
+        if 'username' not in request.data:
+            return Response({"detail": "Missing required field 'username'."}, status=status.HTTP_400_BAD_REQUEST)
+        user = get_object_or_404(get_user_model(), **{'username': request.data['username']})
+
+        if 'role' not in request.data:
+            return Response({"detail": "Missing required field 'role'."}, status=status.HTTP_400_BAD_REQUEST)
+        elif request.data['role'] not in ProjectMember.PROJECT_ROLES:
+            return Response({"role": "fInvalid role provided: {request.data['role']}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            ProjectMember.objects.get(project=project, user_id=user.id)
+            return Response({"username": f"User '{user.username}' already assigned to project"}, status=status.HTTP_400_BAD_REQUEST)
+        except ProjectMember.DoesNotExist:
+            pm = ProjectMember.objects.create(project=project,
+                                              user=user,
+                                              role=role,
+                                              added_by=request.user)
+        serializer = self.get_serializer(pm, context={'request': request})
+        return Response(serializer.data, status=response_status)
+
+
+class ProjectMemberDetail(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Update project member details.
+    """
+    queryset = ProjectMember.objects.all()
+    permission_classes = (ProjectMemberPermission,)
+    serializer_class = ProjectMemberSerializer
+
+    def get_object(self, *args, **kwargs):
+        if 'project_id' in self.kwargs:
+            project = get_object_or_404(self.get_queryset(), **{'id': self.kwargs['project_id']})
+        elif 'project_slug' in self.kwargs:
+            project = get_object_or_404(self.get_queryset(), **{'project_slug': self.kwargs['project_slug']})
+        else:
+            project = get_object_or_404(self.get_queryset(), **{'id': None})    # Force 404
+        return get_object_or_404(ProjectMember, **{'project_id': project.pk, 'member_id': self.kwargs['project_member_id']})
 
     def get_queryset(self):
         project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
@@ -764,47 +819,7 @@ class CreateNewProjectBuild(generics.CreateAPIView):
                 return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
             # Create new build (immediately in "queued" state)
-            build = ProjectBuild(
-                project=project,
-                project_branch=project.project_branch,
-                project_log_commit_hash=project.project_log_commit_hash,
-                project_log_commit_time=project.project_log_commit_time,
-                project_log_commit_preview=project.project_log_commit_preview,
-                build_audio_name=project.build_audio_name,
-                video_size=project.video_size,
-                status='queued',
-                queued_at=utc_now()
-            )
-            build.save()
-
-            # Copy snapshot of `project_log` file
-            build.project_log.save('gource.log', ContentFile(project.project_log.read()))
-
-            # Copy other optional artifacts
-            if project.build_logo:
-                build.build_logo.save(project.build_logo.name, ContentFile(project.build_logo.read()))
-            if project.build_background:
-                build.build_background.save(project.build_background.name, ContentFile(project.build_background.read()))
-
-            # Copy over build options from master project
-            build_options = []
-            for option in project.options.all():
-                build_options.append(
-                    ProjectBuildOption(
-                        build=build,
-                        name=option.name,
-                        value=option.value,
-                        value_type=option.value_type
-                    )
-                )
-            if build_options:
-                ProjectBuildOption.objects.bulk_create(build_options)
-
-            # Save captions to file prior to build
-            captions = project.generate_captions_file()
-            if captions is not None:
-                captions_data = "\n".join(captions)
-                build.project_captions.save('captions.txt', ContentFile(captions_data))
+            build = project.create_build()
 
             # Update parent project to unset `is_project_changed`
             project.set_project_changed(False)
@@ -812,9 +827,6 @@ class CreateNewProjectBuild(generics.CreateAPIView):
             # Generate serializer response for new ProjectBuild
             serializer = self.get_serializer(build, context={'request': request})
             response = serializer.data
-
-            # Send to background worker
-            generate_gource_build.delay(build.id)
 
             # Return success response
             return Response(response, status=status.HTTP_201_CREATED)
