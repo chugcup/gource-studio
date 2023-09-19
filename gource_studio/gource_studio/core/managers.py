@@ -17,7 +17,7 @@ class ProjectQuerySet(models.QuerySet):
             return self.filter(
                 Q(is_public=True)
                 |
-                Q(Q(created_by=actor)|Q(members__user=actor))
+                Q(Q(created_by=actor)|Q(members__user=actor)|Q(member_groups__group__user=actor))
             ).distinct()
 
     def with_latest_build(self):

@@ -2,7 +2,7 @@ import os
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth.models import AnonymousUser, Group as AuthGroup
 from django.core.files.base import ContentFile
 from django.core.validators import validate_slug, RegexValidator
 from django.db import models
@@ -157,7 +157,7 @@ class Project(models.Model):
         """
         Return True/False if `User` can perform `action` on this project.
 
-        The "edit" and "delete" permissions checks the `ProjectMember` relation.
+        The "edit" and "delete" permissions checks the `ProjectMember`/`ProjectMemberGroup` relation.
         For "view", checks the `is_public` flag set on project.
         """
         if not isinstance(actor, (get_user_model(), AnonymousUser, SimpleLazyObject)):
@@ -181,16 +181,36 @@ class Project(models.Model):
 
         # Check each permission
         # + "view" - View project (if not `is_public` set)
+        max_role = None
+        member_groups = self.member_groups.all()
         if action == 'view':
             if not self.is_public:
-                return self.members.filter(user=actor).exists()
+                return self.members.filter(user=actor).exists() \
+                    or actor.groups.filter(id__in=member_groups).exists()
             return True
+
+        # Determine maximum project membership role
+        # - NOTE: Direct-project membership overrides any role in Groups
+        project_member = self.members.filter(user=actor)
+        if project_member:
+            max_role = project_member[0].role
+        else:
+            # Search any groups associated with Project
+            project_group_roles = [g.role for g in member_groups.filter(id__in=actor.groups.all())]
+            if project_group_roles:
+                if 'maintainer' in project_group_roles:
+                    max_role = 'maintainer'
+                elif 'developer' in project_group_roles:
+                    max_role = 'developer'
+                elif 'viewer' in project_group_roles:
+                    max_role = 'viewer'
+
         # + "edit" - Create new builds, change settings, add captions/user aliases
-        elif action == 'edit':
-            return self.members.filter(user=actor, role__in=['developer', 'maintainer']).exists()
+        if action == 'edit':
+            return max_role in ['developer', 'maintainer']
         # + "delete" - Delete overall project
         elif action == 'delete':
-            return self.members.filter(user=actor, role__in=['maintainer']).exists()
+            return max_role in ['maintainer']
 
         return ValueError(f"Invalid 'action' given: {action}")
 
@@ -885,13 +905,14 @@ class ProjectMember(models.Model):
     Tracks per-project member rights that allows non-creators to manage project.
     """
     PROJECT_ROLES = [
+        ("viewer", "Viewer"),
         ("developer", "Developer"),
         ("maintainer", "Maintainer"),
     ]
 
     project = models.ForeignKey(Project, related_name="members", on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="projects", on_delete=models.CASCADE)
-    role = models.CharField(max_length=32, choices=PROJECT_ROLES, default="developer")
+    role = models.CharField(max_length=32, choices=PROJECT_ROLES, default="viewer")
 
     date_added = models.DateTimeField(auto_now=True)
     added_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
@@ -902,6 +923,31 @@ class ProjectMember(models.Model):
 
     def __str__(self):
         return f"{self.project.name} ({self.user.username})"
+
+
+class ProjectMemberGroup(models.Model):
+    """
+    Tracks per-project member rights that allows non-creators to manage project.
+    """
+    PROJECT_ROLES = [
+        ("viewer", "Viewer"),
+        ("developer", "Developer"),
+        ("maintainer", "Maintainer"),
+    ]
+
+    project = models.ForeignKey(Project, related_name="member_groups", on_delete=models.CASCADE)
+    group = models.ForeignKey(AuthGroup, related_name="projects", on_delete=models.CASCADE)
+    role = models.CharField(max_length=32, choices=PROJECT_ROLES, default="viewer")
+
+    date_added = models.DateTimeField(auto_now=True)
+    added_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        ordering = ('-date_added',)
+        unique_together = ('project', 'group')
+
+    def __str__(self):
+        return f"{self.project.name} ({self.group.name})"
 
 
 class UserPlaylist(models.Model):
