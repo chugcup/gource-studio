@@ -23,10 +23,12 @@
         justify-content: flex-end;
         margin-right: 12px;
     }
+    #build-audio-video-settings label b,
     #project-audio-video-settings label b {
         min-width: 110px;
         display: inline-block;
     }
+    #build-audio-video-settings .form-group,
     #project-audio-video-settings .form-group {
         margin-bottom: 0;
     }
@@ -65,6 +67,14 @@
         flex-wrap: nowrap;
         overflow-x: auto;
         white-space: nowrap;
+    }
+    @media(max-width: 640px) {
+        .project-nav-topbar {
+            padding-left: 40px;
+        }
+    }
+    .project-nav-topbar .nav-link {
+        font-size: 0.8em;
     }
     .project-nav-topbar .nav-link.active {
         border-bottom: 1px solid #CCCCCC;
@@ -322,17 +332,23 @@
   <div class="d-md-none">
     <ul class="project-nav-topbar nav justify-content-center">
       <li class="nav-item">
-        <a class="nav-link active" href="#project-details-pane" data-toggle="tab" role="tab">Details</a>
+        <a class="nav-link active" href="#project-details-pane" data-toggle="tab" role="tab">Build</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="#project-settings-pane" data-toggle="tab" role="tab">Settings</a>
+        <a class="nav-link" href="#build-settings-pane" data-toggle="tab" role="tab">Settings</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
+        <a class="nav-link" href="#build-captions-pane" data-toggle="tab" role="tab">Captions</a>
       </li>
     {% if user_can_edit %}
       <li class="nav-item">
         <a class="nav-link nav-link-alt" href="#project-manage-pane" data-toggle="tab" role="tab">Manage</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link nav-link-alt" href="#project-settings-pane" data-toggle="tab" role="tab">Settings</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link nav-link-alt" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
       </li>
     {% endif %}
       <li class="nav-item">
@@ -503,7 +519,7 @@
                 Audio / Video Settings
               </h5>
               <hr />
-              <div id="project-audio-video-settings-view" class="row justify-content-center">
+              <div id="build-audio-video-settings" class="row justify-content-center">
                 <div class="col-12">
                   <div class="form-group form-inline">
                     <label><b>Video Size:</b>&nbsp;</label>
@@ -514,32 +530,28 @@
                     {% endif %}
                   </div>
 
-                  <div id="project-build-logo-form-group-view" class="form-group"{% if not project.build_logo %} style="display:none"{% endif %}>
+                  <div id="build-build-logo-form-group" class="form-group"{% if not build.build_logo %} style="display:none"{% endif %}>
                     <label><b>Logo Image:</b></label>
-                    {% if project.build_logo %}
-                    <button id="project-build-logo-preview-view" class="btn btn-sm btn-default" data-src="{% url 'api-project-logo-download' project.id %}">
+                    {% if build.build_logo %}
+                    <button id="build-build-logo-preview" class="btn btn-sm btn-default popover-preview" data-src="{% url 'api-project-build-logo-download' project.id build.id %}">
                       <i class="fa fa-eye"></i>
                     </button>
                     {% endif %}
                   </div>
 
-                  <div id="project-build-background-form-group-view" class="form-group"{% if not project.build_background %} style="display:none"{% endif %}>
+                  <div id="build-build-background-form-group" class="form-group"{% if not build.build_background %} style="display:none"{% endif %}>
                     <label><b>Background:</b></label>
-                    {% if project.build_background %}
-                    <button id="project-build-background-preview-view" class="btn btn-sm btn-default" data-src="{% url 'api-project-background-download' project.id %}">
+                    {% if build.build_background %}
+                    <button id="build-build-background-preview" class="btn btn-sm btn-default popover-preview" data-src="{% url 'api-project-build-background-download' project.id build.id %}">
                       <i class="fa fa-eye"></i>
                     </button>
                     {% endif %}
                   </div>
 
-                  <div id="project-build-audio-form-group-view" class="form-group"{% if not project.build_audio_name %} style="display:none"{% endif %}>
+                  <div id="build-build-audio-form-group" class="form-group"{% if not build.build_audio_name %} style="display:none"{% endif %}>
                     <b>Background Music:</b>
                     {% if build.build_audio_name %}
-                      {% if project.build_audio and project.build_audio_name == build.build_audio_name %}
-                    <a href="{% url 'api-project-build-audio-download' project.id %}" target="_blank">{{ project.build_audio_name }}</a>
-                      {% else %}
-                    {{ project.build_audio_name }}
-                      {% endif %}
+                    <a href="{% url 'api-project-build-build-audio-download' project.id build.id %}" target="_blank">{{ build.build_audio_name }}</a>
                     {% endif %}
                   </div>
                 </div>
@@ -554,6 +566,7 @@
               <div class="clearfix"></div>
               <div id="gource-settings-region-view">
                 <div id="gource-settings-container-view">
+                    <div class="text-muted" v-if="!options_selected.length">No settings found.</div>
                     <gource-option-view v-for="option in options_selected"
                                         v-on:remove-gource-option="removeOption(option.name)"
                                         v-on:change:value="updateValue(option, $event)"
@@ -575,7 +588,7 @@
                   <div class="col-12">
                     <div id="build-captions-container">
                       <div id="build-captions-list">
-                        <div class="text-muted text-center" v-if="!captions_list.length">No captions set.</div>
+                        <div class="text-muted" v-if="!captions_list.length">No captions set.</div>
                         <project-caption-view
                               v-for="caption in captions_list"
                               v-on:remove-caption="removeOption(caption.id)"
@@ -590,6 +603,7 @@
               </div>
             </div>
 
+          {% if user_can_edit %}
             <!-- Project Settings -->
             <div class="tab-pane" id="project-settings-pane" role="tabpanel">
               <h5>
@@ -598,39 +612,28 @@
               </h5>
               <hr />
 
-            {% if user_can_edit %}
               <div class="project-setting-actions float-right">
                 <button class="btn btn-success save-project-settings-btn"><i class="fa fa-disk"></i> Save</button>
               </div>
-            {% endif %}
 
               <div id="project-audio-video-settings" class="row justify-content-center">
                 <div class="col-12">
                   <div class="form-group form-inline">
                     <label for="project-video-size"><b>Video Size:</b>&nbsp;</label>
-                  {% if user_can_edit and build.id == latest_build.id %}
                     <select id="project-video-size" name="project-video-size" class="form-control form-control-sm">
                     {% for video_option in video_size_options %}
                       <option value="{{ video_option.0 }}"{% if project.video_size == video_option.0 %} selected="selected"{% endif %}>{{ video_option.1 }}</option>
                     {% endfor %}
                     </select>
-                  {% else %}
-                    {% if build.video_size %}
-                    <span>{{ build.video_size }}</span>
-                    {% else %}
-                    <span class="text-muted">N/A</span>
-                    {% endif %}
-                  {% endif %}
                   </div>
 
                   <div id="project-build-logo-form-group" class="form-group"{% if not project.build_logo %} style="display:none"{% endif %}>
                     <label><b>Logo Image:</b></label>
                     {% if project.build_logo %}
-                    <button id="project-build-logo-preview" class="btn btn-sm btn-default" data-src="{% url 'api-project-logo-download' project.id %}">
+                    <button id="project-build-logo-preview" class="btn btn-sm btn-default popover-preview" data-src="{% url 'api-project-logo-download' project.id %}">
                       <i class="fa fa-eye"></i>
                     </button>
                     {% endif %}
-                  {% if user_can_edit and build.id == latest_build.id %}
                     {% if project.build_logo %}
                     <a id="remove-project-logo-btn" class="btn btn-link text-danger" title="Delete logo"><i class="fa fa-times"></i></a>
                     {% endif %}
@@ -639,18 +642,15 @@
                         <button type="submit" class="btn btn-primary btn-sm">Upload</button>
                         {% csrf_token %}
                     </form>
-                  {% else %}
-                  {% endif %}
                   </div>
 
                   <div id="project-build-background-form-group" class="form-group"{% if not project.build_background %} style="display:none"{% endif %}>
                     <label><b>Background:</b></label>
                     {% if project.build_background %}
-                    <button id="project-build-background-preview" class="btn btn-sm btn-default" data-src="{% url 'api-project-background-download' project.id %}">
+                    <button id="project-build-background-preview" class="btn btn-sm btn-default popover-preview" data-src="{% url 'api-project-background-download' project.id %}">
                       <i class="fa fa-eye"></i>
                     </button>
                     {% endif %}
-                  {% if user_can_edit and build.id == latest_build.id %}
                     {% if project.build_background %}
                     <a id="remove-project-background-btn" class="btn btn-link text-danger" title="Delete background"><i class="fa fa-times"></i></a>
                     {% endif %}
@@ -659,13 +659,10 @@
                         <button type="submit" class="btn btn-primary btn-sm">Upload</button>
                         {% csrf_token %}
                     </form>
-                  {% else %}
-                  {% endif %}
                   </div>
 
                   <div id="project-build-audio-form-group" class="form-group"{% if not project.build_audio_name %} style="display:none"{% endif %}>
                     <b>Background Music:</b>
-                  {% if user_can_edit and build.id == latest_build.id %}
                     {% if project.build_audio %}
                     <a href="{% url 'api-project-build-audio-download' project.id %}" target="_blank">{{ project.build_audio_name }}</a>
                     <a class="btn btn-link edit-audio-file"><i class="fa fa-pencil"></i></a>
@@ -678,24 +675,13 @@
                       {% endif %}
                         {% csrf_token %}
                     </form>
-                  {% else %}
-                    {% if build.build_audio_name %}
-                      {% if project.build_audio and project.build_audio_name == build.build_audio_name %}
-                    <a href="{% url 'api-project-build-audio-download' project.id %}" target="_blank">{{ project.build_audio_name }}</a>
-                      {% else %}
-                    {{ project.build_audio_name }}
-                      {% endif %}
-                    {% endif %}
-                  {% endif %}
                   </div>
 
-                {% if user_can_edit and build.id == latest_build.id %}
                   <div class="build-audio-video-actions">
                     <button id="add-project-logo-btn" class="btn btn-sm btn-primary" role="button"{% if project.build_logo %} style="display:none"{% endif %}><i class="fa fa-rebel"></i> Add Logo</button>
                     <button id="add-project-background-btn" class="btn btn-sm btn-primary" role="button"{% if project.build_background %} style="display:none"{% endif %}><i class="fa fa-picture-o"></i> Add Background</button>
                     <button id="add-project-audio-btn" class="btn btn-sm btn-primary" role="button"{% if project.build_audio %} style="display:none"{% endif %}><i class="fa fa-music"></i> Add Music</button>
                   </div>
-                {% endif %}
                 </div>
               </div>
               <hr />
@@ -737,6 +723,8 @@
                 </div>
               </div>
             </div>
+          {% endif %}
+          {% if user_can_edit %}
             <!-- Project Captions -->
             <div id="project-captions-pane" class="tab-pane" role="tabpanel">
               <div id="project-captions-region">
@@ -774,17 +762,16 @@
                               v-bind:key="caption.id"
                               v-bind="caption"></project-caption-edit>
                       </div>
-                    {% if user_can_edit %}
                       <button class="btn btn-primary add-caption-btn" style="margin-top:1rem">
                         <i class="fa fa-plus"></i> Add Caption
                       </button>
-                    {% endif %}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-        {% if user_can_edit %}
+          {% endif %}
+          {% if user_can_edit %}
             <!-- Project Manage -->
             <div id="project-manage-pane" class="tab-pane" role="tabpanel">
               <div id="project-manage-region">

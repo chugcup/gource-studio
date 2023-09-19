@@ -586,22 +586,23 @@ App.pages.project.init = function(project_id, page_options) {
         });
     });
 
-    // Logo Image
-    $('body').on('click', '#add-project-logo-btn', function(e) {
-        $('#project-build-logo-form-group').show();
-        $('#add-project-logo-btn').hide();
-    });
-    $('body #project-build-logo-preview').popover({
+    $('body .popover-preview').popover({
         content: function() {
             let imgsrc = $(this).data('src');
             if (!imgsrc) {
                 return "N/A";
             }
-            return '<img class="project-image-preview" src="'+imgsrc+'" />';
+            return '<a href="'+imgsrc+'" target="_blank"><img class="project-image-preview" src="'+imgsrc+'" /></a>';
         },
         html: true,
         placement: 'right',
         trigger: 'hover focus'
+    });
+
+    // Logo Image
+    $('body').on('click', '#add-project-logo-btn', function(e) {
+        $('#project-build-logo-form-group').show();
+        $('#add-project-logo-btn').hide();
     });
     $('body').on('click', '#remove-project-logo-btn', function(e) {
         let delete_url = '/api/v1/projects/'+project_id+'/build_logo/';
@@ -649,18 +650,6 @@ App.pages.project.init = function(project_id, page_options) {
     $('body').on('click', '#add-project-background-btn', function(e) {
         $('#project-build-background-form-group').show();
         $('#add-project-background-btn').hide();
-    });
-    $('body #project-build-background-preview').popover({
-        content: function() {
-            let imgsrc = $(this).data('src');
-            if (!imgsrc) {
-                return "N/A";
-            }
-            return '<img class="project-image-preview" src="'+imgsrc+'" />';
-        },
-        html: true,
-        placement: 'right',
-        trigger: 'hover focus'
     });
     $('body').on('click', '#remove-project-background-btn', function(e) {
         let delete_url = '/api/v1/projects/'+project_id+'/build_background/';

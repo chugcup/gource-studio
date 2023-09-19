@@ -33,6 +33,7 @@ urlpatterns = [
     re_path(r'^projects/(?P<project_id>\d+)/builds/(?P<project_build_id>\d+)/options/?$', views.ProjectBuildOptionsList.as_view(), name='api-project-build-options-list'),
     re_path(r'^projects/(?P<project_id>\d+)/builds/(?P<project_build_id>\d+)/build_background/download/?$', views.ProjectBuildBackgroundDownload.as_view(), name='api-project-build-background-download'),
     re_path(r'^projects/(?P<project_id>\d+)/builds/(?P<project_build_id>\d+)/build_logo/download/?$', views.ProjectBuildLogoDownload.as_view(), name='api-project-build-logo-download'),
+    re_path(r'^projects/(?P<project_id>\d+)/builds/(?P<project_build_id>\d+)/build_audio/download/?$', views.ProjectBuildBuildAudioDownload.as_view(), name='api-project-build-build-audio-download'),
     re_path(r'^projects/(?P<project_id>\d+)/builds/(?P<project_build_id>\d+)/content/download/?$', views.ProjectBuildContentDownload.as_view(), name='api-project-build-content-download'),
     re_path(r'^projects/(?P<project_id>\d+)/builds/(?P<project_build_id>\d+)/project_log/download/?$', views.ProjectBuildProjectLogDownload.as_view(), name='api-project-build-project-log-download'),
     re_path(r'^projects/(?P<project_id>\d+)/builds/(?P<project_build_id>\d+)/screenshot/download/?$', views.ProjectBuildScreenshotDownload.as_view(), name='api-project-build-screenshot-download'),

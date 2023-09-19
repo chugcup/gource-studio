@@ -320,6 +320,7 @@ class ProjectDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateDestr
 
         if res.status_code == 200:
             # Mark 'is_project_changed' on Project to indicate build needed
+            # TODO: determine if video attributes changes (vs. name/slug/...)
             if not project.is_project_changed:
                 project.set_project_changed(True)
             project.refresh_from_db()
@@ -900,6 +901,21 @@ class ProjectBuildBackgroundDownload(views.APIView):
             'id': self.kwargs['project_build_id']
         })
         return _serve_file_field(request, project_build, 'build_background')
+
+
+class ProjectBuildBuildAudioDownload(views.APIView):
+    """
+    Download project build (Gource) audio file contents.
+    """
+    queryset = ProjectBuild.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+        project_build = get_object_or_404(ProjectBuild, **{
+            'project_id': project.id,
+            'id': self.kwargs['project_build_id']
+        })
+        return _serve_file_field(request, project_build, 'build_audio')
 
 
 class ProjectBuildScreenshotDownload(views.APIView):
