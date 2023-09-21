@@ -564,26 +564,48 @@ App.pages.project.init = function(project_id, page_options) {
     });
 
     // Queue build handler
-    $('body').on('click', '.queue-project-build-btn', function(e) {
-        $.ajax({
-            url: "/api/v1/projects/"+project_id+"/builds/new/",
+    const queue_project_build = this.queue_project_build = function(options) {
+        options = options || {};
+        $('body #queue-project-build-modal .error-message').text('');
+        return $.ajax({
+            url: "/api/v1/projects/"+App.pages.project.project_id+"/builds/new/",
             method: 'POST',
-            //data: JSON.stringify(options),
-            //contentType: 'application/json',
+            data: JSON.stringify(options),
+            contentType: 'application/json',
             beforeSend: function(xhr) {
                 // Attach CSRF Token
                 xhr.setRequestHeader("X-CSRFToken", App.utils.getCookie("csrftoken"));
             },
             success: function(data, textStatus, xhr) {
+                console.log("SUCCESS: ", data);
                 // Redirect/reload
-                window.location = '/projects/'+project_id+'/builds/';
+                window.location = "/projects/"+App.pages.project.project_id+"/builds/";
             },
             error: function(xhr, textStatus, err) {
                 // Error
                 console.log("Queue error: "+err, xhr);
-                App.utils.handleErrorXHR(xhr, err);
+                if (xhr.responseJSON) {
+                    for (let key in xhr.responseJSON) {
+                        $('body #queue-project-build-modal .error-message').text(xhr.responseJSON[key]);
+                    }
+                } else {
+                    $('body #queue-project-build-modal .error-message').text(err);
+                }
             }
         });
+    };
+    $('body').on('click', '.queue-project-build-btn', function(e) {
+        $('#queue-project-build-modal').modal();
+    });
+    $('body #queue-project-build-modal').on('click', '.btn-primary', function() {
+        let options = {};
+        if ($('#queue_project_build_remix_audio').is(':checked')) {
+            options.remix_audio= true;
+        }
+        if ($('#queue_project_build_refetch_log').is(':checked')) {
+            options.refetch_log = true;
+        }
+        let $ajax = queue_project_build(options);
     });
 
     $('body .popover-preview').popover({

@@ -320,7 +320,7 @@ def retrieve_tags_from_git_repo(repo_path):
     return tags_list
 
 
-def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars=None, default_avatar=None, captions=None, logo_file=None, background_file=None, gource_options=None, project_build=None):
+def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars=None, default_avatar=None, captions=None, logo_file=None, background_file=None, gource_options=None, project_build=None, output_path=None):
     """
     Create a new Gource video using provided options.
     """
@@ -491,10 +491,11 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
                     else:
                         raise RuntimeError("Project video timeout elapsed")
 
-        final_path = f'/tmp/{int(time.time())}.mp4'
-        shutil.move(str(dest_video), final_path)
-        print(f"+ Final video: {final_path}")
-        return final_path
+        if not output_path:
+            output_path = f'/tmp/{int(time.time())}.mp4'
+        shutil.move(str(dest_video), output_path)
+        print(f"+ Final video: {output_path}")
+        return output_path
 
     finally:
         shutil.rmtree(tempdir)
@@ -502,9 +503,9 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
     raise RuntimeError("Unexpected end")
 
 
-def add_background_audio(video_path, audio_path, loop=True):
+def add_background_audio(video_path, audio_path, loop=True, output_path=None):
     """
-    Remux video with provided audio mp3.
+    Remix video with provided audio mp3.
 
     If `loop=True`, will loop audio if shorter than video.
     """
@@ -565,17 +566,18 @@ def add_background_audio(video_path, audio_path, loop=True):
 
     finally:
         if save_file:
-            final_path = f'/tmp/{int(time.time())}.mp4'
-            shutil.move(save_file, final_path)
-            video_path = final_path
+            if not output_path:
+                output_path = f'/tmp/{int(time.time())}.mp4'
+            shutil.move(save_file, output_path)
+            video_path = output_path
         shutil.rmtree(tempdir)
 
     return video_path
 
 
-def remove_background_audio(video_path):
+def remove_background_audio(video_path, output_path=None):
     """
-    Remux video with audio track removed.
+    Remix video with audio track removed.
     """
     if not os.path.isfile(video_path):
         raise ValueError(f"File not found: {video_path}")
@@ -606,9 +608,10 @@ def remove_background_audio(video_path):
 
     finally:
         if save_file:
-            final_path = f'/tmp/{int(time.time())}.mp4'
-            shutil.move(save_file, final_path)
-            video_path = final_path
+            if not output_path:
+                output_path = f'/tmp/{int(time.time())}.mp4'    # Default
+            shutil.move(save_file, output_path)
+            video_path = output_path
         shutil.rmtree(tempdir)
 
     return video_path

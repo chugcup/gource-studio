@@ -103,6 +103,7 @@
                 {% if build.error_description %}
                   {{ build.error_description }}
                 {% else %}
+                {% if build.status == 'completed' %}
                   {% if build.duration %}
                   <b>Duration:</b>
                   {{ build.duration|duration }}
@@ -111,6 +112,7 @@
                   <b style="margin-left:20px">Size:</b>
                   <span title="{{ build.size }} bytes">{{ build.size|filesizeformat }}</span>
                   {% endif %}
+                {% endif %}
                 {% endif %}
                 {% if build.status == 'running' %}
                 <div class="build-progress-container">

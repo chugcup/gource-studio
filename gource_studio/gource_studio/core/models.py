@@ -7,6 +7,7 @@ from django.core.files.base import ContentFile
 from django.core.validators import validate_slug, RegexValidator
 from django.db import models
 from django.db.models import F
+from django.db.models.fields.files import FieldFile
 from django.urls import reverse
 from django.utils.functional import SimpleLazyObject
 from django.utils import timezone
@@ -236,7 +237,6 @@ class Project(models.Model):
             project_log_commit_hash=self.project_log_commit_hash,
             project_log_commit_time=self.project_log_commit_time,
             project_log_commit_preview=self.project_log_commit_preview,
-            build_audio_name=self.build_audio_name,
             video_size=self.video_size,
             status='queued' if not defer_queue else 'pending',
             queued_at=timezone.now() if not defer_queue else None
@@ -248,16 +248,20 @@ class Project(models.Model):
         # Copy other optional artifacts
         if self.build_audio:
             # Background audio
+            build.build_audio_name = self.build_audio_name
             with open(self.build_audio.path, 'rb') as _file:
-                build.build_audio.save(self.build_audio.name, ContentFile(_file.read()))
+                build.build_audio.save(os.path.basename(self.build_audio.name),
+                                       ContentFile(_file.read()))
         if self.build_logo:
             # Project logo
             with open(self.build_logo.path, 'rb') as _file:
-                build.build_logo.save(self.build_logo.name, ContentFile(_file.read()))
+                build.build_logo.save(os.path.basename(self.build_logo.name),
+                                      ContentFile(_file.read()))
         if self.build_background:
             # Project background
             with open(self.build_background.path, 'rb') as _file:
-                build.build_background.save(self.build_background.name, ContentFile(_file.read()))
+                build.build_background.save(os.path.basename(self.build_background.name),
+                                            ContentFile(_file.read()))
 
         # Copy over build options for archival
         build_options = []
@@ -616,7 +620,7 @@ class ProjectBuild(models.Model):
         generate_gource_build.delay(self.id)
         return True
 
-    def clone_build(self, *, defer_queue=False):
+    def clone_build(self, *, remix_audio=False, defer_queue=False):
         """
         Create a new ProjectBuild instance from this ProjectBuild.
 
@@ -626,10 +630,23 @@ class ProjectBuild(models.Model):
 
             clone_build(defer_queue=True)
 
+        Optionally can provide a new `build_audio` FileField (generally
+        from `Project` instance) to use an use prior video with new audio.
+
+            clone_build(remix_audio=project.build_audio)
+
+        To remove audio from an existing build, use:
+
+            clone_build(remix_audio=None)
+
         Returns new ProjectBuiild instance
         """
         if not bool(self.project_log):
             raise RuntimeError("Project does not have a valid 'project_log'")
+
+        if remix_audio is not False:
+            if remix_audio is not None and not isinstance(remix_audio, FieldFile):
+                raise ValueError("Invalid 'remix_audio' value (must be a FieldFile or None)")
 
         # Create new build (immediately in "queued" state)
         build = ProjectBuild.objects.create(
@@ -638,7 +655,6 @@ class ProjectBuild(models.Model):
             project_log_commit_hash=self.project_log_commit_hash,
             project_log_commit_time=self.project_log_commit_time,
             project_log_commit_preview=self.project_log_commit_preview,
-            build_audio_name=self.build_audio_name,
             video_size=self.video_size,
             status='queued' if not defer_queue else 'pending',
             queued_at=timezone.now() if not defer_queue else None
@@ -648,18 +664,31 @@ class ProjectBuild(models.Model):
         with open(self.project_log.path, 'rb') as _file:
             build.project_log.save('gource.log', ContentFile(_file.read()))
         # Copy other optional artifacts
-        if self.build_audio:
-            # Background audio
+        # Background audio
+        if remix_audio is not False:
+            build.duration = self.duration
+            # Use newly provided audio
+            if isinstance(remix_audio, FieldFile):
+                build.build_audio_name = os.path.basename(remix_audio.name)
+                with open(remix_audio.path, 'rb') as _file:
+                    build.build_audio.save(os.path.basename(remix_audio.name),
+                                           ContentFile(_file.read()))
+        elif self.build_audio:
+            # Copy from build
+            build.build_audio_name = self.build_audio_name
             with open(self.build_audio.path, 'rb') as _file:
-                build.build_audio.save(self.build_audio.name, ContentFile(_file.read()))
+                build.build_audio.save(os.path.basename(self.build_audio.name),
+                                       ContentFile(_file.read()))
         if self.build_logo:
             # Project logo
             with open(self.build_logo.path, 'rb') as _file:
-                build.build_logo.save(self.build_logo.name, ContentFile(_file.read()))
+                build.build_logo.save(os.path.basename(self.build_logo.name),
+                                      ContentFile(_file.read()))
         if self.build_background:
             # Project background
             with open(self.build_background.path, 'rb') as _file:
-                build.build_background.save(self.build_background.name, ContentFile(_file.read()))
+                build.build_background.save(os.path.basename(self.build_background.name),
+                                            ContentFile(_file.read()))
 
         # Copy over build options for archival
         build_options = []
@@ -691,7 +720,14 @@ class ProjectBuild(models.Model):
             # Copy captions file from prior build
             if self.project_captions:
                 with open(self.project_captions.path, 'rb') as _file:
-                    build.project_captions.save(self.project_captions.name, ContentFile(_file.read()))
+                    build.project_captions.save(os.path.basename(self.project_captions.name),
+                                                ContentFile(_file.read()))
+
+        if remix_audio is not False:
+            # Remix audio only; re-use video file from prior build
+            with open(self.content.path, 'rb') as _file:
+                build.content.save(os.path.basename(self.content.name),
+                                   ContentFile(_file.read()))
 
         # Send to background worker
         if not defer_queue:

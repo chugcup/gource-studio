@@ -301,7 +301,7 @@
 {% block content %}
   {% with latest_build=project.latest_build %}
   <div id="project-video-container">
-  {% if build.content %}
+  {% if build.status == 'completed' and build.content %}
     <video class="project-video" controls poster="{% url 'project-build-screenshot' project.id build.id %}" preload="metadata">
       <source src="{% url 'project-build-video' project.id build.id %}" type="video/mp4">
     </video>
@@ -426,7 +426,7 @@
                   <i class="fa fa-plus-square"></i>
                 </a>
               {% endif %}
-              {% if build.content %}
+              {% if build.status == 'completed' and build.content %}
                 <a class="btn btn-default btn-sm" href="{% url 'project-build-video' project.id build.id %}" download="video-{{ build.id }}.mp4" title="Download video ({{ build.content.size|filesizeformat }})"$>
                   <i class="fa fa-download"></i>
                 </a>
@@ -488,7 +488,7 @@
                     </div>
                 </div>
 
-                {% if build.content %}
+                {% if build.status == 'completed' and build.content %}
                 <div class="input-group input-group-sm">
                     <div class="input-group-prepend">
                         <span class="input-group-text">Direct Video Link</span>
@@ -827,6 +827,45 @@
   {% endwith %}
   <hr />
   <br />
+
+
+<!-- New Project Build -->
+<div id="queue-project-build-modal" class="modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">New Project Build</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="text-center">
+        {% if project.project_url_active %}
+          <input id="queue_project_build_refetch_log" type="checkbox" checked="checked" />
+          <label for="queue_project_build_refetch_log">Download new project log</label>
+        {% else %}
+          <input id="queue_project_build_refetch_log" type="checkbox" disabled="disabled"/>
+          <label for="queue_project_build_refetch_log" class="text-muted">Download new project log</label>
+        {% endif %}
+          <hr />
+          <input id="queue_project_build_remix_audio" type="checkbox"/>
+          <label for="queue_project_build_remix_audio">Remix background audio only</label>
+          <small class="text-left" style="display:block;font-size:70%;">
+            This option reuses the video from the last successful build
+            and remixes the audio with the latest project audio.
+            All the existing build settings will be copied over.
+          </small>
+        </div>
+        <div class="error-message text-center text-danger"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary">Queue Build</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!--Delete XXX Modal -->
 <div class="modal" id="confirm-delete-file-modal" tabindex="-1" role="dialog" aria-labelledby="confirm-delete-file-title" aria-hidden="true">

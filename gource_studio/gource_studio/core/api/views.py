@@ -250,6 +250,12 @@ class ProjectDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateDestr
     def patch(self, request, *args, **kwargs):
         project = self.get_object()
         response = {}
+
+        # Determine if request contains fields that would change video content
+        # (and therefore require a new video build)
+        VIDEO_FIELDS = ['gource_options', 'captions', 'video_size', 'build_title']
+        has_video_settings = any(k in VIDEO_FIELDS for k in request.data.keys())
+
         # Gource Video options list
         # TODO: Move to new endpoint
         if 'gource_options' in request.data:
@@ -318,9 +324,8 @@ class ProjectDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateDestr
 
         res = super().patch(request, *args, **kwargs)
 
-        if res.status_code == 200:
+        if res.status_code == 200 and has_video_settings:
             # Mark 'is_project_changed' on Project to indicate build needed
-            # TODO: determine if video attributes changes (vs. name/slug/...)
             if not project.is_project_changed:
                 project.set_project_changed(True)
             project.refresh_from_db()
@@ -785,6 +790,8 @@ class CreateNewProjectBuild(generics.CreateAPIView):
 
         # Determine if project log should be re-downloaded
         refetch_log = request.data.get('refetch_log', None)
+        # Determine if new build should only remix audio from preview build
+        remix_audio = request.data.get('remix_audio', None)
 
         response = {}
         # Check if project currently has queued build
@@ -796,6 +803,36 @@ class CreateNewProjectBuild(generics.CreateAPIView):
             return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            # Utilize feature to remix audio only
+            if str(remix_audio).lower() in ['t', 'true', '1']:
+                latest_build = project.latest_build
+                if not latest_build:
+                    return Response({"detail": "Remix audio requested but no prior build found."}, status=status.HTTP_400_BAD_REQUEST)
+                if not latest_build.content:
+                    return Response({"detail": "Remix audio requested but latest build does not have video file."}, status=status.HTTP_400_BAD_REQUEST)
+
+                if project.build_audio:
+                    remix_audio = project.build_audio
+                else:
+                    remix_audio = None  # Remove audio track
+                build = latest_build.clone_build(remix_audio=remix_audio)
+
+                # Update parent project to unset `is_project_changed`
+                project.set_project_changed(False)
+
+                # Generate serializer response for new ProjectBuild
+                serializer = self.get_serializer(build, context={'request': request})
+                response = serializer.data
+
+                # Return success response
+                return Response(response, status=status.HTTP_201_CREATED)
+
+            if not project.project_log:
+                response = {
+                    "detail": "Project does not have a log yet. Cannot build."
+                }
+                return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
             # Check if user requested new VCS log to be downloaded
             if str(refetch_log).lower() in ['t', 'true', '1']:
                 if not project.project_url_active:

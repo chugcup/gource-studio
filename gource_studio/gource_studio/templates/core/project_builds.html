@@ -108,6 +108,7 @@
                 {% if build.error_description %}
                   {{ build.error_description }}
                 {% else %}
+                {% if build.status == 'completed' %}
                   {% if build.duration %}
                   <b>Duration:</b>
                   {{ build.duration|duration }}
@@ -116,6 +117,7 @@
                   <b style="margin-left:20px">Size:</b>
                   <span title="{{ build.size }} bytes">{{ build.size|filesizeformat }}</span>
                   {% endif %}
+                {% endif %}
                 {% endif %}
                 {% if build.status == 'running' %}
                 <div class="build-progress-container">
@@ -195,6 +197,14 @@
             <input id="queue_project_build_refetch_log" type="checkbox" disabled="disabled"/>
             <label for="queue_project_build_refetch_log" class="text-muted">Download new project log</label>
           {% endif %}
+            <hr />
+            <input id="queue_project_build_remix_audio" type="checkbox"/>
+            <label for="queue_project_build_remix_audio">Remix background audio only</label>
+            <small class="text-left" style="display:block;font-size:70%;">
+              This option reuses the video from the last successful build
+              and remixes the audio with the latest project audio.
+              All the existing build settings will be copied over.
+            </small>
           </div>
           <div class="error-message text-center text-danger"></div>
         </div>

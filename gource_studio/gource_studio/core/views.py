@@ -550,6 +550,9 @@ class UploadAvatarForm(forms.Form):
 def avatar_upload(request):
     "Upload a new avatar"
     if request.method == 'POST':
+        if not request.user.is_staff:
+            return HttpResponse(json.dumps({"error": True, "message": "You do not have permission to perform this action."}), status=403, content_type="application/json")
+
         form = UploadAvatarForm(request.POST, request.FILES)
         if form.is_valid():
             # TODO: Validate as .jpg or .png (or convert)
@@ -618,7 +621,7 @@ def project_audio_upload(request, project_id=None, project_slug=None):
                 project.build_audio.delete()
                 project.build_audio_name = None
             project.build_audio = request.FILES['build_audio']
-            project.build_audio_name = project.build_audio.name
+            project.build_audio_name = os.path.basename(project.build_audio.name)
             project.is_project_changed = True
             project.save()
             return HttpResponseRedirect(f'/projects/{project.id}/')
@@ -717,7 +720,6 @@ def project_queue_build(request, project_id=None, project_slug=None):
             latest_commit = log_data.splitlines()[-1].split('|')
             project.project_log_commit_time = make_aware(datetime.utcfromtimestamp(int(latest_commit[0])))
             if project.project_log:
-                #os.remove(project.project_log.path)
                 project.project_log.delete()
             project.project_log.save('gource.log', ContentFile(log_data))
 
@@ -861,7 +863,7 @@ def avatars(request):
         'avatars': avatars,
         'avatar_names': list(avatars.values_list('name', flat=True)),
         'page_view': 'avatars',
-        'user_can_edit': not request.user.is_anonymous,
+        'user_can_edit': request.user.is_staff,
     }
     # Pagination
     paginator = Paginator(context['avatars'], 20)

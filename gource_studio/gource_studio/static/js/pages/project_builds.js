@@ -51,6 +51,9 @@ App.pages.project_builds.init = function(project_id, page_options) {
     });
     $('body #queue-project-build-modal').on('click', '.btn-primary', function() {
         let options = {};
+        if ($('#queue_project_build_remix_audio').is(':checked')) {
+            options.remix_audio= true;
+        }
         if ($('#queue_project_build_refetch_log').is(':checked')) {
             options.refetch_log = true;
         }

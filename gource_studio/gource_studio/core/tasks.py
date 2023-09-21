@@ -18,6 +18,7 @@ from .utils import (
     generate_gource_video,  #(log_data, seconds_per_day=0.1, framerate=60, avatars=None, default_avatar=None):
     get_video_duration,     #(video_path):
     get_video_thumbnail,    #(video_path, width=512, secs=None, percent=None):
+    remove_background_audio,#(video_path):
     rescale_image,          #(image_path, width=256)
     test_http_url,          #(url):
 )
@@ -41,6 +42,52 @@ def generate_gource_build(build_id):
 
     # Begin processing
     build.mark_running()
+
+    # If video file already set on build, we are only modifying the audio track (`remix_audio=True`)
+    # Depending on the `build_audio` field, we will add or remove audio.
+    if build.content:
+        # Add background audio (optional)
+        try:
+            video_path = build.content.path
+            if build.build_audio:
+                build.set_build_stage("audio", "Mixing audio")
+                audio_path = build.build_audio.path
+                logger.info("Beginning audio mixing...")
+                final_path = add_background_audio(video_path, audio_path, loop=True)
+            else:
+                build.set_build_stage("audio", "Removing audio")
+                final_path = remove_background_audio(video_path)
+        except:
+            logger.exception("Failed to mix background audio")
+            raise
+
+        # Save video content
+        build.size = os.path.getsize(final_path)
+        logger.info("Saving video (%s bytes)...", build.size)
+        with open(final_path, 'rb') as f:
+            build.content.save('video.mp4', File(f))
+
+        logger.info("Generating thumbnails...")
+        build.set_build_stage("thumbnail", "Generating thumbnails")
+        try:
+            screen_data = get_video_thumbnail(final_path, secs=-1, width=1280)
+            build.screenshot.save('screenshot.jpg', screen_data)
+        except:
+            logger.exception("Failed to generate screenshot")
+
+        # Generate thumbnail (by rescaling screenshot)
+        try:
+            #thumb_data = get_video_thumbnail(final_path, secs=-1)
+            thumb_data = rescale_image(build.screenshot.path, width=256)
+            build.thumbnail.save('thumb.jpg', thumb_data)
+        except:
+            logger.exception("Failed to generate thumbnail")
+
+        # Finishing steps
+        build.mark_completed()
+        build.set_build_stage("success", "")
+        return
+
     build.set_build_stage("init", "Preparing project assets")
     start_time = time.monotonic()
 
@@ -50,7 +97,7 @@ def generate_gource_build(build_id):
         tempdir_path = Path(tempdir)
 
         # Read in project Gource log
-        with open(build.project.project_log.path, 'r') as _file:
+        with open(build.project_log.path, 'r') as _file:
             log_data = _file.read()
 
         log_info = analyze_gource_log(log_data)
@@ -126,12 +173,11 @@ def generate_gource_build(build_id):
         # Add background audio (optional)
         # TODO support abort
         try:
-            if build.project.build_audio:
+            if build.build_audio:
                 build.set_build_stage("audio", "Mixing audio")
-                audio_path = build.project.build_audio.path
-                if os.path.isfile(audio_path):
-                    logger.info("Beginning audio mixing...")
-                    final_path = add_background_audio(final_path, audio_path, loop=True)
+                audio_path = build.build_audio.path
+                logger.info("Beginning audio mixing...")
+                final_path = add_background_audio(final_path, audio_path, loop=True)
         except:
             logger.exception("Failed to mix background audio")
 

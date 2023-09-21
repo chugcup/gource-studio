@@ -131,7 +131,7 @@ a.navbar-brand:hover > span {
     flex-basis: 0;
     flex-grow: 999;
     border-left: 1px solid rgba(0,0,0,0.125);
-    overflow: auto;
+    overflow: hidden;
 }
 .project-item-container > .content-container .card-header {
     padding: .25rem 0 .25rem 1.25rem;   /* No right padding */
