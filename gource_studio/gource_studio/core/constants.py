@@ -15,6 +15,17 @@ VIDEO_OPTIONS = [
     ('3840x2160', '3840 x 2160'),   # 4K
 ]
 
+# Default fonts to match normal text size from 720p
+# - Applied to video by default unless 'font-scale' set
+VIDEO_FONT_DEFAULTS = {
+    '1024x576':  {'font-scale': '0.9'},
+    '1280x720':  {'font-scale': '1.0'},
+    '1600x900':  {'font-scale': '1.25'},
+    '1920x1080': {'font-scale': '1.5'},
+    '2560x1440': {'font-scale': '2'},
+    '3840x2160': {'font-scale': '3'},
+}
+
 
 ## Validators/parsers for options
 def range_validator(value, min_value=None, max_value=None):

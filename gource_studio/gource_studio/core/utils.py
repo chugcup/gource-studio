@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 from django.conf import settings as django_settings
 from PIL import Image
 
-from .constants import VIDEO_OPTIONS
+from .constants import VIDEO_OPTIONS, VIDEO_FONT_DEFAULTS
 from .exceptions import ProjectBuildAbortedError
 
 # Ignore SSL verification
@@ -320,7 +320,7 @@ def retrieve_tags_from_git_repo(repo_path):
     return tags_list
 
 
-def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars=None, default_avatar=None, captions=None, logo_file=None, background_file=None, gource_options=None, project_build=None, output_path=None):
+def generate_gource_video(log_data, *, video_size='1280x720', framerate=60, avatars=None, default_avatar=None, captions=None, logo_file=None, background_file=None, gource_options=None, project_build=None, output_path=None, skip_video_size_defaults=False):
     """
     Create a new Gource video using provided options.
     """
@@ -337,6 +337,10 @@ def generate_gource_video(log_data, video_size='1280x720', framerate=60, avatars
             raise ValueError(f"Path to 'captions' file not found: {captions}")
 
     # Add some sane defaults if omitted
+    # 1. Set font size to scale correctly with selected video size
+    if 'font-scale' not in gource_options and not skip_video_size_defaults:
+        gource_options['font-scale'] = VIDEO_FONT_DEFAULTS[video_size]['font-scale']
+    # 2. Set a reasonable speed for daily duration
     if 'seconds-per-day' not in gource_options:
         gource_options['seconds-per-day'] = '0.5'
     #if 'auto-skip-seconds' not in gource_options:
