@@ -456,6 +456,10 @@ class ProjectBuild(models.Model):
         return self.status in ['pending', 'queued']
 
     @property
+    def has_thumbnail(self):
+        return bool(self.thumbnail)
+
+    @property
     def build_stage_information(self):
         return self.get_build_stage_information()
 

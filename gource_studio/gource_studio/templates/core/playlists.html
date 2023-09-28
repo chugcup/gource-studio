@@ -37,21 +37,23 @@
           <div class="row no-gutters playlist-item-container">
             <div class="status-container col-md-2">
               <a href="{% url 'user-playlist-details' entry.id %}" class="text-left">
+            {% with no_preview="/static/img/no-preview-185x100.png" %}
               {% if project_count == 0 %}
                 <img class="card-img-top card-empty" src="/static/img/no-preview-185x100.png" alt="No Preview" />
               {% else %}
                 {% if project_count == 1 %}
                   {% with proj=entry.projects.first %}
-                <img class="card-img-top" src="{% url 'project-build-thumbnail' proj.project_id proj.project.latest_build.id %}" title="{{ proj.project.name }}" alt="{{ proj.project.name }}" />
+                <img class="card-img-top" src="{% if proj.project.latest_build.has_thumbnail %}{% url 'project-build-thumbnail' proj.project_id proj.project.latest_build.id %}{% else %}{{ no_preview }}{% endif %}" title="{{ proj.project.name }}" alt="{{ proj.project.name }}" />
                   {% endwith %}
                 {% else %}
                   {% for proj in entry.projects.all|slice:":4" %}
-                <img class="card-img-top card-compact" src="{% url 'project-build-thumbnail' proj.project_id proj.project.latest_build.id %}" title="{{ proj.project.name }}" alt="{{ proj.project.name }}" />
+                <img class="card-img-top card-compact" src="{% if proj.project.latest_build.has_thumbnail %}{% url 'project-build-thumbnail' proj.project_id proj.project.latest_build.id %}{% else %}{{ no_preview }}{% endif %}" title="{{ proj.project.name }}" alt="{{ proj.project.name }}" />
                   {% endfor %}
                 {% endif %}
               {% endif %}
               </a>
               {% if project_count > 0 %}<b>{{ project_count }} Project{{ project_count|pluralize }}</b>{% endif %}
+            {% endwith %}
             </div>
             <div class="content-container col-md-10">
               <div class="card-header">

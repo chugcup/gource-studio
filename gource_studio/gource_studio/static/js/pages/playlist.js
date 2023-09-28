@@ -21,11 +21,15 @@ App.pages.playlist.init = function(playlist_id, playlist_url, page_options) {
     // Mutable index counter
     this.current_index = this.initial_index;
 
-    const play_video_at_index = this.play_video_at_index = function(index, delay) {
-        if (delay === undefined) {
-            delay = 0;
+    const play_video_at_index = this.play_video_at_index = function(index, options) {
+        options = options || {};
+        if (options.delay === undefined) {
+            options.delay = 0;
         }
-        if (index === App.pages.playlist.current_index) {
+        if (options.autoplay === undefined) {
+            options.autoplay = true;
+        }
+        if (!options.force && index === App.pages.playlist.current_index) {
             return false;
         }
         else if (index < 0 || index >= App.pages.playlist.playlist_contents.length) {
@@ -34,8 +38,22 @@ App.pages.playlist.init = function(playlist_id, playlist_url, page_options) {
         }
         let video_player = document.getElementById('playlist-video-player');
         let next_video = App.pages.playlist.playlist_contents[index];
-        video_player.children[0].src = next_video.content_url;
-        video_player.poster = next_video.screenshot_url;
+        if (next_video.content_url === null) {
+            // No video
+            console.log("No 'content_url' found for project (index="+index+"): ", next_video);
+            $('.project-video-empty').show();
+            video_player.children[0].src = "";
+            video_player.removeAttribute('poster');
+        } else {
+            // Set video source/poster
+            $('.project-video-empty').hide();
+            video_player.children[0].src = next_video.content_url;
+            if (next_video.screenshot_url) {
+                video_player.poster = next_video.screenshot_url;
+            } else {
+                video_player.removeAttribute('poster');
+            }
+        }
         video_player.load();
         // Update index value
         App.pages.playlist.current_index = index;
@@ -52,10 +70,35 @@ App.pages.playlist.init = function(playlist_id, playlist_url, page_options) {
         // Update title and prev/next links
         update_video_links(index);
 
-        setTimeout(function() {
-            video_player.play();
-        }, delay);      // Short delay before starting next video
+        if (options.autoplay && next_video.content_url !== null) {
+            setTimeout(function() {
+                video_player.play();
+            }, options.delay);  // Short delay before starting next video
+        }
         return next_video;
+    };
+
+    // Play next video in playlist; wrap back to first video
+    const play_next_video = this.play_next_video = function(timeout) {
+        timeout = timeout || 3000;  // Short delay before moving to next video
+
+        if (App.pages.playlist.current_index < App.pages.playlist.playlist_contents.length-1) {
+            setTimeout(function() {
+                let next_video = play_video_at_index(App.pages.playlist.current_index+1, {delay: 1000});
+                if (next_video.content_url === null && App.pages.playlist.playlist_contents.length > 1) {
+                    play_next_video();
+                }
+            }, timeout);
+        } else {
+            // Redirect to first video
+            // TODO: make setting
+            setTimeout(function() {
+                let next_video = play_video_at_index(0, {delay: 1000});
+                if (next_video.content_url === null && App.pages.playlist.playlist_contents.length > 1) {
+                    play_next_video();
+                }
+            }, timeout);
+        }
     };
 
     // Update the current video title and prev/next buttons
@@ -103,13 +146,7 @@ App.pages.playlist.init = function(playlist_id, playlist_url, page_options) {
             e = window.event;
         }
         // TODO: shuffle (random) mode
-        if (App.pages.playlist.current_index < App.pages.playlist.playlist_contents.length-1) {
-            setTimeout(function() {
-                play_video_at_index(App.pages.playlist.current_index+1, 1000);
-            }, 3000);   // Short delay before moving to next video
-        } else {
-            // TODO: If loop, redirect to first video
-        }
+        play_next_video();
     }, false);
     window.addEventListener('popstate', function(e) {
         console.log('popstate: ',e.state)

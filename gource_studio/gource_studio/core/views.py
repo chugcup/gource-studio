@@ -1011,7 +1011,7 @@ def user_playlist_details(request, playlist_id):
         'current_project': current_project,
         'index': index,
         'playlist_projects_json': [
-            UserPlaylistProjectSerializer(upp).data for upp in playlist.projects.all()
+            json.dumps(UserPlaylistProjectSerializer(upp).data) for upp in playlist.projects.all()
         ]
     }
     return render(request, 'core/playlist.html', context)

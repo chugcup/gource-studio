@@ -262,6 +262,7 @@ class UserPlaylistProjectSerializer(serializers.HyperlinkedModelSerializer):
     name = serializers.CharField(source='project.name', read_only=True)
     project = serializers.SerializerMethodField('get_project_url')
     project_id = serializers.PrimaryKeyRelatedField(source='project', read_only=True)
+    thumbnail_url = serializers.SerializerMethodField()
     screenshot_url = serializers.SerializerMethodField()
     content_url = serializers.SerializerMethodField()
 
@@ -275,11 +276,20 @@ class UserPlaylistProjectSerializer(serializers.HyperlinkedModelSerializer):
         return reverse('api-project-detail', args=[obj.project_id], request=self.context.get('request'))
 
     def get_content_url(self, obj):
-        return reverse('project-latest-build-video', args=[obj.project_id], request=self.context.get('request'))
+        if obj.project.latest_build and obj.project.latest_build.content:
+            return reverse('project-latest-build-video', args=[obj.project_id], request=self.context.get('request'))
+        return None
+
+    def get_thumbnail_url(self, obj):
+        if obj.project.latest_build and obj.project.latest_build.thumbnail:
+            return reverse('project-latest-build-thumbnail', args=[obj.project_id], request=self.context.get('request'))
+        return None
 
     def get_screenshot_url(self, obj):
-        return reverse('project-latest-build-screenshot', args=[obj.project_id], request=self.context.get('request'))
+        if obj.project.latest_build and obj.project.latest_build.screenshot:
+            return reverse('project-latest-build-screenshot', args=[obj.project_id], request=self.context.get('request'))
+        return None
 
     class Meta:
         model = UserPlaylistProject
-        fields = ('id', 'playlist_id', 'project', 'project_id', 'name', 'index', 'content_url', 'screenshot_url', 'url')
+        fields = ('id', 'playlist_id', 'project', 'project_id', 'name', 'index', 'content_url', 'screenshot_url', 'thumbnail_url', 'url')

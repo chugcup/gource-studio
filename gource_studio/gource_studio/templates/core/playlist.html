@@ -2,76 +2,6 @@
 
 {% block page_css %}
   <style type="text/css">
-    #gource-settings-container .form-group {
-        min-width: 400px;
-    }
-    #gource-settings-container .form-group,
-    #project-captions-list .form-group {
-        margin-bottom: 0;
-    }
-    #gource-settings-container .form-group .form-control,
-    #project-captions-list .form-group .form-control {
-        display: inline-block;
-    }
-    #project-audio-video-settings label b {
-        min-width: 110px;
-        display: inline-block;
-    }
-    #project-audio-video-settings .form-group {
-        margin-bottom: 0;
-    }
-    #project-audio-video-settings .build-audio-video-actions {
-        margin-top: 1rem;
-    }
-    .bootstrap-datetimepicker-widget {
-        font-size: 0.8em;
-    }
-    .bootstrap-datetimepicker-widget table td.day {
-        padding: .3em .5em;
-    }
-    .bootstrap-datetimepicker-widget table td,
-    .bootstrap-datetimepicker-widget table th {
-        padding: .5em 0;
-    }
-    .nav-link.active {
-        font-weight: bold;
-    }
-
-    .nav-link > .fa.fa-external-link {
-        font-size: 0.75em;
-    }
-    .project-nav-topbar {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        white-space: nowrap;
-    }
-    .project-nav-topbar .nav-link.active {
-        border-bottom: 1px solid #CCCCCC;
-    }
-    .project-nav-topbar li.nav-item:not(:first-child) {
-        border-left: 1px solid #EEEEEE;
-    }
-  @media(max-width: 577px) {
-    .project-nav-topbar .nav-link {
-        padding: 0.5rem 0.5rem;
-    }
-  }
-    .project-nav-sidebar {
-        white-space: nowrap;
-    }
-    .project-nav-sidebar .nav-item {
-        width: 100px;
-    }
-    .project-nav-sidebar .nav-link.active::before {
-        content: "❮";
-        margin-left: -14px;
-        padding-right: 6px;
-    }
-    .project-nav-sidebar .nav-item.separator {
-        margin-left: 10px;
-        width: 80px;
-        border-bottom: 1px solid #DDDDDD;
-    }
     #project-video-container {
         text-align: center;
         background: #000000;
@@ -83,143 +13,15 @@
         vertical-align: middle;
         padding: 230px 0;
         line-height: 36px;
+        position: absolute;
+        top: 40px;
+        left: 0;
+        right: 0;
+        z-index: 1;
     }
     .project-video {
         max-height: 80vh;
         width: 100%;
-    }
-    #project-video-container .queue-project-build-btn {
-        opacity: 0.6;
-    }
-    #project-video-container .queue-project-build-btn:hover {
-        opacity: 1.0;
-    }
-    #project-details-container .project-changed-notice {
-        position: absolute;
-        left: 0;
-        z-index: 1;
-        background: #F5F5F5;
-        border: 1px solid #999999;
-        padding: 2px 8px;
-        border-radius: 0 10px 10px 0;
-        text-align: center;
-    }
-    #project-details-container .project-changed-notice > div {
-        font-size: 12px;
-        padding-bottom: 4px;
-    }
-    .project-url-link {
-        font-weight: bold;
-        color: #333333;
-    }
-    .project-url-link:hover {
-        color: #333333;
-        text-decoration: underline;
-    }
-    .project-url-nolink {
-        font-weight: bold;
-        color: #999999;
-    }
-    #project-details-pane .row b {
-        display: inline-block;
-        width: 120px;
-        text-align: right;
-    }
-  @media(max-width: 577px) {
-    #project-details-pane .row b,
-    #project-details-pane .row span {
-        width: auto;
-        text-align: center;
-        display: block;
-    }
-  }
-  @media(min-width: 992px) {
-    #project-details-pane .row b {
-        margin-left: 100px;
-    }
-  }
-    .project-image-preview {
-        max-height: 128px;
-        max-width: 128px;
-    }
-    .project-nav-topbar {
-        border-bottom: 1px solid #CCCCCC;
-        margin-bottom: 12px;
-    }
-    .gource-option-container {
-        display: flex;
-        width: 100%;
-    }
-    .gource-option-container .gource-option-label {
-        width: 130px;
-        font-size: 12px;
-        line-height: 32px;
-        text-align: right;
-        padding-right: 8px;
-    }
-    .gource-option-container .gource-option-value {
-        flex: 1;
-    }
-    .gource-option-container .gource-option-value input {
-        width: 200px;
-    }
-    .gource-option-container .gource-option-value .gource-option-info {
-        padding-left: 12px;
-    }
-    .gource-option-container .gource-option-value .gource-option-remove {
-        padding-left: 12px;
-        cursor: pointer;
-    }
-    #project-captions-container {
-        margin-top: 12px;
-    }
-    #project-captions-list {
-        min-width: 400px;
-        max-height: 600px;
-        overflow-y: auto;
-    }
-    #project-captions-list input.gource-caption-datetimepicker {
-        border-radius: .2rem 0 0 .2rem;
-        background: #F9F9F9;
-        width: 150px;
-        font-size: 12px;
-        line-height: 32px;
-    }
-    #project-captions-list input.gource-caption-text {
-        border-radius: 0 .2rem .2rem 0;
-        width: 70%;
-        min-width: 200px;
-        font-size: 12px;
-        line-height: 32px;
-    }
-  @media(max-width: 993px) {
-    #project-captions-list input.gource-caption-text {
-        width: 50%;
-    }
-  }
-  @media(max-width: 751px) {
-    #project-captions-list input.gource-caption-text {
-        width: 40%;
-    }
-  }
-    #project-gource-options-container {
-        display: flex;
-        width: 100%;
-        margin-top: 12px;
-    }
-    .project-links-container .input-group {
-        padding-bottom: 12px;
-    }
-    .project-links-container .input-group .form-control[readonly] {
-        background-color: #FFFFFF;
-    }
-    .project-links-container .input-group-prepend .input-group-text {
-        font-size: 12px;
-        width: 120px;
-        justify-content: flex-end;
-    }
-    .popover {
-        max-width: 300px;   /* default: 276px */
     }
     .playlist-project-link-btn {
         color: #333333;
@@ -307,34 +109,22 @@
 {% endblock %}
 
 {% block content %}
-  {% with latest_build=current_project.latest_build %}
   <div id="project-video-container">
-  {% if latest_build.content %}
-    <video id="playlist-video-player" class="project-video" controls poster="{% url 'project-build-screenshot' current_project.id latest_build.id %}" preload="metadata">
-      <source src="{% url 'project-build-video' current_project.id latest_build.id %}" type="video/mp4">
+    <video id="playlist-video-player" class="project-video" controls preload="metadata">
+      <source type="video/mp4">
     </video>
-  {% else %}
-    <div class="project-video-empty">
-        <div>No video available.</div>
+    <div class="project-video-empty" style="display:none">
+      <div>No video available.</div>
     </div>
-  {% endif %}
   </div>
 
   <div id="playlist-details-container">
     <div id="playlist-prev-container" class="float-left"></div>
     <div id="playlist-next-container" class="float-right"></div>
-
-    <div id="current-playlist-title" class="justify-content-center text-center">
-    {% if latest_build and latest_build.content %}
-      <a class="playlist-project-link-btn btn btn-link" href="{% url 'project-details' current_project.id %}" title="View project details">
-        {{ current_project.name }}
-      </a>
-    {% endif %}
-    </div>
+    <div id="current-playlist-title" class="justify-content-center text-center"></div>
   </div>
   <!-- /.container -->
 
-  {% endwith %}
   <hr />
   <br />
 {% endblock %}
@@ -358,6 +148,16 @@
             initial_index: PLAYLIST_CURRENT_INDEX,
             playlist_contents: PLAYLIST_CONTENTS,
         });
+        if (PLAYLIST_CONTENTS.length > 0) {
+            App.pages.playlist.play_video_at_index(PLAYLIST_CURRENT_INDEX, {
+                delay: 0,
+                force: true,
+                autoplay: false,
+            });
+        } else {
+            // No projects in playlist
+            $('.project-video-empty').text('No projects in playlist.').show();
+        }
     });
   </script>
 {% endblock %}
