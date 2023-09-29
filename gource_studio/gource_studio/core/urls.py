@@ -52,7 +52,6 @@ urlpatterns = [
     re_path(r'^projects/(?P<project_slug>[-\w]+)/video.mp4$', views.project_build_video, name='project-latest-build-video'),
     re_path(r'^new/?$', views.new_project, name='new-project'),
     re_path(r'^queue/?$', views.build_queue, name='build-queue'),
-    re_path(r'^about/?$', views.about, name='about'),
     # Test views
     re_path(r'^test/log/?', views.fetch_log, name='test-fetch-log'),
     re_path(r'^test/tags/?', views.fetch_tags, name='test-fetch-tags'),

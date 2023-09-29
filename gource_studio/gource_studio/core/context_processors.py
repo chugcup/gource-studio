@@ -8,7 +8,6 @@ def app_request_default(request):
         ('queue', 'Queue', '/queue/', False),
         ('avatars', 'Avatars', '/avatars/', False),
         ('playlists', 'Playlists', '/playlists/', True),
-#        ('about', 'About', '/about/', False),
     ]
     # Filter some nav options for anonymous users
     if not request.user or request.user.is_anonymous:

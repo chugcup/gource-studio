@@ -1017,15 +1017,6 @@ def user_playlist_details(request, playlist_id):
     return render(request, 'core/playlist.html', context)
 
 
-def about(request):
-    "About page"
-    context = {
-        'document_title': f'About - {SITE_NAME}',
-        'nav_page': 'about',
-    }
-    return render(request, 'core/about.html', context)
-
-
 #####################
 
 
