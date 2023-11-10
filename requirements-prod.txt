@@ -1,0 +1,4 @@
+# Base requirements
+-r requirements.txt
+
+gunicorn

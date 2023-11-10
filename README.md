@@ -80,6 +80,63 @@ Last, start the main Django application service
     ./run.sh
 
 
+Gunicorn
+----------------------------------
+
+For a more production WSGI deployment, Gunicorn can be used to launch multiple workers.
+
+First, install the production requirements.
+
+    source env/bin/activate     # Activate virtualenv
+    pip install -c constraints.txt -r requirements-prod.txt
+
+Next, create the needed system paths for logs/runtime files:
+
+    sudo mkdir -p /var/{log,run}/gunicorn
+    sudo chown -R ${USER}:${USER} /var/{log,run}/gunicorn
+
+Before we can start the application, we need to collect the static files
+into a proper location for serving:
+
+    python gource_studio/manage.py collectstatic
+
+Finally, use the scripts to launch Gunicorn in a production or development mode:
+
+    ./scripts/run_gunicorn.sh
+    # OR
+    ./scripts/run_gunicorn_dev.sh
+
+These use the appropriate configuration files within `config/gunicorn/`,
+and launch Gunicorn in the background.
+
+To stop Gunicorn workers, use:
+
+    killall gunicorn
+
+
+Nginx
+----------------------------------
+
+The Nginx web server can proxy Gunicorn for more efficient connections and to manage HTTPS.
+
+First, install Nginx onto server:
+
+    sudo apt install nginx
+
+Next, copy in the provided configuration site file to available sites and enable it (via symlink):
+
+    sudo cp config/nginx/app.site /etc/nginx/sites-available/gource-studio.site
+    cd /etc/nginx/sites-enabled
+    sudo ln -s ../sites-available/gource-studio.site .
+    # NOTE: remove 'default' site if in here
+
+Restart Nginx to launch the site:
+
+    sudo systemctl restart nginx
+
+The application should now be listening on both ports 80 and 8000.
+Logs can be monitored within `/var/log/nginx` for the running application.
+
 
 Other Notes
 ==================
