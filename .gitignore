@@ -13,3 +13,5 @@ env
 custom_settings.py
 secrets.py
 gource_studio/gource_studio/media
+# Default Django 'collectstatic' destination
+gource_studio/gource_studio/static
