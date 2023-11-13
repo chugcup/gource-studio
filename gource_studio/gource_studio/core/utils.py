@@ -540,6 +540,7 @@ def add_background_audio(video_path, audio_path, loop=True, output_path=None):
         ]
         p1 = subprocess.Popen(cmd1, cwd=str(tempdir),
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        logging.info("[AUDIO MIXING 1/2] %s", p1.args)
         p1.wait(timeout=FFMPEG_TIMEOUT)
         if p1.returncode:
             # Error
@@ -560,6 +561,7 @@ def add_background_audio(video_path, audio_path, loop=True, output_path=None):
         ]
         p2 = subprocess.Popen(cmd2, cwd=str(tempdir),
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        logging.info("[AUDIO MIXING 2/2] %s", p2.args)
         p2.wait(timeout=FFMPEG_TIMEOUT)
         if p2.returncode:
             # Error

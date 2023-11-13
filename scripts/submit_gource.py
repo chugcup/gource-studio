@@ -7,14 +7,14 @@
 #############################################################################
 
 
-#------------------------------------------------
+#----------------------------------------------------------
 # Update the following to use as defaults
-#------------------------------------------------
-DEFAULT_HOST    = None      # "http://..."
-DEFAULT_ID      = None      # Project ID -or-
-DEFAULT_SLUG    = None      #  Project Slug
-DEFAULT_TOKEN   = None      # API access token
-#------------------------------------------------
+#----------------------------------------------------------
+DEFAULT_HOST         = None      # "http://..."
+DEFAULT_API_TOKEN    = None      # API access token
+DEFAULT_PROJECT_ID   = None      # Project ID -or-
+DEFAULT_PROJECT_SLUG = None      #  Project Slug
+#----------------------------------------------------------
 
 
 ##### Main Script ###########################################################
@@ -185,9 +185,27 @@ def _which_path(command):
         return path
     raise RuntimeError(f"Command '{command}' not found in path.")
 
-def get_from_env(name, required=True, message=None):
+def parse_env_file(path):
+    "Read in a POSIX environment variable file and load to `os.environ`"
+    with open(args.env_file, 'r') as f:
+        for line in f.readlines():
+            line = line.replace('\n', '')
+            if not line or line.startswith('#'):
+                continue
+            try:
+                name, value = line.strip().split('=', 1)
+                if value.startswith('"') and value.endswith('"'):
+                    value = value[1:-1] # Strip quotes
+                os.environ[name] = value
+            except ValueError:
+                #print(f"Invalid line: {line}")
+                pass
+
+def get_from_env(name, required=True, default=None, message=None):
     "Fetch an environment variable by name"
     value = os.environ.get(name, None)
+    if value is None and default is not None:
+        value = default
     if value is None and required:
         if not message:
             message = f"Missing required option: {name}"
@@ -196,13 +214,41 @@ def get_from_env(name, required=True, message=None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Generate Gource log and submit to Gource Studio server.")
+    parser = argparse.ArgumentParser(description="""Generate Gource log and submit to Gource Studio server.
+
+This script can be used to update a Gource Studio project log using a local repository,
+which may be necessary if the project is not publicly accessible.
+
+In order to upload the project log, you must provide a URL to the Gource Studio server,
+an API token for a valid account, and the Project ID or slug to be updated.
+These can be provided as command-line arguments, environment variables, or using a
+configuration file.
+
+    # Full URL to Gource Studio site    (--host)
+    GOURCE_HOST="https://example.com/"
+
+    # Access token for REST API         (--token)
+    GOURCE_API_TOKEN="8183b9a6d3a8567c307b5f6ac40239bc6de87f62"
+
+    # Destination project (ID or slug)  (--project-id/--project-slug)
+    GOURCE_PROJECT_ID=812
+    GOURCE_PROJECT_SLUG="gource-studio"
+
+These can be stored in a POSIX-compliant environment file and provided using
+the --env-file argument.
+
+    python3 submit_gource.py --env-file .env --project-id 812
+
+Run from the root directory of your project, or specify a path from the command line.
+This will detect the VCS used and generate a Gource log file to upload.
+""", formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("path", metavar="PROJECT_DIR", nargs='?', help="Root directory path (default=cwd)")
-    parser.add_argument("--host", metavar="HOST", type=str, help="Full URL to Gource Studio server")
-    parser.add_argument("--token", metavar="TOKEN", type=str, help="API Token used to authenticate upload")
+    parser.add_argument("--host", metavar="HOST", type=str, required=False, help="Full URL to Gource Studio server")
+    parser.add_argument("--token", metavar="TOKEN", type=str, required=False, help="API Token used to authenticate upload")
     group1 = parser.add_mutually_exclusive_group()
-    group1.add_argument("--project-id", metavar="ID", type=int, help="Project ID to update")
-    group1.add_argument("--project-slug", metavar="NAME", type=str, help="Project slug to update")
+    group1.add_argument("--project-id", metavar="ID", type=int, required=False, help="Project ID to update")
+    group1.add_argument("--project-slug", metavar="NAME", type=str, required=False, help="Project slug to update")
+    parser.add_argument("--env-file", metavar="FILE", type=str, required=False, help="Read in a file of environment variables")
     args = parser.parse_args()
 
     # Determine project path
@@ -210,17 +256,25 @@ if __name__ == "__main__":
         project_path = os.path.abspath(args.path)
     else:
         project_path = os.path.abspath('.')
-    print(project_path)
+
+    if args.env_file:
+        try:
+            parse_env_file(args.env_file)
+        except FileNotFoundError:
+            print(f"** ERROR: Environment file not found: {args.env_file}")
+            sys.exit(1)
 
     try:
         # Server host (http://...)
         host = args.host
         if not host:
-            host = get_from_env("GOURCE_HOST", message="Required argument: --host")
+            host = get_from_env("GOURCE_HOST", default=DEFAULT_HOST,
+                                message="Required variable: GOURCE_HOST or --host")
         # REST API token
         token = args.token
         if not token:
-            token = get_from_env("GOURCE_API_TOKEN", message="Required argument: --token")
+            token = get_from_env("GOURCE_API_TOKEN", default=DEFAULT_API_TOKEN,
+                                 message="Required variable: GOURCE_API_TOKEN or --token")
         project_id = None
         project_slug = None
         if args.project_id:
@@ -228,15 +282,18 @@ if __name__ == "__main__":
         elif args.project_slug:
             project_slug = args.project_slug
         else:
-            project_id = get_from_env("GOURCE_PROJECT_ID", required=False)
+            project_id = get_from_env("GOURCE_PROJECT_ID", required=False, default=DEFAULT_PROJECT_ID)
             if project_id is None:
-                project_slug = get_from_env("GOURCE_PROJECT_SLUG", required=False)
+                project_slug = get_from_env("GOURCE_PROJECT_SLUG", required=False, default=DEFAULT_PROJECT_SLUG)
             else:
-                project_id = int(project_id)
+                try:
+                    project_id = int(project_id)
+                except (TypeError, ValueError) as e:
+                    raise ValueError(f"Invalid project ID: {project_id}")
         if not project_id and not project_slug:
             print("Error: Must provide either '--project-id' or '--project-slug' identifier", file=sys.stderr)
             sys.exit(1)
-    except RuntimeError as e:
+    except Exception as e:
         print("Error: {0}".format(str(e)), file=sys.stderr)
         sys.exit(1)
 

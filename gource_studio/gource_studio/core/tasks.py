@@ -46,47 +46,55 @@ def generate_gource_build(build_id):
     # If video file already set on build, we are only modifying the audio track (`remix_audio=True`)
     # Depending on the `build_audio` field, we will add or remove audio.
     if build.content:
-        # Add background audio (optional)
+        tempdir = tempfile.mkdtemp(prefix="gource_")
         try:
-            video_path = build.content.path
-            if build.build_audio:
-                build.set_build_stage("audio", "Mixing audio")
-                audio_path = build.build_audio.path
-                logger.info("Beginning audio mixing...")
-                final_path = add_background_audio(video_path, audio_path, loop=True)
-            else:
-                build.set_build_stage("audio", "Removing audio")
-                final_path = remove_background_audio(video_path)
-        except:
-            logger.exception("Failed to mix background audio")
-            raise
+            # Add background audio (optional)
+            try:
+                video_path = build.content.path
+                output_path = Path(tempdir) / f"{int(time.time())}.mp4"
+                if build.build_audio:
+                    build.set_build_stage("audio", "Mixing audio")
+                    audio_path = build.build_audio.path
+                    logger.info("Beginning audio mixing...")
+                    final_path = add_background_audio(video_path, audio_path, loop=True, output_path=output_path)
+                else:
+                    build.set_build_stage("audio", "Removing audio")
+                    final_path = remove_background_audio(video_path, output_path=output_path)
+            except:
+                logger.exception("Failed to mix background audio")
+                raise
 
-        # Save video content
-        build.size = os.path.getsize(final_path)
-        logger.info("Saving video (%s bytes)...", build.size)
-        with open(final_path, 'rb') as f:
-            build.content.save('video.mp4', File(f))
+            # Save video content
+            build.size = os.path.getsize(final_path)
+            logger.info("Saving video (%s bytes)...", build.size)
+            with open(final_path, 'rb') as f:
+                build.content.save('video.mp4', File(f))
 
-        logger.info("Generating thumbnails...")
-        build.set_build_stage("thumbnail", "Generating thumbnails")
-        try:
-            screen_data = get_video_thumbnail(final_path, secs=-1, width=1280)
-            build.screenshot.save('screenshot.jpg', screen_data)
-        except:
-            logger.exception("Failed to generate screenshot")
+            logger.info("Generating thumbnails...")
+            build.set_build_stage("thumbnail", "Generating thumbnails")
+            try:
+                screen_data = get_video_thumbnail(final_path, secs=-1, width=1280)
+                build.screenshot.save('screenshot.jpg', screen_data)
+            except:
+                logger.exception("Failed to generate screenshot")
 
-        # Generate thumbnail (by rescaling screenshot)
-        try:
-            #thumb_data = get_video_thumbnail(final_path, secs=-1)
-            thumb_data = rescale_image(build.screenshot.path, width=256)
-            build.thumbnail.save('thumb.jpg', thumb_data)
-        except:
-            logger.exception("Failed to generate thumbnail")
+            # Generate thumbnail (by rescaling screenshot)
+            try:
+                #thumb_data = get_video_thumbnail(final_path, secs=-1)
+                thumb_data = rescale_image(build.screenshot.path, width=256)
+                build.thumbnail.save('thumb.jpg', thumb_data)
+            except:
+                logger.exception("Failed to generate thumbnail")
 
-        # Finishing steps
-        build.mark_completed()
-        build.set_build_stage("success", "")
-        return
+            # Finishing steps
+            build.mark_completed()
+            build.set_build_stage("success", "")
+            return
+        except Exception as e:
+            build.mark_errored(error_description=str(e))
+            logger.exception("Unhandled task error while generating video")
+        finally:
+            shutil.rmtree(tempdir)
 
     build.set_build_stage("init", "Preparing project assets")
     start_time = time.monotonic()
@@ -151,6 +159,7 @@ def generate_gource_build(build_id):
             background_file = build.build_background.path
 
         build.set_build_stage("gource", "Capturing Gource video")
+        output_path = Path(tempdir) / f"{int(time.time())}.mp4"
         try:
             final_path = generate_gource_video(
                 log_data,
@@ -161,6 +170,7 @@ def generate_gource_build(build_id):
                 background_file=background_file,
                 gource_options=gource_options,
                 project_build=build,
+                output_path=output_path,
             )
         except ProjectBuildAbortedError:
             logger.info("Project was aborted by user [elapsed: %s sec]", time.monotonic() - start_time)
@@ -177,7 +187,8 @@ def generate_gource_build(build_id):
                 build.set_build_stage("audio", "Mixing audio")
                 audio_path = build.build_audio.path
                 logger.info("Beginning audio mixing...")
-                final_path = add_background_audio(final_path, audio_path, loop=True)
+                output_path = Path(tempdir) / f"{int(time.time())}_audio.mp4"
+                final_path = add_background_audio(final_path, audio_path, loop=True, output_path=output_path)
         except:
             logger.exception("Failed to mix background audio")
 
