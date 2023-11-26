@@ -42,14 +42,20 @@ def validate_range(min_value=None, max_value=None):
         return range_validator(value, min_value=min_value, max_value=max_value)
     return _do_validate
 
-def position_validator(value):
+def position_validator(value, random=True):
     # [start|stop]-position validation (0.0-1.0 or 'random')
     try:
         value = float(value)
         range_validator(min_value=0, max_value=1)
     except:
-        if value != 'random':
+        if not random or value != 'random':
             raise ValueError(f"Value must be between 0.0 and 1.0 (or 'random')")
+
+def validate_position(random=True):
+    "Factory to run position (0.0-1.0) range validation"
+    def _do_validate(value):
+        return position_validator(value, random=random)
+    return _do_validate
 
 def position_parser(value):
     # [start|stop]-position parser (0.0-1.0 or 'random')
@@ -69,6 +75,33 @@ def validate_length(min_length=None, max_length=None):
     "Factory to run min/max length validation"
     def _do_validate(value):
         return length_validator(value, min_length=min_length, max_length=max_length)
+    return _do_validate
+
+def regex_pattern_validator(value):
+    try:
+        rv = RegexValidator(value, message="Invalid regex pattern")
+        rv('sample')
+    except:
+        raise ValueError("Invalid regex pattern")
+
+def validate_regex_pattern():
+    def _do_validate(value):
+        return regex_pattern_validator(value)
+    return _do_validate
+
+
+VALID_DISPLAY_ELEMENTS = ['bloom', 'date', 'dirnames', 'files', 'filenames', 'mouse',
+                          'progress', 'root', 'tree', 'users', 'usernames']
+def display_elements_validator(value):
+    elements = str(value).strip().split(',')
+    for elem in elements:
+        if elem not in VALID_DISPLAY_ELEMENTS:
+            raise ValueError(f"Value '{elem}' not a valid display element option")
+
+def validate_display_elements():
+    "Factory to run display elements (comma-separated list) validation"
+    def _do_validate(value):
+        return display_elements_validator(value)
     return _do_validate
 
 
@@ -100,6 +133,7 @@ GOURCE_OPTIONS = {
         'description_help': "This can be used to cut off an early period of a project, or generate a video focusing on a specific period of time (e.g. last quarter or year).",
         'placeholder': 'YYYY-MM-DD [HH:mm:ss]',
         'parser': dateparse.parse_datetime,
+        'version': (0, 41),
     },
     'stop-date': {
         'label': 'Stop Date',
@@ -108,6 +142,7 @@ GOURCE_OPTIONS = {
         'description_help': "This can be used to cut off the end period of a project, or generate a video focusing on a specific period of time (e.g. last quarter or year).",
         'placeholder': 'YYYY-MM-DD [HH:mm:ss]',
         'parser': dateparse.parse_datetime,
+        'version': (0, 41),
     },
     'start-position': {
         'label': 'Start Position',
@@ -115,15 +150,15 @@ GOURCE_OPTIONS = {
         'description': "Begin at some position in the log (between 0.0 and 1.0 or 'random').",
         'default': 0.0,
         'parser': position_parser,
-        'validator': position_validator,
+        'validator': validate_position(random=True),
     },
     'stop-position': {
         'label': 'Stop Position',
         'type': 'float',
-        'description': "Stop (exit) at some position in the log (between 0.0 and 1.0 or 'random').",
+        'description': "Stop (exit) at some position in the log (between 0.0 and 1.0).",
         'default': 1.0,
         'parser': position_parser,
-        'validator': position_validator,
+        'validator': validate_position(random=False),
     },
     'stop-at-time': {   # Collides with --stop-at-end
         'label': 'Stop At Time',
@@ -232,7 +267,8 @@ GOURCE_OPTIONS = {
         'description': "Font color for filenames (in RRGGBB hex).",
         'parser': str,
         'default': 'FFFFFF',
-        'validator': RegexValidator('^[0-9A-F]{6}$', message="Invalid RRGGBB hex value")
+        'validator': RegexValidator('^[0-9A-F]{6}$', message="Invalid RRGGBB hex value"),
+        'version': (0, 47),
     },
     'dir-colour': {
         'label': 'Directory Color',
@@ -240,7 +276,8 @@ GOURCE_OPTIONS = {
         'description': "Font color for directories (in RRGGBB hex).",
         'parser': str,
         'default': 'FFFFFF',
-        'validator': RegexValidator('^[0-9A-F]{6}$', message="Invalid RRGGBB hex value")
+        'validator': RegexValidator('^[0-9A-F]{6}$', message="Invalid RRGGBB hex value"),
+        'version': (0, 38),
     },
     'logo-offset': {
         'label': 'Logo Offset',
@@ -259,6 +296,340 @@ GOURCE_OPTIONS = {
         'default': '',
         'parser': str,
     },
+    'time-scale': {
+        'label': 'Time Scale',
+        'type': 'float',
+        'description': "Change simulation time scale.",
+        'parser': float,
+        'default': 1.0,
+        'validator': validate_range(min_value=0.0, max_value=4.0),
+    },
+    'elasticity': {
+        'label': 'Elasticity',
+        'type': 'float',
+        'description': "Elasticity of nodes.",
+        'parser': float,
+        'default': 0.0,
+        'validator': validate_range(min_value=0.0),
+    },
+    'key': {
+        'label': 'File Extension Key',
+        'type': 'bool',
+        'description': "Show file extension key.",
+        'parser': bool,
+        'default': True,
+    },
+    'colour-images': {
+        'label': 'Color Images',
+        'type': 'bool',
+        'description': "Colorize user images.",
+        'parser': bool,
+        'default': False,
+    },
+    'file-idle-time': {
+        'label': 'File Idle Time',
+        'type': 'int',
+        'description': "Time files remain idle.",
+        'parser': int,
+        'default': 0,
+        'validator': validate_range(min_value=0.0),
+        'version': (0, 41),
+    },
+    'file-idle-time-at-end': {
+        'label': 'File Idle Time (At End)',
+        'type': 'int',
+        'description': "Time files remain idle at end.",
+        'parser': int,
+        'default': 0,
+        'validator': validate_range(min_value=0.0),
+        'version': (0, 52),
+    },
+    'max-files': {
+        'label': 'Maximum Files',
+        'type': 'int',
+        'description': "Max number of files (or 0 for no limit).",
+        'parser': int,
+        'default': 0,
+        'validator': validate_range(min_value=0),
+    },
+    'max-file-lag': {
+        'label': 'Maximum File Lag',
+        'type': 'int',
+        'description': "Max time files of a commit can take to appear.",
+        'parser': int,
+        'default': None,
+        'validator': validate_range(min_value=0.001),
+    },
+    'bloom-multiplier': {
+        'label': 'Bloom Multiplier',
+        'type': 'float',
+        'description': "Adjust the amount of bloom.",
+        'parser': float,
+        'default': 1.0,
+        'validator': validate_range(min_value=0.001),
+    },
+    'bloom-intensity': {
+        'label': 'Bloom Intensity',
+        'type': 'float',
+        'description': "Adjust the intensity of the bloom.",
+        'parser': float,
+        'default': 0.75,
+        'validator': validate_range(min_value=0.001),
+    },
+    'camera-mode': {
+        'label': 'Camera Mode',
+        'type': 'str',
+        'description': "Camera mode.",
+        'parser': str,
+        'default': 'overview',  # FIXME ???
+        'options': [
+            {'label': 'overview', 'value': 'overview'},
+            {'label': 'track', 'value': 'track'}
+        ],
+    },
+    'crop': {
+        'label': 'Crop',
+        'type': 'str',
+        'description': "Crop view on an axis.",
+        'parser': str,
+        'default': '',
+        'options': [
+            {'label': 'none', 'value': ''},
+            {'label': 'vertical', 'value': 'vertical'},
+            {'label': 'horizontal', 'value': 'horizontal'}
+        ],
+    },
+    'padding': {
+        'label': 'Padding',
+        'type': 'float',
+        'description': "Camera view padding.",
+        'parser': float,
+        'default': 1.1,
+        'validator': validate_range(min_value=0.001, max_value=1.999), # 0 < X < 2
+    },
+    'disable-auto-rotate': {
+        'label': 'Disable Auto-Rotate',
+        'type': 'bool',
+        'description': "Disable automatic camera rotation.",
+        'parser': bool,
+        'default': False,
+    },
+    'date-format': {
+        'label': 'Date Format',
+        'type': 'str',
+        'description': "Specify display date string (strftime format).",
+        'parser': str,
+        'default': '%A, %d %B, %Y %X',
+        #'validator': ... # NOTE: difficult to validate; can contain non-strftime chars
+    },
+    'file-extensions': {
+        'label': 'File Extensions Only',
+        'type': 'bool',
+        'description': "Show filename extensions only.",
+        'parser': bool,
+        'default': False,
+    },
+    'file-extension-fallback': {
+        'label': 'File Extension Fallback',
+        'type': 'bool',
+        'description': "Use filename as extension if the extension is missing or empty.",
+        'parser': bool,
+        'default': False,
+        'version': (0, 50),
+    },
+    'hide': {
+        'label': 'Hide Elements',
+        'type': 'str',
+        'description': "Comma-separated list of display elements to hide.",
+        'description_help': "Options: {0}".format(", ".join(VALID_DISPLAY_ELEMENTS)),
+        'parser': str,
+        'default': 'filenames,progress',
+        'validator': validate_display_elements(),
+    },
+    'user-filter': {
+        'label': 'User Filter',
+        'type': 'str',
+        'description': "Ignore usernames matching this regex.",
+        'parser': str,
+        'default': '',
+        'validator': validate_regex_pattern(),
+    },
+    'user-show-filter': {
+        'label': 'User Show Filter',
+        'type': 'str',
+        'description': "Show only usernames matching this regex.",
+        'parser': str,
+        'default': '',
+        'validator': validate_regex_pattern(),
+        'version': (0, 50),
+    },
+    'file-filter': {
+        'label': 'File Filter',
+        'type': 'str',
+        'description': "Ignore file paths matching this regex.",
+        'parser': str,
+        'default': '',
+        'validator': validate_regex_pattern(),
+    },
+    'file-show-filter': {
+        'label': 'File Show Filter',
+        'type': 'str',
+        'description': "Show only file paths matching this regex.",
+        'parser': str,
+        'default': '',
+        'validator': validate_regex_pattern(),
+        'version': (0, 47),
+    },
+    'user-friction': {
+        'label': 'User Friction',
+        'type': 'float',
+        'description': "Change the rate users slow down.",
+        'parser': float,
+        'default': 0.67,
+        'validator': validate_range(min_value=0.001),
+    },
+    'user-scale': {
+        'label': 'User Scale',
+        'type': 'float',
+        'description': "Change scale of users.",
+        'parser': float,
+        'default': 1.0,
+        'validator': validate_range(min_value=0.001, max_value=100.0),
+    },
+    'max-user-speed': {
+        'label': 'Max User Speed',
+        'type': 'float',
+        'description': "Speed users can travel per second.",
+        'description_help': "Units are arbitrary limiter on acceleration (greater than 0).",
+        'parser': float,
+        'default': 500.0,
+        'validator': validate_range(min_value=0.001),
+    },
+    'follow-user': {
+        'label': 'Follow User',
+        'type': 'str',
+        'description': "Camera will automatically follow this user.",
+        'parser': str,
+        'default': '',
+    },
+    'highlight-dirs': {
+        'label': 'Highlight Directories',
+        'type': 'bool',
+        'description': "Highlight the names of all directories.",
+        'parser': bool,
+        'default': False,
+    },
+    'highlight-user': {
+        'label': 'Highlight User',
+        'type': 'str',
+        'description': "Highlight the name of a particular user.",
+        'parser': str,
+        'default': '',
+    },
+    'highlight-users': {
+        'label': 'Highlight Users',
+        'type': 'bool',
+        'description': "Highlight the names of all users.",
+        'parser': bool,
+        'default': False,
+    },
+    'highlight-colour': {
+        'label': 'Highlight Color',
+        'type': 'str',
+        'description': "Font color for highlighted users (in RRGGBB hex).",
+        'parser': str,
+        'default': 'FFFFFF',
+        'validator': RegexValidator('^[0-9A-F]{6}$', message="Invalid RRGGBB hex value"),
+        'version': (0, 34),
+    },
+    'selection-colour': {
+        'label': 'Selection Color',
+        'type': 'str',
+        'description': "Font color for selected users and files (in RRGGBB hex).",
+        'parser': str,
+        'default': 'FFFF4D',
+        'validator': RegexValidator('^[0-9A-F]{6}$', message="Invalid RRGGBB hex value"),
+        'version': (0, 38),
+    },
+    'dir-name-depth': {
+        'label': 'Directory Name Depth',
+        'type': 'int',
+        'description': "Draw names of directories down to a specific depth.",
+        'parser': int,
+        #'default': 0,  # Unset if not provided
+        'validator': validate_range(min_value=1),
+        'version': (0, 41),
+    },
+    'dir-name-position': {
+        'label': 'Directory Name Position',
+        'type': 'float',
+        'description': "Position along edge of the directory name.",
+        'description_help': "Position is between 0.0 and 1.0, default is 0.5.",
+        'parser': float,
+        'default': 0.5,
+        'validator': validate_range(min_value=0.1, max_value=1.0),
+        'version': (0, 50),
+    },
+    'filename-time': {
+        'label': 'Filename Time',
+        'type': 'float',
+        'description': "Duration to keep filenames on screen.",
+        'parser': float,
+        'default': 4.0,
+        'validator': validate_range(min_value=2.0),
+        'version': (0, 47),
+    },
+    'hash-seed': {
+        'label': 'Hash Seed',
+        'type': 'int',
+        'description': "Change the seed of the hash function.",
+        'parser': int,
+        'default': 31,
+        'version': (0, 34),
+    },
+    'fixed-user-size': {
+        'label': 'Fixed User Size',
+        'type': 'bool',
+        'description': "Use a fixed (user) size throughout.",
+        'parser': bool,
+        'default': False,
+        'version': (0, 52),
+    },
+
+    #################### UNSUPPORTED OPTIONS ####################
+    # Arguments unsupported, either because they are configured
+    # by software or would enable endless/interactive renders.
+    #############################################################
+    #'fullscreen': {},
+    #'screen': {},
+    #'viewport': {},
+    #'multi-sampling': {},
+    #'no-vsync': {},
+    #'high-dpi': {},
+    #'dont-stop': {},
+    #'loop': {},
+    #'stop-at-end': {},
+    #'disable-auto-skip': {},
+    #'realtime': {},
+    #'no-time-travel': {},
+    #'user-image-dir': {},
+    #'default-user-image': {},
+    #'log-command': {},
+    #'log-format: {},
+    #'load-config': {},
+    #'save-config: {},
+    #'output-ppm-stream': {},
+    #'output-framerate': {},
+    #'output-custom-log': {},
+    #'window-position': {},
+    #'frameless': {},
+    #'disable-input': {},
+    #'font-file': {},
+    #'git-branch': {},
+    #'logo': {},
+    #'loop-delay-seconds': {},
+    #'transparent': {},
+    #'path': {},
 }
 
 def _make_option(key, value_dict):
