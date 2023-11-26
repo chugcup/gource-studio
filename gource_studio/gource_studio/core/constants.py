@@ -632,6 +632,20 @@ GOURCE_OPTIONS = {
     #'path': {},
 }
 
+
+# List of default (Gource) `ProjectOption` arguments that should
+# be applied automatically to all new projects
+#   (name, value, value_type)
+PROJECT_OPTION_DEFAULTS = [
+    ('key', 'true', 'bool'),
+    ('hide', 'filenames,progress', 'str'),
+    ('highlight-users', 'true', 'bool'),
+    ('user-scale', '2.0', 'float'),
+    ('dir-name-depth', '4', 'int'),
+    ('bloom-multiplier', '0.5', 'float'),
+]
+
+
 def _make_option(key, value_dict):
     "Convert dictionary option into list item (with 'name' set from key)"
     value_dict['name'] = key

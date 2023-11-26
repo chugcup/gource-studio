@@ -10,6 +10,7 @@ from django.core.files.base import ContentFile
 from django.utils import timezone
 import pytest
 
+from gource_studio.core.constants import PROJECT_OPTION_DEFAULTS
 from gource_studio.core.models import (
     Project,
     ProjectCaption,
@@ -18,6 +19,9 @@ from gource_studio.core.models import (
 
 TEST_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS_PATH = os.path.join(TEST_ROOT, "assets")
+
+# Some tests compare option counts, so make this constant easily accessible
+DEFAULT_OPTIONS_COUNT = len(PROJECT_OPTION_DEFAULTS)
 
 # Mock functions
 def _pass(*args, **kwargs):
@@ -170,7 +174,8 @@ class TestProjectsAPI:
         assert req.data['id'] == project.id
         req = client.get(f'/api/v1/projects/{project.id}/options/')
         assert req.status_code == 200
-        assert req.data == []       # No options
+        assert len(req.data) > 0
+        assert len(req.data) == DEFAULT_OPTIONS_COUNT   # Preloaded options
 
         # Set some options
         post_data = {

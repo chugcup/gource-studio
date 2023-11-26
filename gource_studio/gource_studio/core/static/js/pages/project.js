@@ -148,6 +148,7 @@ App.pages.project.init = function(project_id, page_options) {
                 new_option.can_edit = !App.pages.project.is_readonly;
                 new_option.popover_id = "gource-option-popover-"+new_option.name;
                 new_option.value_default = new_option.default;  // Alias to avoid JS keyword
+                new_option.value_default_set = (new_option.value_default !== null && new_option.value_default !== undefined);
                 // Add to selected list
                 this.options_selected.push(new_option);
                 // Remove from available list
@@ -213,6 +214,7 @@ App.pages.project.init = function(project_id, page_options) {
                 new_option.can_edit = false;
                 new_option.popover_id = "gource-option-view-popover-"+new_option.name;
                 new_option.value_default = new_option.default;  // Alias to avoid JS keyword
+                new_option.value_default_set = (new_option.value_default !== null && new_option.value_default !== undefined);
                 // Add to selected list
                 this.options_selected.push(new_option);
                 // Remove from available list
@@ -261,7 +263,8 @@ App.pages.project.init = function(project_id, page_options) {
             name: String,
             label: String,
             value: [String, Number],
-            value_default: [String, Number],
+            value_default: [String, Number, Boolean],
+            value_default_set: Boolean,
             placeholder: String,
             description: String,
             description_help: String,
@@ -279,7 +282,7 @@ App.pages.project.init = function(project_id, page_options) {
               <b-popover :target="popover_id" triggers="hover">
                 <p class="popover-setting-description">{{ description }}</p>
                 <p class="popover-setting-description-help" style="font-size:12px">{{ description_help }}</p>
-                <p v-if="value_default" class="popover-setting-default"><b>Default:</b> {{ value_default }}</p>
+                <p v-if="value_default_set" class="popover-setting-default"><b>Default:</b> {{ value_default }}</p>
               </b-popover>
               <span class="gource-option-remove text-danger" v-if="can_edit" v-on:click="$emit('remove-gource-option')" title="Delete this setting"><i class="fa fa-times"></i></span>
             </div>
@@ -300,7 +303,8 @@ App.pages.project.init = function(project_id, page_options) {
         props: {
             name: String,
             label: String,
-            value_default: [String, Number],
+            value_default: [String, Number, Boolean],
+            value_default_set: Boolean,
             placeholder: String,
             description: String,
             description_help: String,

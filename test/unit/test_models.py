@@ -6,6 +6,7 @@ from django.core.files.base import ContentFile
 from django.utils import timezone
 import pytest
 
+from gource_studio.core.constants import PROJECT_OPTION_DEFAULTS
 from gource_studio.core.models import (
     Project,
     ProjectCaption,
@@ -14,6 +15,9 @@ from gource_studio.core.models import (
 
 TEST_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS_PATH = os.path.join(TEST_ROOT, "assets")
+
+# Some tests compare option counts, so make this constant easily accessible
+DEFAULT_OPTIONS_COUNT = len(PROJECT_OPTION_DEFAULTS)
 
 
 @pytest.mark.django_db
@@ -107,13 +111,13 @@ class TestProjects:
         # NOTE: Within the system, Gource options should be whitelisted to avoid
         #       situations where the Gource application could be run interactively.
         project = Project.objects.create(name="test")
-        assert project.options.count() == 0
+        assert project.options.count() == DEFAULT_OPTIONS_COUNT
 
         # Add some options
         po1 = ProjectOption.objects.create(project=project, name='seconds-per-day', value='0.5', value_type='float')
         po2 = ProjectOption.objects.create(project=project, name='caption-size', value='20', value_type='int')
 
-        assert project.options.count() == 2
+        assert project.options.count() == (2 + DEFAULT_OPTIONS_COUNT)
         # Check some basic model functions
         for po in (po1, po2):
             assert str(po) == f'{po.name}={po.value}'
@@ -192,7 +196,7 @@ class TestProjects:
         assert build1.build_audio.size == project.build_audio.size
         assert build1.build_logo.size == project.build_logo.size
         assert build1.build_background.size == project.build_background.size
-        assert build1.options.count() == 2
+        assert build1.options.count() == (2 + DEFAULT_OPTIONS_COUNT)
         assert [str(opt) for opt in build1.options.all()] == \
                [str(opt) for opt in project.options.all()]
         assert build1.captions.count() == 1
@@ -220,7 +224,7 @@ class TestProjects:
         assert build3.project_captions.size == build2.project_captions.size
         assert build3.pk != build2.pk
         # Check against source ProjectBuild
-        assert build1.options.count() == 2  # Project has 1
+        assert build1.options.count() == (2 + DEFAULT_OPTIONS_COUNT) # Project has 1
         assert [str(opt) for opt in build2.options.all()] == \
                [str(opt) for opt in build3.options.all()]
         assert build1.captions.count() == 1 # Project has 2

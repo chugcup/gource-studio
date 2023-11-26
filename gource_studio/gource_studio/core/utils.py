@@ -366,17 +366,10 @@ def generate_gource_video(log_data, *, video_size='1280x720', framerate=60, avat
 
         ## 1 - Generate PPM video file from Gource
         cmd = [get_gource(),
-                # General video options
-                '--stop-at-end',
-                '--no-vsync',
-                #'--disable-input',
-                # Common project defaults
-                '--key',
-                '--hide', 'filenames,progress',
-                '--highlight-users',
-                '--user-scale', '2',
-                '--dir-name-depth', '4',
-                '--bloom-multiplier', '0.5',
+               # General video options
+               '--stop-at-end',
+               '--no-vsync',
+               #'--disable-input',
         ]
 
         # - Add custom settings
