@@ -149,6 +149,9 @@ App.pages.project.init = function(project_id, page_options) {
                 new_option.popover_id = "gource-option-popover-"+new_option.name;
                 new_option.value_default = new_option.default;  // Alias to avoid JS keyword
                 new_option.value_default_set = (new_option.value_default !== null && new_option.value_default !== undefined);
+                if (new_option.type == 'bool') {
+                    new_option.value = true;
+                }
                 // Add to selected list
                 this.options_selected.push(new_option);
                 // Remove from available list
@@ -215,6 +218,9 @@ App.pages.project.init = function(project_id, page_options) {
                 new_option.popover_id = "gource-option-view-popover-"+new_option.name;
                 new_option.value_default = new_option.default;  // Alias to avoid JS keyword
                 new_option.value_default_set = (new_option.value_default !== null && new_option.value_default !== undefined);
+                if (new_option.type == 'bool') {
+                    new_option.value = true;
+                }
                 // Add to selected list
                 this.options_selected.push(new_option);
                 // Remove from available list
@@ -262,9 +268,10 @@ App.pages.project.init = function(project_id, page_options) {
         props: {
             name: String,
             label: String,
-            value: [String, Number],
+            value: [String, Number, Boolean],
             value_default: [String, Number, Boolean],
             value_default_set: Boolean,
+            type: String,
             placeholder: String,
             description: String,
             description_help: String,
@@ -277,7 +284,12 @@ App.pages.project.init = function(project_id, page_options) {
               <b>{{ label }}:</b>
             </div>
             <div class="gource-option-value">
-              <input class="form-control form-control-sm" :name="name" type="text" :value="value" v-on:input="$emit('input:value', $event.target.value)" v-on:change="$emit('change:value', $event.target.value)" :placeholder="placeholder" :readonly="!can_edit" />
+              <div class="gource-option-value-input" v-if="type != 'bool'">
+                <input class="form-control form-control-sm" :name="name" type="text" :value="value" v-on:input="$emit('input:value', $event.target.value)" v-on:change="$emit('change:value', $event.target.value)" :placeholder="placeholder" :readonly="!can_edit" />
+              </div>
+              <div class="gource-option-value-bool" v-if="type == 'bool'">
+                <input class="form-control form-control-sm" :name="name" type="text" value="true" :readonly="true" />
+              </div>
               <span class="gource-option-info" :id="popover_id"><i class="fa fa-info-circle"></i></span></span>
               <b-popover :target="popover_id" triggers="hover">
                 <p class="popover-setting-description">{{ description }}</p>
@@ -305,6 +317,7 @@ App.pages.project.init = function(project_id, page_options) {
             label: String,
             value_default: [String, Number, Boolean],
             value_default_set: Boolean,
+            type: String,
             placeholder: String,
             description: String,
             description_help: String,
@@ -875,5 +888,58 @@ App.pages.project.init = function(project_id, page_options) {
             $modal.find('.add-new-playlist-region').hide();
             $modal.find('.add-to-playlist-modal-additional-options ul').html('');
         });
+    });
+    const open_gource_command_options_modal = function(options_list, video_size) {
+        // Open modal and display Gource command usage
+        let $modal = $('#display-gource-command-modal').modal();
+        // Base command + explicit video size (-WxH)
+        let command_arguments = ['gource'];
+        if (video_size) {
+            command_arguments.push('-'+video_size);
+        }
+        // Build additional command arguments on new lines
+        _.each(options_list, function(option, idx) {
+            if (option.type == 'bool' && ""+option.value != 'true') {
+                return;   // skip
+            }
+            //                        "gource "
+            command_arguments.push('\\\n      ');
+            command_arguments.push('--'+option.name);
+            if (option.type != 'bool') {
+                if ((""+option.value).indexOf(" ") > -1) {
+                    command_arguments.push('"'+option.value.replaceAll('"', '\\"')+'"');
+                } else {
+                    command_arguments.push(option.value);
+                }
+            }
+        });
+        let command_text = command_arguments.join(' ');
+        $modal.find('#display-gource-command-container').text(command_text);
+        $modal.on('hidden.bs.modal', function() {
+            $modal.find('#display-gource-command-container').text('');
+            $modal.off('click.copy-gource-command');
+        });
+        $modal.on('click.copy-gource-command', '#copy-gource-command-clipboard-btn', function() {
+            let successful = App.utils.copyToClipboard(command_text);
+            if (successful) {
+                $.notify("Command copied to clipboard.", {className: "success", position: "top right"});
+            } else {
+                $.notify("Failed to copy to clipboard.", {position: "top right"});
+            }
+        });
+    };
+    $('body').on('click', '#project-view-gource-command-btn', function(e) {
+        let video_size = $('#project-video-size').val();
+        open_gource_command_options_modal(
+            App.pages.project.project_settings_container.options_selected,
+            video_size
+        );
+    });
+    $('body').on('click', '#build-view-gource-command-btn', function(e) {
+        let video_size = $('#build-video-size').text();
+        open_gource_command_options_modal(
+            App.pages.project.build_settings_container.options_selected,
+            video_size
+        );
     });
 };

@@ -204,9 +204,18 @@
     .gource-option-container .gource-option-value {
         flex: 1;
     }
+    .gource-option-container .gource-option-value .gource-option-value-input,
+    .gource-option-container .gource-option-value .gource-option-value-bool {
+        display: inline-block;
+    }
     .gource-option-container .gource-option-value input {
         width: 200px;
     }
+@media(max-width: 767px) {
+    .gource-option-container .gource-option-value input {
+        width: 180px;
+    }
+}
     .gource-option-container .gource-option-value .gource-option-remove {
         padding-left: 12px;
         cursor: pointer;
@@ -294,6 +303,26 @@
         white-space: nowrap;
         max-width: 200px;
         margin-left: 32px;
+    }
+    #display-gource-command-container {
+        font-family: monospace;
+        background: #000000;
+        color: #DDDDDD;
+        white-space: pre;
+        padding: 4px 4px 4px 24px;
+        font-size: 12px;
+        min-height: 64px;
+        overflow-x: auto;
+        margin-top: 8px;
+        border-radius: 4px;
+    }
+    #copy-gource-command-clipboard-btn {
+        position: absolute;
+        right: 16px;
+        top: 48px;
+        font-size: 12px;
+        padding: 2px 6px;
+        z-index: 10;
     }
   </style>
 {% endblock %}
@@ -524,7 +553,7 @@
                   <div class="form-group form-inline">
                     <label><b>Video Size:</b>&nbsp;</label>
                     {% if build.video_size %}
-                    <span>{{ build.video_size }}</span>
+                    <span id="build-video-size">{{ build.video_size }}</span>
                     {% else %}
                     <span class="text-muted">N/A</span>
                     {% endif %}
@@ -562,6 +591,11 @@
                   <i class="fa fa-sliders"></i> &nbsp;
                   Gource Settings
                 </h5>
+
+                <div class="build-view-gource-command float-right">
+                  <button id="build-view-gource-command-btn" class="btn btn-sm btn-default"><i class="fa fa-terminal"></i> View Command</button>
+                </div>
+
               </div>
               <div class="clearfix"></div>
               <div id="gource-settings-region-view">
@@ -690,6 +724,11 @@
                   <i class="fa fa-sliders"></i> &nbsp;
                   Gource Settings
                 </h5>
+
+                <div class="project-view-gource-command float-right">
+                  <button id="project-view-gource-command-btn" class="btn btn-sm btn-default"><i class="fa fa-terminal"></i> View Command</button>
+                </div>
+
                 <div id="gource-duration-estimate-container">
                     <small>Estimated Duration:</small>
                     <span id="gource-duration-estimate">-</span>
@@ -928,6 +967,28 @@
     </div>
   </div>
 </div>
+
+<!-- Gource Command Modal -->
+<div class="modal" id="display-gource-command-modal" tabindex="-1" role="dialog" aria-labelledby="display-gource-command-modal-title" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="display-gource-command-modal-title">Gource Command</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        Use the following command to run this project's configuration:
+        <button id="copy-gource-command-clipboard-btn" class="btn btn-xs btn-default" type="button" title="Copy command to clipboard"><i class="fa fa-clipboard"></i> Copy to Clipboard</button>
+        <div id="display-gource-command-container"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block page_js %}
@@ -970,11 +1031,11 @@
 
         _.each(init_project_options, function(item) {
             App.debug && console.log("Initial setting: ", item);
-            App.pages.project.project_settings_container.addOption(item.name, item.value, true);
+            App.pages.project.project_settings_container.addOption(item.name, item.value, item.value_type, true);
         });
         _.each(init_build_options, function(item) {
             App.debug && console.log("Initial build setting: ", item);
-            App.pages.project.build_settings_container.addOption(item.name, item.value, true);
+            App.pages.project.build_settings_container.addOption(item.name, item.value, item.value_type, true);
         });
 
         App.pages.project.refreshGourceDuration();

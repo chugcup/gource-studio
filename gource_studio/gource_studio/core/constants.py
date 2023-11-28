@@ -317,7 +317,7 @@ GOURCE_OPTIONS = {
         'type': 'bool',
         'description': "Show file extension key.",
         'parser': bool,
-        'default': True,
+        'default': False,
     },
     'colour-images': {
         'label': 'Color Images',
