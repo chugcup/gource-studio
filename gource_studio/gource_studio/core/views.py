@@ -125,10 +125,14 @@ def index(request):
                                        Exists(ProjectBuild.objects.filter(project=OuterRef('pk'))\
                                                                   .exclude(content=''))
                                    )
+    show_home_banner = True
+    if request.COOKIES.get('dismiss_home_banner'):
+        show_home_banner = False
     context = {
         'document_title': f'{SITE_NAME} - Generate Video Timelines of Software Projects',
         'nav_page': '',
         'projects': projects_list.order_by('-latest_build_time')[:24],
+        'show_home_banner': show_home_banner,
     }
     return render(request, 'core/index.html', context)
 

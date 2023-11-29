@@ -4,7 +4,7 @@ window.App = window.App || {};
 window.App.utils = {};
 
 
-// https://docs.djangoproject.com/en/dev/ref/csrf/#ajax
+// https://docs.djangoproject.com/en/3.2/ref/csrf/#ajax
 // - See also: https://github.com/js-cookie/js-cookie/
 App.utils.getCookie = function(name) {
     let cookieValue = null;
@@ -22,6 +22,20 @@ App.utils.getCookie = function(name) {
     return cookieValue;
 };
 
+// https://www.quirksmode.org/js/cookies.html
+App.utils.setCookie = function(name, value, days) {
+    let expires = "";
+    if (days) {
+        let date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + (value || "") + expires + "; path=/";
+};
+// https://www.quirksmode.org/js/cookies.html
+App.utils.eraseCookie = function(name) {
+    document.cookie = name +'=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+};
 
 App.utils.handleErrorXHR = function(xhr, err) {
     // TODO fallback on 'responseText'?

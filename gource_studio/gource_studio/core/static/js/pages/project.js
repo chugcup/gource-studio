@@ -16,6 +16,7 @@ App.pages.project.init = function(project_id, page_options) {
     this.can_user_edit = !!page_options.can_user_edit;
     this.is_latest_build = !!page_options.is_latest_build;
     this.is_readonly = !!page_options.is_readonly;
+    this.load_id = (+new Date());   // For cache busting
 
     // Save settings
     // NOTE: Background Music saved separately
@@ -646,7 +647,7 @@ App.pages.project.init = function(project_id, page_options) {
                     )
                 );
             };
-            img.src = imgsrc;
+            img.src = imgsrc+'?_='+App.pages.project.load_id;
             return '<div><a href="'+imgsrc+'" target="_blank">'
                   +   img.outerHTML
                   + '</a></div>';

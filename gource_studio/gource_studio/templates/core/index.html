@@ -16,6 +16,7 @@
 {% block content %}
   <div class="main-container container">
 
+  {% if show_home_banner %}
     <!-- Jumbotron Header -->
     <header class="jumbotron my-4">
       <button type="button" class="jumbotron-dismiss-btn close" data-dismiss="alert" aria-label="Close" title="Dismiss">
@@ -36,6 +37,7 @@
       {#<a href="{% url 'new-project' %}" class="btn btn-primary btn-lg">Get Started</a>#}
       <div class="clearfix"></div>
     </header>
+  {% endif %}
 
     <h3>Latest Builds</h3>
     <hr />
@@ -84,6 +86,8 @@
   {% verbatim %}
   $('.jumbotron-dismiss-btn').click(function() {
       $('.jumbotron').remove();
+      // Set cookie to dismiss home page banner
+      App.utils.setCookie('dismiss_home_banner', '1');
   });
   {% endverbatim %}
   </script>
