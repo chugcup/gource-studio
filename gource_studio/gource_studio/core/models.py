@@ -1,3 +1,5 @@
+from io import BytesIO
+import math
 import os
 
 from django.conf import settings
@@ -11,6 +13,7 @@ from django.db.models.fields.files import FieldFile
 from django.urls import reverse
 from django.utils.functional import SimpleLazyObject
 from django.utils import timezone
+from PIL import Image
 
 #from .managers import ProjectManager
 from .constants import VIDEO_OPTIONS
@@ -72,8 +75,11 @@ class Project(models.Model):
     # Optional name to display in video
     build_title = models.CharField(max_length=256, default="", blank=True)
     # Optional logo/background to display in video
+    # - The '_resize' flags indicate the image should be resized according to 'video_size'
     build_logo = models.ImageField(upload_to=get_project_build_logo_path, blank=True, null=True)
+    build_logo_resize = models.BooleanField(default=True)
     build_background = models.ImageField(upload_to=get_project_build_background_path, blank=True, null=True)
+    build_background_resize = models.BooleanField(default=True)
     # Optional background music (MP3)
     build_audio = models.FileField(upload_to=get_project_build_audio_path, blank=True, null=True)
     build_audio_name = models.CharField(max_length=256, null=True, blank=True)
@@ -254,14 +260,39 @@ class Project(models.Model):
                                        ContentFile(_file.read()))
         if self.build_logo:
             # Project logo
-            with open(self.build_logo.path, 'rb') as _file:
+            if self.build_logo_resize:
+                img = Image.open(self.build_logo.path)
+                # Resize image to scale with video size
+                width, height = [int(n) for n in self.video_size.split('x')]
+                new_width = int(math.ceil(height/4))    # 25% of height (bottom corner)
+                wpercent = (new_width / float(img.width))
+                new_height = int((float(img.height) * float(wpercent)))
+                new_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                tmp = BytesIO()
+                new_img.save(tmp, img.format)
+                tmp.seek(0)
                 build.build_logo.save(os.path.basename(self.build_logo.name),
-                                      ContentFile(_file.read()))
+                                      ContentFile(tmp.read()))
+            else:
+                with open(self.build_logo.path, 'rb') as _file:
+                    build.build_logo.save(os.path.basename(self.build_logo.name),
+                                          ContentFile(_file.read()))
         if self.build_background:
             # Project background
-            with open(self.build_background.path, 'rb') as _file:
+            if self.build_background_resize:
+                img = Image.open(self.build_background.path)
+                # Resize image to fill video size (NOTE: may stretch)
+                width, height = [int(n) for n in self.video_size.split('x')]
+                new_img = img.resize((width, height), Image.Resampling.LANCZOS)
+                tmp = BytesIO()
+                new_img.save(tmp, img.format)
+                tmp.seek(0)
                 build.build_background.save(os.path.basename(self.build_background.name),
-                                            ContentFile(_file.read()))
+                                            ContentFile(tmp.read()))
+            else:
+                with open(self.build_background.path, 'rb') as _file:
+                    build.build_background.save(os.path.basename(self.build_background.name),
+                                                ContentFile(_file.read()))
 
         # Copy over build options for archival
         build_options = []
@@ -449,7 +480,7 @@ class ProjectBuild(models.Model):
 
     @property
     def is_finished(self):
-        return self.status in ['aborted', 'completed', 'errored']
+        return self.status in ['canceled', 'aborted', 'completed', 'errored']
 
     @property
     def is_waiting(self):
@@ -685,14 +716,39 @@ class ProjectBuild(models.Model):
                                        ContentFile(_file.read()))
         if self.build_logo:
             # Project logo
-            with open(self.build_logo.path, 'rb') as _file:
+            if self.build_logo_resize:
+                img = Image.open(self.build_logo.path)
+                # Resize image to scale with video size
+                width, height = [int(n) for n in self.video_size.split('x')]
+                new_width = int(math.ceil(height/4))    # 25% of height (bottom corner)
+                wpercent = (new_width / float(img.width))
+                new_height = int((float(img.height) * float(wpercent)))
+                new_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                tmp = BytesIO()
+                new_img.save(tmp, img.format)
+                tmp.seek(0)
                 build.build_logo.save(os.path.basename(self.build_logo.name),
-                                      ContentFile(_file.read()))
+                                      ContentFile(tmp.read()))
+            else:
+                with open(self.build_logo.path, 'rb') as _file:
+                    build.build_logo.save(os.path.basename(self.build_logo.name),
+                                          ContentFile(_file.read()))
         if self.build_background:
             # Project background
-            with open(self.build_background.path, 'rb') as _file:
+            if self.build_background_resize:
+                img = Image.open(self.build_background.path)
+                # Resize image to fill video size (NOTE: may stretch)
+                width, height = [int(n) for n in self.video_size.split('x')]
+                new_img = img.resize((width, height), Image.Resampling.LANCZOS)
+                tmp = BytesIO()
+                new_img.save(tmp, img.format)
+                tmp.seek(0)
                 build.build_background.save(os.path.basename(self.build_background.name),
-                                            ContentFile(_file.read()))
+                                            ContentFile(tmp.read()))
+            else:
+                with open(self.build_background.path, 'rb') as _file:
+                    build.build_background.save(os.path.basename(self.build_background.name),
+                                                ContentFile(_file.read()))
 
         # Copy over build options for archival
         build_options = []

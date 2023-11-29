@@ -631,7 +631,25 @@ App.pages.project.init = function(project_id, page_options) {
             if (!imgsrc) {
                 return "N/A";
             }
-            return '<a href="'+imgsrc+'" target="_blank"><img class="project-image-preview" src="'+imgsrc+'" /></a>';
+
+            let img = new Image();
+            img.id = "popover-preview-"+(+new Date());
+            img.className = "project-image-preview";
+            img.onload = function() {
+                if (isNaN(img.width) || isNaN(img.height)) {
+                    return;
+                }
+                // Append 'WIDTH x HEIGHT' label to preview popover
+                $('#'+img.id).parent().after(
+                    $('<div class="project-image-preview-dimensions">').text(
+                        img.width + ' x ' + img.height
+                    )
+                );
+            };
+            img.src = imgsrc;
+            return '<div><a href="'+imgsrc+'" target="_blank">'
+                  +   img.outerHTML
+                  + '</a></div>';
         },
         html: true,
         placement: 'right',
