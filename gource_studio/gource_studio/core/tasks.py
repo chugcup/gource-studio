@@ -81,7 +81,7 @@ def generate_gource_build(build_id):
             # Generate thumbnail (by rescaling screenshot)
             try:
                 #thumb_data = get_video_thumbnail(final_path, secs=-1)
-                thumb_data = rescale_image(build.screenshot.path, width=256)
+                thumb_data = rescale_image(build.screenshot.path, width=256, output_format='JPEG')
                 build.thumbnail.save('thumb.jpg', thumb_data)
             except:
                 logger.exception("Failed to generate thumbnail")
@@ -209,7 +209,7 @@ def generate_gource_build(build_id):
         # Generate thumbnail (by rescaling screenshot)
         try:
             #thumb_data = get_video_thumbnail(final_path, secs=-1)
-            thumb_data = rescale_image(build.screenshot.path, width=256)
+            thumb_data = rescale_image(build.screenshot.path, width=256, output_format='JPEG')
             build.thumbnail.save('thumb.jpg', thumb_data)
         except:
             logger.exception("Failed to generate thumbnail")

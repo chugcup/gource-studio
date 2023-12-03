@@ -263,11 +263,15 @@ class Project(models.Model):
             if self.build_logo_resize:
                 img = Image.open(self.build_logo.path)
                 # Resize image to scale with video size
+                # FIXME: gource_studio.core.utils.rescale_image()
                 width, height = [int(n) for n in self.video_size.split('x')]
-                new_width = int(math.ceil(height/4))    # 25% of height (bottom corner)
+                new_width = int(math.ceil(height/8))    # 12.5% of height (bottom corner)
                 wpercent = (new_width / float(img.width))
                 new_height = int((float(img.height) * float(wpercent)))
-                new_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                if hasattr(Image, "Resampling"):
+                    new_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                else:
+                    new_img = img.resize((new_width, new_height), Image.ANTIALIAS)  # Pillow < 9.1.0
                 tmp = BytesIO()
                 new_img.save(tmp, img.format)
                 tmp.seek(0)
@@ -282,8 +286,12 @@ class Project(models.Model):
             if self.build_background_resize:
                 img = Image.open(self.build_background.path)
                 # Resize image to fill video size (NOTE: may stretch)
+                # FIXME: gource_studio.core.utils.rescale_image()
                 width, height = [int(n) for n in self.video_size.split('x')]
-                new_img = img.resize((width, height), Image.Resampling.LANCZOS)
+                if hasattr(Image, "Resampling"):
+                    new_img = img.resize((width, height), Image.Resampling.LANCZOS)
+                else:
+                    new_img = img.resize((width, height), Image.ANTIALIAS)  # Pillow < 9.1.0
                 tmp = BytesIO()
                 new_img.save(tmp, img.format)
                 tmp.seek(0)
@@ -719,11 +727,15 @@ class ProjectBuild(models.Model):
             if self.build_logo_resize:
                 img = Image.open(self.build_logo.path)
                 # Resize image to scale with video size
+                # FIXME: gource_studio.core.utils.rescale_image()
                 width, height = [int(n) for n in self.video_size.split('x')]
-                new_width = int(math.ceil(height/4))    # 25% of height (bottom corner)
+                new_width = int(math.ceil(height/8))    # 12.5% of height (bottom corner)
                 wpercent = (new_width / float(img.width))
                 new_height = int((float(img.height) * float(wpercent)))
-                new_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                if hasattr(Image, "Resampling"):
+                    new_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                else:
+                    new_img = img.resize((new_width, new_height), Image.ANTIALIAS)  # Pillow < 9.1.0
                 tmp = BytesIO()
                 new_img.save(tmp, img.format)
                 tmp.seek(0)
@@ -738,8 +750,12 @@ class ProjectBuild(models.Model):
             if self.build_background_resize:
                 img = Image.open(self.build_background.path)
                 # Resize image to fill video size (NOTE: may stretch)
+                # FIXME: gource_studio.core.utils.rescale_image()
                 width, height = [int(n) for n in self.video_size.split('x')]
-                new_img = img.resize((width, height), Image.Resampling.LANCZOS)
+                if hasattr(Image, "Resampling"):
+                    new_img = img.resize((width, height), Image.Resampling.LANCZOS)
+                else:
+                    new_img = img.resize((width, height), Image.ANTIALIAS)  # Pillow < 9.1.0
                 tmp = BytesIO()
                 new_img.save(tmp, img.format)
                 tmp.seek(0)

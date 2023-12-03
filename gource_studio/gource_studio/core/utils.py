@@ -518,7 +518,8 @@ def add_background_audio(video_path, audio_path, loop=True, output_path=None):
     tempdir = tempfile.mkdtemp(prefix="gource_")
     save_file = None
     try:
-        cmd1_out = Path(tempdir) / 'output_1a.mp4'
+        tempdir_path = Path(tempdir)
+        cmd1_out = tempdir_path / 'output_1a.mp4'
 
         # Loop audio with video until shortest ends
         # NOTE: Requires `ffmpeg` newer than 2017-11 to fix 'stream_loop' bug
@@ -533,35 +534,40 @@ def add_background_audio(video_path, audio_path, loop=True, output_path=None):
                 '-y',
                 cmd1_out
         ]
-        p1 = subprocess.Popen(cmd1, cwd=str(tempdir),
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        logging.info("[AUDIO MIXING 1/2] %s", p1.args)
-        p1.wait(timeout=FFMPEG_TIMEOUT)
-        if p1.returncode:
-            # Error
-            _stdout, _stderr = [x.decode('utf-8') for x in p1.communicate()]
-            raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
+        # Direct FFmpeg stdout/stderr to file to avoid halting due to filled I/O buffer
+        with open(str(tempdir_path / 'ffmpeg1.stdout'), 'w') as ffout:
+            with open(str(tempdir_path / 'ffmpeg1.stderr'), 'w') as fferr:
+                p1 = subprocess.Popen(cmd1, cwd=str(tempdir_path), stdout=ffout, stderr=fferr)
+                logging.info("[AUDIO MIXING 1/2] %s", p1.args)
+                p1.wait(timeout=FFMPEG_TIMEOUT)
+                if p1.returncode:
+                    # Error
+                    #_stdout, _stderr = [x.decode('utf-8') for x in p1.communicate()]
+                    raise RuntimeError(f"Non-zero exit code while mixing audio (1/2) -- Exit code: {p1.returncode}")
 
         # Checkpoint
         save_file = cmd1_out
 
         # Audio Fadeout (crossfade with silence -> 2.0 sec)
         #ffmpeg -i input.mp4 -filter_complex "aevalsrc=0:d=0.6 [a_silence]; [0:a:0] [a_silence] acrossfade=d=0.6" output.mp4
-        cmd2_out = Path(tempdir) / 'output_1b.mp4'
+        # TODO: Any way to accomplish this on the first pass?
+        cmd2_out = tempdir_path / 'output_1b.mp4'
         cmd2 = [get_ffmpeg(),
                 '-i', cmd1_out,
                 '-filter_complex',
                 'aevalsrc=0:d=2.0 [a_silence]; [0:a:0] [a_silence] acrossfade=d=2.0',
                 cmd2_out
         ]
-        p2 = subprocess.Popen(cmd2, cwd=str(tempdir),
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        logging.info("[AUDIO MIXING 2/2] %s", p2.args)
-        p2.wait(timeout=FFMPEG_TIMEOUT)
-        if p2.returncode:
-            # Error
-            _stdout, _stderr = [x.decode('utf-8') for x in p2.communicate()]
-            raise RuntimeError(f"[{p2.returncode}] Error: {_stderr}")
+        # Direct FFmpeg stdout/stderr to file to avoid halting due to filled I/O buffer
+        with open(str(tempdir_path / 'ffmpeg2.stdout'), 'w') as ffout:
+            with open(str(tempdir_path / 'ffmpeg2.stderr'), 'w') as fferr:
+                p2 = subprocess.Popen(cmd2, cwd=str(tempdir_path), stdout=ffout, stderr=fferr)
+                logging.info("[AUDIO MIXING 2/2] %s", p2.args)
+                p2.wait(timeout=FFMPEG_TIMEOUT)
+                if p2.returncode:
+                    # Error
+                    #_stdout, _stderr = [x.decode('utf-8') for x in p2.communicate()]
+                    raise RuntimeError(f"Non-zero exit code while mixing audio (2/2) -- Exit code: {p2.returncode}")
 
         save_file = cmd2_out
 
@@ -586,7 +592,8 @@ def remove_background_audio(video_path, output_path=None):
     tempdir = tempfile.mkdtemp(prefix="gource_")
     save_file = None
     try:
-        cmd1_out = Path(tempdir) / 'output_nosound.mp4'
+        tempdir_path = Path(tempdir)
+        cmd1_out = tempdir_path / 'output_nosound.mp4'
 
         # Use `-vcodec copy` to avoid reencoding video
         #     `-an` disables audio stream selection
@@ -597,13 +604,15 @@ def remove_background_audio(video_path, output_path=None):
                 '-an',
                 cmd1_out
         ]
-        p1 = subprocess.Popen(cmd1, cwd=str(tempdir),
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        p1.wait(timeout=FFMPEG_TIMEOUT)
-        if p1.returncode:
-            # Error
-            _stdout, _stderr = [x.decode('utf-8') for x in p1.communicate()]
-            raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
+        # Direct FFmpeg stdout/stderr to file to avoid halting due to filled I/O buffer
+        with open(str(tempdir_path / 'ffmpeg.stdout'), 'w') as ffout:
+            with open(str(tempdir_path / 'ffmpeg.stderr'), 'w') as fferr:
+                p1 = subprocess.Popen(cmd1, cwd=str(tempdir_path), stdout=ffout, stderr=fferr)
+                p1.wait(timeout=FFMPEG_TIMEOUT)
+                if p1.returncode:
+                    # Error
+                    #_stdout, _stderr = [x.decode('utf-8') for x in p1.communicate()]
+                    raise RuntimeError(f"Non-zero exit code while removing audio -- Exit code: {p1.returncode}")
 
         save_file = cmd1_out
 
@@ -638,11 +647,11 @@ def get_video_duration(video_path):
     return float(_stdout)
 
 
-def rescale_image(image_path, width=256):
+def rescale_image(image_path, width=256, output_format=None):
     """
     Rescale an image to the specified width (preserving aspect ratio)
 
-    Returns BytesIO object containing image (JPEG)
+    Returns BytesIO object containing resized image
     """
     # https://stackoverflow.com/a/451580
     img = Image.open(image_path)
@@ -653,7 +662,11 @@ def rescale_image(image_path, width=256):
     else:
         img = img.resize((width, hsize), Image.ANTIALIAS)   # Pillow < 9.1.0
     bf = BytesIO()
-    img.save(bf, "JPEG")
+    if output_format is None:
+        output_format = img.format  # Original format
+    if not output_format:
+        output_format = 'JPEG'      # Default
+    img.save(bf, output_format)
     return bf
 
 
