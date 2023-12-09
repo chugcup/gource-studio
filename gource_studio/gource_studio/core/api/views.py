@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import os
 import time
@@ -10,7 +10,7 @@ from django.db.models import DateTimeField, Exists, Max, OuterRef, Prefetch, Q, 
 from django.db.models.functions import Coalesce, Greatest
 from django.shortcuts import get_object_or_404
 from django.utils import dateparse
-from django.utils.timezone import make_aware, now as utc_now
+from django.utils.timezone import now as utc_now
 from django.views.static import serve
 from rest_framework import generics, parsers, status, views
 from rest_framework.decorators import api_view, permission_classes
@@ -211,7 +211,7 @@ class ProjectsList(ProjectPermissionQuerySetMixin, generics.ListCreateAPIView):
         # Get time/author from last entry
         if log_data is not None:
             latest_commit = log_data.splitlines()[-1].split('|')
-            project.project_log_commit_time = make_aware(datetime.utcfromtimestamp(int(latest_commit[0])))
+            project.project_log_commit_time = datetime.utcfromtimestamp(int(latest_commit[0])).replace(tzinfo=timezone.utc)
         project.save()
 
         # Load initial ProjectCaptions from VCS tags
@@ -304,7 +304,7 @@ class ProjectDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateDestr
                         # TODO error or log?
                         continue
                     try:
-                        timestamp = make_aware(dateparse.parse_datetime(caption['timestamp']))
+                        timestamp = dateparse.parse_datetime(caption['timestamp']).replace(tzinfo=timezone.utc)
                         caption_text = caption['text']
                         new_captions.append(
                             ProjectCaption(project=project, timestamp=timestamp, text=caption_text)
@@ -313,11 +313,21 @@ class ProjectDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateDestr
                         logging.exception(f"Gource caption error [{idx}]")
                         response['captions'] = f"Gource caption error: [{idx}]"
                         return Response(response, status=status.HTTP_400_BAD_REQUEST)
-                # Delete old options
-                # TODO merge/prune
-                project.captions.all().delete()
-                # Add new set
-                ProjectCaption.objects.bulk_create(new_captions)
+                # Check for flag to indicate if old captions should be removed
+                sync_captions = request.data.get('sync_captions', False)
+                if sync_captions:
+                    # Delete old options
+                    project.captions.all().delete()
+                    # Add new set
+                    ProjectCaption.objects.bulk_create(new_captions)
+                else:
+                    # Merge with current set
+                    ProjectCaption.objects.bulk_create(
+                        new_captions,
+                        update_conflicts=True,
+                        unique_fields=['project', 'timestamp', 'text'],
+                        update_fields=['project', 'timestamp', 'text']
+                    )
             else:
                 logging.error(f"Invalid 'captions' list provided: {request.data['captions']}")
             del request.data['captions']
@@ -439,7 +449,7 @@ class ProjectLogDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateAP
                 if field == 'project_log_commit_time':
                     # FIXME: not always going to be UNIX timestamp
                     setattr(project, field,
-                            make_aware(datetime.utcfromtimestamp(int(request.data[field]))))
+                            datetime.utcfromtimestamp(int(request.data[field])).replace(tzinfo=timezone.utc))
                 else:
                     setattr(project, field, request.data[field])
         if 'project_log' in request.data:
@@ -662,6 +672,33 @@ class ProjectOptionsList(generics.ListAPIView):
 class ProjectCaptionsList(generics.ListCreateAPIView):
     """
     Retrieve a current list of captions for a project.
+
+    Can create a new caption using:
+
+        {
+            "timestamp": <datetime>,
+            "text": <str>
+        }
+
+    Or in bulk using:
+
+        {
+            "captions": [
+                {"timestamp", "text"},
+                ...
+            ]
+        }
+
+    By default, `captions` will be added/merged to existing entries.
+    To reset captions, set the `sync_captions` field.
+
+        {
+
+            "captions": [ ... ],
+            "sync_captions": true
+        }
+
+
     """
     queryset = ProjectCaption.objects.all()
     serializer_class = ProjectCaptionSerializer
@@ -685,7 +722,7 @@ class ProjectCaptionsList(generics.ListCreateAPIView):
                         # TODO error or log?
                         continue
                     try:
-                        timestamp = make_aware(dateparse.parse_datetime(caption['timestamp']))
+                        timestamp = dateparse.parse_datetime(caption['timestamp']).replace(tzinfo=timezone.utc)
                         caption_text = caption['text']
                         new_captions.append(
                             ProjectCaption(project=project, timestamp=timestamp, text=caption_text)
@@ -694,11 +731,21 @@ class ProjectCaptionsList(generics.ListCreateAPIView):
                         logging.exception(f"Gource caption error [{idx}]")
                         response['captions'] = f"Gource caption error: [{idx}]"
                         return Response(response, status=status.HTTP_400_BAD_REQUEST)
-                # Delete old options
-                # TODO merge/prune
-                project.captions.all().delete()
-                # Add new set
-                ProjectCaption.objects.bulk_create(new_captions)
+                # Check for flag to indicate if old captions should be removed
+                sync_captions = request.data.get('sync_captions', False)
+                if sync_captions:
+                    # Delete old options
+                    project.captions.all().delete()
+                    # Add new set
+                    ProjectCaption.objects.bulk_create(new_captions)
+                else:
+                    # Merge with current set
+                    ProjectCaption.objects.bulk_create(
+                        new_captions,
+                        update_conflicts=True,
+                        unique_fields=['project', 'timestamp', 'text'],
+                        update_fields=['project', 'timestamp', 'text']
+                    )
                 project_updated = True
             else:
                 logging.error(f"Invalid 'captions' list provided: {request.data['captions']}")
@@ -706,7 +753,7 @@ class ProjectCaptionsList(generics.ListCreateAPIView):
         # Append new caption
         elif 'timestamp' in request.data and 'text' in request.data:
             try:
-                timestamp = make_aware(dateparse.parse_datetime(request.data['timestamp']))
+                timestamp = dateparse.parse_datetime(request.data['timestamp']).replace(tzinfo=timezone.utc)
                 caption_text = request.data['text']
                 caption = ProjectCaption.objects.create(project=project, timestamp=timestamp, text=caption_text)
                 project_updated = True
@@ -844,7 +891,7 @@ class CreateNewProjectBuild(generics.CreateAPIView):
                 project.project_log_commit_preview = log_subject
                 # Get time/author from last entry
                 latest_commit = log_data.splitlines()[-1].split('|')
-                project.project_log_commit_time = make_aware(datetime.utcfromtimestamp(int(latest_commit[0])))
+                project.project_log_commit_time = datetime.utcfromtimestamp(int(latest_commit[0])).replace(tzinfo=timezone.utc)
                 if project.project_log:
                     #os.remove(project.project_log.path)
                     project.project_log.delete()

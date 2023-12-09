@@ -154,7 +154,7 @@ class TestProjects:
     def test_create_project_build(self):
         # From a `Project` instance, create a new `ProjectBuild`
         # and verify settings/captions/etc. copied
-        project = Project.objects.create(name="test")
+        project = Project.objects.create(name="test", build_logo_resize=False, build_background_resize=False)
 
         # Without a `project_log`, verify creation fails
         with pytest.raises(RuntimeError):

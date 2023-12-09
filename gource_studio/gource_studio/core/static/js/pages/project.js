@@ -49,6 +49,10 @@ App.pages.project.init = function(project_id, page_options) {
                 $('.save-project-settings-btn').attr({disabled: false})
                                                .prepend('<i class="fa fa-check"></i>');
                 $.notify("Options saved successfully.", {className: "success", position: "top right"});
+                // If project settings changed, show Build Now button
+                if (data.is_project_changed) {
+                    $('.project-changed-notice').show();
+                }
             },
             error: function(xhr, textStatus, err) {
                 // Error
@@ -505,14 +509,13 @@ App.pages.project.init = function(project_id, page_options) {
             return;
         }
         var post_data = {
-            captions: captions_list
+            captions: captions_list,
+            sync_captions: true
         };
         $('.save-project-captions-btn').attr({disabled: true})
                              .find('i.fa').removeClass('fa-tag fa-times fa-check')
                                           .addClass('fa-spinner fa-spin');
         $.ajax({
-            //url: "/api/v1/projects/"+project_id+"/",
-            //method: 'PATCH',
             url: "/api/v1/projects/"+project_id+"/captions/",
             method: "POST",
             data: JSON.stringify(post_data),

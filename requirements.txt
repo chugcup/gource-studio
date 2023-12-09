@@ -1,6 +1,6 @@
 billiard
 celery
-Django>=3.2,<4
+Django>=4.2,<5
 django-filter
 django-split-settings
 djangorestframework

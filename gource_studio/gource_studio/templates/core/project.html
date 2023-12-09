@@ -2,6 +2,28 @@
 
 {% block page_css %}
   <style type="text/css">
+  @media (min-width: 576px) and (max-width: 768px) {
+    .container,
+    .container-sm {
+        max-width: none;
+    }
+  }
+  @media (max-width: 575px) {
+      dl dt {
+          text-align: center;
+      }
+  }
+  @media (min-width: 576px) {
+      dl dt {
+          text-align: right;
+      }
+  }
+  @media (max-width: 992px) {
+      dt.project-commit-hash-label,
+      dd.project-commit-hash-value {
+          font-size: 14px;
+      }
+  }
     #gource-settings-container .form-group,
     #gource-settings-container-view .form-group {
         min-width: 400px;
@@ -454,6 +476,16 @@
               <hr />
 
               <div id="project-details-actions-container" class="float-right">
+              {% if build.project_log %}
+                <a class="btn btn-link" href="{% url 'project-build-project-log' project.id build.id %}" download="project.log" title="Download project log">
+                  <i class="fa fa-file-text-o"></i> Project Log
+                </a>
+              {% elif project.project_log %}
+                <a class="btn btn-link" href="{% url 'project-project-log' project.id %}" download="project.log" title="Download project log">
+                  <i class="fa fa-file-text-o"></i> Project Log
+                </a>
+              {% endif %}
+
               {% if request.user and not request.user.is_anonymous %}
                 <a id="add-to-playlist-btn" class="btn btn-default btn-sm" title="Add to Playlist"$>
                   <i class="fa fa-plus-square"></i>
@@ -466,7 +498,32 @@
               {% endif %}
               </div>
 
-              <div class="row">
+              <div>
+                <dl class="row">
+                  <dt class="col-sm-4 col-md-4 col-lg-3 project-branch-label" title="Project branch">Branch:</dt>
+                  <dd class="col-sm-8 col-md-8 col-lg-9 project-branch-value">
+                    <span title="{{ project.project_branch }}">{{ project.project_branch }}</span>
+                  </dd>
+                {% if build.project_log_commit_hash %}
+                  <dt class="col-sm-4 col-md-4 col-lg-3 project-commit-hash-label" title="Last project commit">
+                    Last Commit:
+                  </dt>
+                  <dd class="col-sm-8 col-md-8 col-lg-9 project-commit-hash-value">
+                    <span title="{{ build.project_log_commit_time|date:"M j, Y H:i:s T" }}">
+                      [{{ build.project_log_commit_time|date:"M j, Y" }}]
+                    {{ build.project_log_commit_preview }}
+                    </span>
+                  </dd>
+                {% endif %}
+                {% if build %}
+                  <dt class="col-sm-4 col-md-4 col-lg-3">Last Updated:</dt>
+                  <dd class="col-sm-8 col-md-8 col-lg-9">
+                    <span>{{ build.created_at|date:"M j, Y H:i:s T" }}</span>
+                  </dd>
+                {% endif %}
+                </dl>
+
+    <!--
                 <div class="col-12">
                   <b>Branch:</b>
                   <span title="{{ project.project_branch }}">{{ project.project_branch }}</span>
@@ -504,6 +561,8 @@
                 </div>
               </div>
 
+    -->
+              </div>
               <hr />
 
               <div class="project-links-container row">
@@ -1054,7 +1113,7 @@
 
         if (init_project_captions.length > 0) {
             _.each(init_project_captions, function(item) {
-                let moment_timestamp = moment(item.timestamp);
+                let moment_timestamp = moment.utc(item.timestamp);
                 item.timestamp = moment_timestamp.format('YYYY-MM-DD HH:mm:ss');
                 item.can_edit = !IS_READONLY;
                 App.pages.project.project_captions_container.captions_list.push(item);
@@ -1062,7 +1121,7 @@
         }
         if (init_build_captions.length > 0) {
             _.each(init_build_captions, function(item) {
-                let moment_timestamp = moment(item.timestamp);
+                let moment_timestamp = moment.utc(item.timestamp);
                 item.timestamp = moment_timestamp.format('YYYY-MM-DD HH:mm:ss');
                 App.pages.project.build_captions_container.captions_list.push(item);
             });

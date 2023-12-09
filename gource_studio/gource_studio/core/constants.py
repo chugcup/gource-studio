@@ -174,7 +174,7 @@ GOURCE_OPTIONS = {
         'type': 'int',
         'description': "Caption font size (1-100).",
         'parser': int,
-        'default': 25,  # ???
+        'default': 16,
         'validator': validate_range(min_value=1, max_value=100)
     },
     'caption-colour': {
@@ -191,7 +191,7 @@ GOURCE_OPTIONS = {
         'description': "Caption duration (in seconds).",
         'parser': float,
         'default': 10.0,
-        'validator': validate_range(min_value=0.5)
+        'validator': validate_range(min_value=0.001)
     },
     'caption-offset': {
         'label': 'Caption Offset',

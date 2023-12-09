@@ -20,7 +20,7 @@ DEFAULT_PROJECT_SLUG = None      #  Project Slug
 ##### Main Script ###########################################################
 
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 import getpass
 import json
 import os
@@ -33,9 +33,11 @@ import urllib.request
 
 # API endpoint where log will be uploaded
 LOG_TEMPLATE = "{base_url}/api/v1/projects/{project_id}/project_log/"
+CAPTIONS_TEMPLATE = "{base_url}/api/v1/projects/{project_id}/captions/"
+QUEUE_TEMPLATE = "{base_url}/api/v1/projects/{project_id}/builds/new/"
 
 
-def main(host, token, project_path, project_id=None, project_slug=None):
+def main(host, token, project_path, *, project_id=None, project_slug=None, queue_build=False, submit_tags=False):
     if not os.path.isdir(project_path):
         raise RuntimeError(f"Path not valid directory: {project_path}")
     project_type = determine_project_type(project_path)
@@ -54,7 +56,7 @@ def main(host, token, project_path, project_id=None, project_slug=None):
     elif project_type == 'mercurial':
         author_timestamp, commit_hash, commit_subject = get_latest_mercurial_commit(project_path)
     if author_timestamp:
-        author_timestamp_str = datetime.utcfromtimestamp(author_timestamp).strftime('%c %z')
+        author_timestamp_str = datetime.fromtimestamp(author_timestamp, tz=timezone.utc).strftime('%c %z')
     print("#"*78)
     print(f' Last Timestamp: {author_timestamp_str}')
     print(f'    Commit Hash: {commit_hash}')
@@ -99,6 +101,62 @@ def main(host, token, project_path, project_id=None, project_slug=None):
             return
         print(" DONE")
         #shutil.copyfile(output_log, f'./{os.path.basename(output_log)}')
+
+        if submit_tags:
+            # Fetch tags from repo and upload as captions
+            try:
+                tags_list = retrieve_tags_from_git_repo(project_path)
+                if tags_list:
+                    print(f"++ Sending {len(tags_list)} project tag(s) as captions...", end='')
+                    sys.stdout.flush()
+                    captions_url = CAPTIONS_TEMPLATE.format(**{
+                        "base_url": server_host,
+                        "project_id": project_id if project_id else project_slug
+                    })
+                    captions_data = {
+                        "captions": tags_list
+                    }
+                    # Submit using Token authentication
+                    req = urllib.request.Request(captions_url, method="POST", data=json.dumps(captions_data).encode('utf-8'), headers={
+                        'Content-Type': 'application/json',
+                        'Authorization': f'Token {token}'
+                    })
+                    res = urllib.request.urlopen(req)
+                    if res.status not in [200, 201]:
+                        print("ERROR")
+                        print(f"  !! Unexpected HTTP response: {res.status} {res.reason}", file=sys.stderr)
+                    else:
+                        print(" DONE")
+                else:
+                    print("NOTICE: No tags found in project repository.")
+            except Exception as e:
+                print("ERROR")
+                print(f"  !! Error submitting project tags: {str(e)}")
+
+        if queue_build:
+            try:
+                print(f"++ Requesting new video build...", end='')
+                build_url = QUEUE_TEMPLATE.format(**{
+                    "base_url": server_host,
+                    "project_id": project_id if project_id else project_slug
+                })
+                build_data = {}
+                # Submit using Token authentication
+                req = urllib.request.Request(build_url, method="POST", data=json.dumps(build_data).encode('utf-8'), headers={
+                    'Content-Type': 'application/json',
+                    'Authorization': f'Token {token}'
+                })
+                res = urllib.request.urlopen(req)
+                if res.status not in [201]:
+                    # TODO: Check for existing build queued (400)
+                    print("ERROR")
+                    print(f"  !! Unexpected HTTP response: {res.status} {res.reason}", file=sys.stderr)
+                else:
+                    print(" DONE")
+            except Exception as e:
+                print("ERROR")
+                print(f"  !! Error requesting new project build: {str(e)}")
+
     finally:
         # Cleanup
         if os.path.isfile(output_log):
@@ -161,6 +219,41 @@ def get_latest_mercurial_commit(project_path):
         # NOTE: returns "<UNIX_TIMESTAMP> <TIMEZONE_OFFSET>"
         author_timestamp = int(author_timestamp.split(" ")[0])
     return author_timestamp, commit_hash, commit_subject
+
+
+def retrieve_tags_from_git_repo(repo_path):
+    """
+    Retrieve list of tags from a local Git repository folder.
+
+    Returns [(timestamp, name)]
+    """
+    if not os.path.isdir(repo_path):
+        raise ValueError(f"Invalid Git repo path: {repo_path}")
+
+    #git tag --list --format='%(creatordate:iso8601)|%(refname:short)'
+    cmd = [get_git_path(), 'tag',
+           '--list',
+           '--format=%(creatordate:iso8601)|%(refname:short)']
+    p1 = subprocess.Popen(cmd, cwd=repo_path,
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p1.wait(timeout=60)
+    if p1.returncode:
+        # Error
+        _stdout, _stderr = [x.decode('utf-8') for x in p1.communicate()]
+        raise RuntimeError(f"[{p1.returncode}] Error: {_stderr}")
+
+    tags_output = p1.communicate()[0].decode('utf-8')
+    tags_list = []
+    ISO_PATTERN = '%Y-%m-%d %H:%M:%S %z'
+    for line in tags_output.strip().split('\n'):
+        if not line:
+            continue
+        timestamp, _, tag_name = line.partition('|')
+        tags_list.append({
+            "timestamp": datetime.strptime(timestamp, ISO_PATTERN).astimezone(timezone.utc).isoformat(),
+            "text": tag_name
+        })
+    return tags_list
 
 
 def determine_project_type(path):
@@ -249,6 +342,8 @@ This will detect the VCS used and generate a Gource log file to upload.
     group1.add_argument("--project-id", metavar="ID", type=int, required=False, help="Project ID to update")
     group1.add_argument("--project-slug", metavar="NAME", type=str, required=False, help="Project slug to update")
     parser.add_argument("--env-file", metavar="FILE", type=str, required=False, help="Read in a file of environment variables")
+    parser.add_argument("--with-tags", action="store_true", help="Submit project tags as video captions")
+    parser.add_argument("--queue-build", action="store_true", help="Queue a new video build using current settings")
     args = parser.parse_args()
 
     # Determine project path
@@ -301,10 +396,15 @@ This will detect the VCS used and generate a Gource log file to upload.
     main_kwargs = {
         "host": host,
         "project_path": project_path,
-        "token": token
+        "token": token,
     }
     if project_id:
         main_kwargs['project_id'] = project_id
     else:
         main_kwargs['project_slug'] = project_slug
+    if args.with_tags:
+        main_kwargs['submit_tags'] = True
+    if args.queue_build:
+        main_kwargs['queue_build'] = True
+
     main(**main_kwargs)
