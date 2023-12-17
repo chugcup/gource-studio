@@ -22,6 +22,53 @@
         padding: 1px;
         width: 230px;
     }
+    .avatar-alias-button {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        height: 20px;
+        min-width: 30px;
+        background: #DDDDDD;
+        color: #000000;
+        font-size: 12px;
+        border-radius: 4px 0 0 0;
+    }
+    .avatar-alias-button.show-hover {
+        opacity: 0;
+    }
+    .avatar-alias-button a {
+        display: block;
+    }
+    .card:hover .avatar-alias-button.show-hover {
+        opacity: 1;
+    }
+    .avatar-alias-button a:hover {
+        cursor: pointer;
+        text-decoration: none;
+        opacity: 0.6;
+    }
+    .delete-avatar-alias-btn {
+        line-height: 1rem;
+        padding: 0 0 0 8px;
+        vertical-align: baseline;
+        display: none;
+    }
+    .avatar-alias-popover ul li:hover .delete-avatar-alias-btn {
+        display: inline-block;
+    }
+
+    .avatar-alias-popover .popover-body {
+        max-width: 250px;
+        max-height: 120px;
+        overflow: auto;
+    }
+    .avatar-alias-popover ul {
+        padding-inline-start: 10px;
+        margin-bottom: 0;
+    }
+    .avatar-alias-popover ul li {
+        max-width: 200px;
+    }
     .card {
         height: 115px;
         width: 115px;
@@ -198,18 +245,19 @@
             </div>
           </div>
           {% endif %}
+        {% endif %}
           {% if page_view == 'project_avatars' and not avatar.project_id %}
           <div class="ribbon ribbon-top-right">
             <span title="This avatar was found in the global collection">GLOBAL</span>
           </div>
           {% endif %}
-        {% endif %}
+          <div class="avatar-alias-button{% if avatar.aliases_count == 0 %} show-hover{% endif %}">
+            <a title="{{ avatar.aliases_count }} additional aliases" data-avatar-id="{{ avatar.id }}" data-avatar-type="{{ avatar.AVATAR_TYPE }}">
+              {% if avatar.aliases_count == 0 %}+{% else %}(+{{ avatar.aliases_count }}){% endif %}
+            </a>
+          </div>
         {% if avatar.image %}
-          {% if page_view == 'project_avatars' %}
           <img class="card-img-top" src="{{ avatar.image_url }}" alt="" style="height:auto;width:auto;max-height:100px;max-width:100px;margin:auto" />
-          {% else %}
-          <img class="card-img-top" src="{{ avatar.image_url }}" alt="" style="height:auto;width:auto;max-height:100px;max-width:100px;margin:auto" />
-          {% endif %}
         {% else %}
           <img class="card-img-top" src="/static/img/no-preview-185x100.png" alt="No Preview" />
         {% endif %}
@@ -217,9 +265,6 @@
         <div class="card-body">
           <b class="card-title">{{ avatar.name }}</b>
           <small class="card-text text-muted">
-          {% if avatar.aliases_count > 0 %}
-            <span title="{{ avatar.aliases_count }} additional aliases">(+ {{ avatar.aliases_count }})</span>
-          {% endif %}
           </small>
         </div>
       </div>
@@ -304,6 +349,9 @@
   <script type="text/javascript">
     const PROJECT_ID = {% if page_view == 'project_avatars' %}{{ project.id }}{% else %}null{% endif %};
     const UPLOAD_URL = "{% if page_view == 'project_avatars' %}{% url 'project-avatar-upload' project.id %}{% else %}{% url 'avatar-upload' %}{% endif %}";
+    let avatars_list = [{% for avatar_json in avatars_json %}
+        {{ avatar_json|safe }},{% endfor %}
+    ];
     const CAN_USER_EDIT = {{ user_can_edit|lower }};
     $(document).ready(function() {
         "use strict";
@@ -311,6 +359,7 @@
         // Initialize page object
         App.pages.avatars.init(UPLOAD_URL, {
             project_id: PROJECT_ID,
+            avatars_list: avatars_list,
             can_user_edit: CAN_USER_EDIT,
         });
     });

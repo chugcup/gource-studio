@@ -903,6 +903,8 @@ class UserAvatar(models.Model):
 
     (Global registry)
     """
+    AVATAR_TYPE = "global"
+
     name = models.CharField(max_length=256, unique=True)
     image = models.ImageField(upload_to=get_global_avatar_path, blank=True, null=True)
 
@@ -944,6 +946,14 @@ class UserAvatar(models.Model):
             name=name
         )[0]
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "type": self.AVATAR_TYPE,
+            "name": self.name,
+            "aliases": [alias.to_dict() for alias in self.aliases.all()]
+        }
+
 
 class UserAvatarAlias(models.Model):
     """
@@ -960,6 +970,12 @@ class UserAvatarAlias(models.Model):
     def __str__(self):
         return self.name
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name
+        }
+
 
 def get_project_avatar_path(instance, filename):
     return f'projects/{instance.id}/avatars/{filename}'
@@ -970,6 +986,8 @@ class ProjectUserAvatar(models.Model):
 
     (Project override)
     """
+    AVATAR_TYPE = "project"
+
     project = models.ForeignKey(Project, related_name='avatars', on_delete=models.CASCADE)
     name = models.CharField(max_length=256)
     image = models.ImageField(upload_to=get_project_avatar_path, blank=True, null=True)
@@ -1013,6 +1031,15 @@ class ProjectUserAvatar(models.Model):
             name=name
         )[0]
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "project_id": self.project_id,
+            "type": self.AVATAR_TYPE,
+            "name": self.name,
+            "aliases": [alias.to_dict() for alias in self.aliases.all()]
+        }
+
 
 class ProjectUserAvatarAlias(models.Model):
     """
@@ -1029,6 +1056,12 @@ class ProjectUserAvatarAlias(models.Model):
 
     def __str__(self):
         return self.name
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name
+        }
 
 
 class ProjectMember(models.Model):

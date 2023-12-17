@@ -6,6 +6,7 @@ import urllib
 
 from django import forms
 from django.core.files.base import ContentFile
+from django.db import IntegrityError
 from django.db.models import DateTimeField, Exists, Max, OuterRef, Prefetch, Q, Subquery, Value
 from django.db.models.functions import Coalesce, Greatest
 from django.shortcuts import get_object_or_404
@@ -85,6 +86,14 @@ class ProjectMemberPermission(IsAuthenticatedOrReadOnly):
             if not isinstance(obj, Project):
                 obj = obj.project
             return obj.check_permission(request.user, request.method)
+
+class IsStaffPermission(IsAuthenticatedOrReadOnly):
+    "Checks that user has 'is_staff' permission"
+    def has_object_permission(self, request, view, obj):
+        if request.method in SAFE_METHODS:
+            return True
+        else:
+            return request.user.is_staff
 
 
 class APIRoot(views.APIView):
@@ -1119,6 +1128,61 @@ class ProjectUserAvatarImageDownload(views.APIView):
         return _serve_file_field(request, avatar, 'image')
 
 
+class ProjectUserAvatarAliasesList(generics.ListCreateAPIView):
+    queryset = ProjectUserAvatarAlias.objects.all()
+    serializer_class = ProjectUserAvatarAliasSerializer
+    pagination_class = None
+
+    def get_parent_object(self):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+        return get_object_or_404(ProjectUserAvatar.objects.all(), **{'id': self.kwargs['project_avatar_id'], 'project_id': project.id})
+
+    def get_queryset(self):
+        avatar = self.get_parent_object()
+        return super().get_queryset().filter(avatar=avatar)
+
+    def post(self, request, *args, **kwargs):
+        avatar = self.get_parent_object()
+        name = request.data.get('name')
+        if 'name' not in request.data:
+            return Response({"detail": "Missing required field: name"}, status=status.HTTP_400_BAD_REQUEST)
+        name = name.strip()
+        if not name:
+            return Response({"detail": "Field 'name' cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            alias = ProjectUserAvatarAlias.objects.create(
+                avatar=avatar,
+                name=name
+            )
+            # Generate serializer response
+            serializer = self.get_serializer(alias, context={'request': request})
+            response = serializer.data
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except IntegrityError as e:
+            err = "Alias by that name already exists."
+            return Response({"detail": err}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"detail": form.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ProjectUserAvatarAliasDetail(generics.RetrieveDestroyAPIView):
+    queryset = ProjectUserAvatarAlias.objects.all()
+    serializer_class = ProjectUserAvatarAliasSerializer
+
+    def get_parent_object(self):
+        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+        return get_object_or_404(ProjectUserAvatar.objects.all(), **{'id': self.kwargs['project_avatar_id'], 'project_id': project.id})
+
+    def get_object(self):
+        avatar = self.get_parent_object()
+        return get_object_or_404(super().get_queryset(), **{
+            'avatar_id': avatar.id,
+            'id': self.kwargs['avatar_alias_id']
+        })
+
+
 class UploadAvatarForm(forms.Form):
     name = forms.CharField(max_length=255)
     image = forms.ImageField()
@@ -1149,7 +1213,7 @@ class UserAvatarsList(generics.ListCreateAPIView):
                 avatar.created_by = request.user
                 avatar.save()
 
-                # Generate serializer response for new ProjectBuild
+                # Generate serializer response
                 serializer = self.get_serializer(avatar, context={'request': request})
                 response = serializer.data
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -1174,6 +1238,61 @@ class UserAvatarImageDownload(views.APIView):
     def get(self, request, *args, **kwargs):
         avatar = get_object_or_404(UserAvatar, **{'id': self.kwargs['avatar_id']})
         return _serve_file_field(request, avatar, 'image')
+
+
+class UserAvatarAliasesList(generics.ListCreateAPIView):
+    queryset = UserAvatarAlias.objects.all()
+    serializer_class = UserAvatarAliasSerializer
+    pagination_class = None
+    permission_classes = (IsStaffPermission,)
+
+    def get_parent_object(self):
+        return get_object_or_404(UserAvatar.objects.all(), **{'id': self.kwargs['avatar_id']})
+
+    def get_queryset(self):
+        avatar = self.get_parent_object()
+        return super().get_queryset().filter(avatar=avatar)
+
+    def post(self, request, *args, **kwargs):
+        avatar = self.get_parent_object()
+        name = request.data.get('name')
+        if 'name' not in request.data:
+            return Response({"detail": "Missing required field: name"}, status=status.HTTP_400_BAD_REQUEST)
+        name = name.strip()
+        if not name:
+            return Response({"detail": "Field 'name' cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            alias = UserAvatarAlias.objects.create(
+                avatar=avatar,
+                name=name
+            )
+            # Generate serializer response
+            serializer = self.get_serializer(alias, context={'request': request})
+            response = serializer.data
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except IntegrityError as e:
+            err = "Alias by that name already exists."
+            return Response({"detail": err}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"detail": form.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserAvatarAliasDetail(generics.RetrieveDestroyAPIView):
+    queryset = UserAvatarAlias.objects.all()
+    serializer_class = UserAvatarAliasSerializer
+    permission_classes = (IsStaffPermission,)
+
+    def get_parent_object(self):
+        return get_object_or_404(UserAvatar.objects.all(), **{'id': self.kwargs['avatar_id']})
+
+    def get_object(self):
+        avatar = self.get_parent_object()
+        return get_object_or_404(super().get_queryset(), **{
+            'avatar_id': avatar.id,
+            'id': self.kwargs['avatar_alias_id']
+        })
 
 
 class ProjectDurationUtility(views.APIView):

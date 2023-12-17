@@ -179,19 +179,20 @@ class ProjectCaptionSerializer(serializers.ModelSerializer):
 class UserAvatarAliasSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserAvatarAlias
-        fields = ('name',)
+        fields = ('id', 'name',)
         read_only_fields = ('name',)
 
 
 class ProjectUserAvatarAliasSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProjectUserAvatarAlias
-        fields = ('name',)
+        fields = ('id', 'name',)
         read_only_fields = ('name',)
 
 
 class UserAvatarSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField('get_image_url')
+    type = serializers.CharField(source='AVATAR_TYPE')
     aliases = UserAvatarAliasSerializer(many=True)
 
     def get_image_url(self, obj):
@@ -201,8 +202,8 @@ class UserAvatarSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserAvatar
-        fields = ('name', 'image', 'aliases')
-        read_only_fields = ('name',)
+        fields = ('id', 'type', 'name', 'image', 'aliases')
+        read_only_fields = ('type', 'name',)
 
 
 class ProjectUserAvatarSerializer(UserAvatarSerializer):
@@ -213,10 +214,13 @@ class ProjectUserAvatarSerializer(UserAvatarSerializer):
             return reverse('api-project-useravatar-image-download', args=[obj.project_id, obj.pk], request=self.context.get('request'))
         return None
 
+    def get_type(self, obj):
+        return obj.AVATAR_TYPE
+
     class Meta:
         model = ProjectUserAvatar
-        fields = ('name', 'image', 'aliases')
-        read_only_fields = ('name',)
+        fields = ('id', 'project_id', 'type', 'name', 'image', 'aliases')
+        read_only_fields = ('project_id', 'name', 'type')
 
 
 class UserPlaylistSerializer(serializers.HyperlinkedModelSerializer):

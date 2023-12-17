@@ -862,16 +862,19 @@ def avatars(request):
     "Global avatars page"
     avatars = UserAvatar.objects.prefetch_related('aliases')\
                                 .order_by(Lower('name'))
+    avatars_json = [av.to_dict() for av in avatars]
+
     context = {
         'document_title': f'Avatars - {SITE_NAME}',
         'nav_page': 'avatars',
         'avatars': avatars,
         'avatar_names': list(avatars.values_list('name', flat=True)),
+        'avatars_json': avatars_json,
         'page_view': 'avatars',
         'user_can_edit': request.user.is_staff,
     }
     # Pagination
-    paginator = Paginator(context['avatars'], 20)
+    paginator = Paginator(context['avatars'], 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     context['page_obj'] = page_obj
@@ -904,6 +907,7 @@ def project_avatars(request, project_id=None, project_slug=None):
                            .filter(id__in=[x.id for _, x, _ in avatars_map.values() if not hasattr(x, 'project_id')])\
                            .order_by(Lower('name'))],
     key=lambda x: x.name.lower())
+    avatars_json = [av.to_dict() for av in avatars]
 
     context = {
         'document_title': f'{project.name} - Avatars - {SITE_NAME}',
@@ -913,11 +917,12 @@ def project_avatars(request, project_id=None, project_slug=None):
         'contributors': contributors_list,
         'avatars': avatars,
         'avatar_names': avatars_map.keys(),
+        'avatars_json': avatars_json,
         'page_view': 'project_avatars',
         'user_can_edit': project.check_permission(request.user, 'edit')
     }
     # Pagination
-    paginator = Paginator(context['avatars'], 20)
+    paginator = Paginator(context['avatars'], 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     context['page_obj'] = page_obj
