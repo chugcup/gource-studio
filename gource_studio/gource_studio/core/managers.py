@@ -27,7 +27,9 @@ class ProjectQuerySet(models.QuerySet):
         from .models import ProjectBuild
         return self.prefetch_related(
             Prefetch('builds', to_attr='_cached_latest_build',
-                     queryset=ProjectBuild.objects.exclude(content='').order_by('-created_at'))
+                     queryset=ProjectBuild.objects.filter(status='completed')\
+                                                  .exclude(content='')\
+                                                  .order_by('-created_at'))
         )
 
 

@@ -20,6 +20,7 @@ from .utils import (
     get_video_thumbnail,    #(video_path, width=512, secs=None, percent=None):
     remove_background_audio,#(video_path):
     rescale_image,          #(image_path, width=256)
+    resolve_project_avatars,#(project, contributers):
     test_http_url,          #(url):
 )
 
@@ -110,37 +111,25 @@ def generate_gource_build(build_id):
 
         log_info = analyze_gource_log(log_data)
         contributors = set(log_info['users'])
-        avatar_options = {}
-        avatar_map = {}
-        avatar_dir = None
-
         # Set up avatars
-        try:
-            global_avatars = UserAvatar.objects.all().prefetch_related('aliases')
-            project_avatars = ProjectUserAvatar.objects.filter(project_id=build.project_id).prefetch_related('aliases')
-            for av in list(project_avatars) + list(global_avatars):
-                for name in [av.name] + list(av.aliases.all().values_list('name', flat=True)):
-                    if name not in avatar_options:
-                        avatar_options[name] = av.image.path
+        avatar_dir = None
+        avatar_map = resolve_project_avatars(build.project, contributors)
 
-            # Look through contributors for avatars
-            for name in contributors:
-                if name in avatar_options:
-                    avatar_map[name] = avatar_options[name]
-
-            # If found, make avatars folder
-            if avatar_map:
+        # If found, make avatars folder
+        if avatar_map:
+            try:
                 avatar_dir = tempdir_path / 'avatars'
                 if not os.path.isdir(avatar_dir):
                     os.makedirs(avatar_dir)
-                for name, image_path in avatar_map.items():
+                for name, avatar_data in avatar_map.items():
                     # Add symlink for each discovered name in avatar folder
                     #  e.g. {NAME}.jpg
+                    image_path = avatar_data[0]
                     ext = os.path.splitext(image_path)[1]
                     dst_name = f"{name}{ext}"
                     os.symlink(image_path, avatar_dir / dst_name)
-        except:
-            logger.exception("Failed to generate avatar folder")
+            except:
+                logger.exception("Failed to generate avatar folder")
 
         # Generate video
         gource_options = {}

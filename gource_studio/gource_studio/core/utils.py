@@ -831,3 +831,48 @@ def estimate_gource_video_duration(data, gource_options=None):
     VIDEO_BUFFER = 5    # 5 second still at end
     #return duration
     return duration + VIDEO_BUFFER
+
+
+def resolve_project_avatars(project, contributors):
+    """
+    Given a project and list/set of contributors, return mapping of names to avatar paths.
+
+    :param project: Project instance
+    :type project: Project
+    :param contributors: Set of contributor names
+    :type contributors: set
+    :return: Dictionary of names to (image file path, Model) pairs
+    :rtype: dict
+    """
+    from .models import ProjectUserAvatar, UserAvatar   # Circular import
+
+    def _load_avatar_options(avatar_list, avatar_options):
+        aliases = []
+        for av in list(avatar_list):
+            if not bool(av.image):
+                continue    # No image file found
+            if av.name not in avatar_options:
+                avatar_options[av.name] = (av.image.path, av, None)
+            aliases += [[av, al, al.name] for al in av.aliases.all()]
+        for av, al, name in aliases:
+            if name not in avatar_options:
+                avatar_options[name] = (av.image.path, av, al)
+        return avatar_options
+
+    # Set up avatars
+    avatar_map = {}
+    avatar_options = {}
+    global_avatars = UserAvatar.objects.all().prefetch_related('aliases')
+    project_avatars = ProjectUserAvatar.objects.filter(project_id=project.id).prefetch_related('aliases')
+    aliases = []
+    # Search project avatars first
+    _load_avatar_options(project_avatars, avatar_options)
+    # Then search global avatars
+    _load_avatar_options(global_avatars, avatar_options)
+
+    # Look through contributors for avatars
+    for name in contributors:
+        if name in avatar_options:
+            avatar_map[name] = avatar_options[name]
+
+    return avatar_map

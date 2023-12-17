@@ -11,6 +11,10 @@ from gource_studio.core.models import (
     Project,
     ProjectCaption,
     ProjectOption,
+    ProjectUserAvatar,
+    ProjectUserAvatarAlias,
+    UserAvatar,
+    UserAvatarAlias,
 )
 
 TEST_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,6 +26,21 @@ DEFAULT_OPTIONS_COUNT = len(PROJECT_OPTION_DEFAULTS)
 
 @pytest.mark.django_db
 class TestProjects:
+
+    def _add_sample_log(self, model):
+        # - Use static project log from test assets
+        sample_log = os.path.join(ASSETS_PATH, "Hello-World", "Hello-World.log")
+        # - For completeness, fill out commit info cache
+        model.project_log_commit_hash = "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d"
+        model.project_log_commit_time = timezone.make_aware(datetime(2012, 3, 6, 15, 6, 50))
+        model.project_log_commit_preview = "Merge pull request #6 from Spaceghost/patch-1"
+        model.project_log_updated_at = timezone.now()
+        with open(sample_log, 'r') as f:
+            model.project_log.save('gource.log', ContentFile(f.read()))
+
+    def _add_avatar_image(self, model, image_path):
+        with open(image_path, 'rb') as f:
+            model.image.save(os.path.basename(image_path), ContentFile(f.read()))
 
     def test_project_model_basic(self):
         assert Project.objects.count() == 0
@@ -84,15 +103,7 @@ class TestProjects:
         project = Project.objects.create(name="test")
 
         # Add a project log file
-        # - Use static project log from test assets
-        sample_log = os.path.join(ASSETS_PATH, "Hello-World", "Hello-World.log")
-        # - For completeness, fill out commit info cache
-        project.project_log_commit_hash = "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d"
-        project.project_log_commit_time = timezone.make_aware(datetime(2012, 3, 6, 15, 6, 50))
-        project.project_log_commit_preview = "Merge pull request #6 from Spaceghost/patch-1"
-        project.project_log_updated_at = timezone.now()
-        with open(sample_log, 'r') as f:
-            project.project_log.save('gource.log', ContentFile(f.read()))
+        self._add_sample_log(project)
 
         # Known project log properties
         assert project.analyze_log() == {
@@ -150,6 +161,85 @@ class TestProjects:
         assert sample_captions is not None
         assert len(sample_captions) == 3
         assert sample_captions[0].endswith('|Caption 3')
+
+    def test_project_avatars(self):
+        sample_avatar_blue = os.path.join(ASSETS_PATH, "avatar_blue.jpg")
+        sample_avatar_ninja = os.path.join(ASSETS_PATH, "avatar_ninja.png")
+
+        project = Project.objects.create(name="test")
+        # Globals
+        assert UserAvatar.objects.count() == 0
+        assert UserAvatarAlias.objects.count() == 0
+        # Per-project
+        project.avatars.count() == 0
+        ProjectUserAvatar.objects.count() == 0
+
+        with pytest.raises(RuntimeError):
+            project.resolve_avatars()       # No Gource log
+
+        # Add a project log file
+        self._add_sample_log(project)
+
+        # No avatars yet
+        assert project.resolve_avatars() == {}
+
+        # Create global avatars
+        # - First, test if the UserAvatar is missing the image file
+        avatar1 = UserAvatar.objects.create(name='cameronmcefee')
+        assert project.resolve_avatars() == {}
+        # - Add proper image and check map
+        self._add_avatar_image(avatar1, sample_avatar_blue)
+        avatar_map = project.resolve_avatars()
+        assert 'cameronmcefee' in avatar_map
+        # - Add another global avatar and matching alias
+        avatar2 = UserAvatar.objects.create(name='johnee')
+        self._add_avatar_image(avatar2, sample_avatar_blue)
+        alias2_1 = avatar2.add_alias(name='Johnneylee Jack Rollins')
+        avatar_map = project.resolve_avatars()
+        assert 'cameronmcefee' in avatar_map
+        assert len(avatar_map['cameronmcefee']) == 3
+        assert 'Johnneylee Jack Rollins' in avatar_map
+        assert len(avatar_map['Johnneylee Jack Rollins']) == 3
+        assert avatar_map['Johnneylee Jack Rollins'][1] == avatar2
+        assert avatar_map['Johnneylee Jack Rollins'][2] == alias2_1
+        # Verify that an 'UserAvatar' will overrule a 'UserAvatarAlias'
+        avatar3 = UserAvatar.objects.create(name='Johnneylee Jack Rollins')
+        self._add_avatar_image(avatar3, sample_avatar_blue)
+        avatar_map = project.resolve_avatars()
+        assert 'Johnneylee Jack Rollins' in avatar_map
+        assert avatar_map['Johnneylee Jack Rollins'][1] == avatar3
+        assert avatar_map['Johnneylee Jack Rollins'][2] is None
+
+        # Create project avatars
+        # - First, test if the UserAvatar is missing the image file
+        p_avatar1 = ProjectUserAvatar.objects.create(project=project, name='cameronmcefee')
+        avatar_map = project.resolve_avatars()
+        assert 'cameronmcefee' in avatar_map
+        assert avatar_map['cameronmcefee'][1] == avatar1    # Still using global
+        # - Add proper image and check map
+        self._add_avatar_image(p_avatar1, sample_avatar_ninja)
+        avatar_map = project.resolve_avatars()
+        assert 'cameronmcefee' in avatar_map
+        assert avatar_map['cameronmcefee'][1] == p_avatar1
+        # - Add another project avatar and matching alias
+        p_avatar2 = ProjectUserAvatar.objects.create(project=project, name='johnee')
+        self._add_avatar_image(p_avatar2, sample_avatar_ninja)
+        p_alias2_1 = p_avatar2.add_alias(name='Johnneylee Jack Rollins')
+        avatar_map = project.resolve_avatars()
+        assert 'cameronmcefee' in avatar_map
+        assert len(avatar_map['cameronmcefee']) == 3
+        assert avatar_map['cameronmcefee'][1] == p_avatar1
+        assert 'Johnneylee Jack Rollins' in avatar_map
+        assert len(avatar_map['Johnneylee Jack Rollins']) == 3
+        assert avatar_map['Johnneylee Jack Rollins'][1] == p_avatar2
+        assert avatar_map['Johnneylee Jack Rollins'][2] == p_alias2_1
+        # Verify that an 'ProjectUserAvatar' will overrule a 'ProjectUserAvatarAlias'
+        p_avatar3 = ProjectUserAvatar.objects.create(project=project, name='Johnneylee Jack Rollins')
+        self._add_avatar_image(p_avatar3, sample_avatar_ninja)
+        avatar_map = project.resolve_avatars()
+        assert 'Johnneylee Jack Rollins' in avatar_map
+        assert avatar_map['Johnneylee Jack Rollins'][1] == p_avatar3
+        assert avatar_map['Johnneylee Jack Rollins'][2] is None
 
     def test_create_project_build(self):
         # From a `Project` instance, create a new `ProjectBuild`

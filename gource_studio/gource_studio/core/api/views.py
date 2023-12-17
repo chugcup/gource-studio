@@ -121,7 +121,7 @@ class ProjectsList(ProjectPermissionQuerySetMixin, generics.ListCreateAPIView):
                       )\
                       .annotate(
                         latest_activity_time=Greatest('created_at', 'latest_build_time')
-                      )
+                      ).order_by('latest_activity_time')
 
     def post(self, request, *args, **kwargs):
         # Save a new project

@@ -40,6 +40,7 @@ from .utils import (
     get_video_duration,     #(video_path):
     get_video_thumbnail,    #(video_path, width=512, secs=None, percent=None):
     remove_background_audio,#(video_path):
+    resolve_project_avatars,
     test_http_url,          #(url):
     validate_project_url,   #(url):
 )
@@ -891,21 +892,19 @@ def project_avatars(request, project_id=None, project_slug=None):
         logging.error("Error analyzing project log: {0}".format(str(e)))
         project_data = {}
     contributors_list = project_data.get('users', [])
-    avatars = ProjectUserAvatar.objects.prefetch_related('aliases')\
-                                       .filter(project_id=project.id)\
-                                       .order_by(Lower('name'))
-    avatar_names = list(avatars.values_list('name', flat=True))
-    unmatched_contributors = [name for name in contributors_list if name not in avatar_names]
-    if unmatched_contributors:
-        # Look in global avatars for names matching project contributors
-        global_avatars = UserAvatar.objects.prefetch_related('aliases')\
-                                           .filter(name__in=unmatched_contributors)\
-                                           .order_by(Lower('name'))
-        if global_avatars:
-            avatar_names += list(global_avatars.values_list('name', flat=True))
-            avatars = sorted([
-                mod for mod in list(avatars) + list(global_avatars)
-            ], key=lambda x: x.name.lower())
+    avatars_map = resolve_project_avatars(project, set(contributors_list))
+    unmatched_contributors = [name for name in contributors_list if name not in avatars_map]
+    avatars = sorted(
+        [av for av in \
+         ProjectUserAvatar.objects.prefetch_related('aliases')\
+                                  .filter(id__in=[x.id for _, x, _ in avatars_map.values() if hasattr(x, 'project_id')])\
+                                  .order_by(Lower('name'))] \
+      + [av for av in \
+         UserAvatar.objects.prefetch_related('aliases')\
+                           .filter(id__in=[x.id for _, x, _ in avatars_map.values() if not hasattr(x, 'project_id')])\
+                           .order_by(Lower('name'))],
+    key=lambda x: x.name.lower())
+
     context = {
         'document_title': f'{project.name} - Avatars - {SITE_NAME}',
         'nav_page': 'projects',
@@ -913,7 +912,7 @@ def project_avatars(request, project_id=None, project_slug=None):
         'project_permissions': _get_project_permissions(project, request.user),
         'contributors': contributors_list,
         'avatars': avatars,
-        'avatar_names': avatar_names,
+        'avatar_names': avatars_map.keys(),
         'page_view': 'project_avatars',
         'user_can_edit': project.check_permission(request.user, 'edit')
     }

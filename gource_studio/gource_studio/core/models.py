@@ -20,7 +20,8 @@ from .constants import VIDEO_OPTIONS
 from .managers import ProjectQuerySet
 from .tasks import generate_gource_build
 from .utils import (
-    analyze_gource_log,     #(data):
+    analyze_gource_log,
+    resolve_project_avatars,
 )
 
 
@@ -39,7 +40,44 @@ def get_project_project_log_path(instance, filename):
 ## TODO: Use custom OverwriteStorage() class
 ## https://stackoverflow.com/a/9523400
 
-class Project(models.Model):
+class BaseProjectMixin:
+    # Common class for project/build details
+
+    def analyze_log(self):
+        """
+        Perform analysis on current Gource log
+
+        Returns num commits, date range, users list, ...
+        """
+        if not self.project_log or not os.path.isfile(self.project_log.path):
+            raise RuntimeError("No Gource log found for this project")
+        with open(self.project_log.path, 'r') as _file:
+            return analyze_gource_log(_file.read())
+
+    def resolve_avatars(self):
+        """
+        Analyze the current Gource log and return image paths for contributors.
+
+        Returns dictionary mapping contributer names to local file paths.
+        """
+        log_info = self.analyze_log()
+        return resolve_project_avatars(self, set(log_info['users']))
+
+    def generate_captions_file(self):
+        """
+        Return a new string containing "captions" file content from current captions.
+
+        Returns None if no captions defined.
+        """
+        caption_lines = []
+        for pcaption in self.captions.all().order_by('timestamp'):
+            caption_lines.append(pcaption.to_text())
+        if not caption_lines:
+            return None
+        return caption_lines
+
+
+class Project(BaseProjectMixin, models.Model):
     """
     Base configuration for Gource project.
     """
@@ -135,30 +173,6 @@ class Project(models.Model):
             return
         self.is_project_changed = bool(changed)
         self.save(update_fields=['is_project_changed'])
-
-    def analyze_log(self):
-        """
-        Perform analysis on current Gource log
-
-        Returns num commits, date range, users list, ...
-        """
-        if not self.project_log or not os.path.isfile(self.project_log.path):
-            raise RuntimeError("No Gource log found for this project")
-        with open(self.project_log.path, 'r') as _file:
-            return analyze_gource_log(_file.read())
-
-    def generate_captions_file(self):
-        """
-        Return a new string containing "captions" file content from current captions.
-
-        Returns None if no captions defined.
-        """
-        caption_lines = []
-        for pcaption in self.captions.all().order_by('timestamp'):
-            caption_lines.append(pcaption.to_text())
-        if not caption_lines:
-            return None
-        return caption_lines
 
     def check_permission(self, actor, action):
         """
@@ -401,7 +415,7 @@ def get_build_stderr_path(instance, filename):
     return f'projects/{instance.project_id}/builds/{instance.id}/stderr.log'
 
 
-class ProjectBuild(models.Model):
+class ProjectBuild(BaseProjectMixin, models.Model):
     """
     Individual build of Gource project (video).
     """
@@ -913,6 +927,23 @@ class UserAvatar(models.Model):
     def aliases_count(self):
         return self.aliases.count()
 
+    def add_alias(self, name):
+        """
+        Add a new UserAvatarAlias for this avatar.
+
+        Note that alias 'name' must be globally unique, so this may
+        raise an IntegrityError if attempting to create an alias that
+        exists on another UserAvatar.
+
+        :param str name: Alias name
+        :return: New (or existing) alias entry
+        :rtype: UserAvatarAlias
+        """
+        return UserAvatarAlias.objects.get_or_create(
+            avatar=self,
+            name=name
+        )[0]
+
 
 class UserAvatarAlias(models.Model):
     """
@@ -964,6 +995,23 @@ class ProjectUserAvatar(models.Model):
     @property
     def aliases_count(self):
         return self.aliases.count()
+
+    def add_alias(self, name):
+        """
+        Add a new ProjectUserAvatarAlias for this project avatar.
+
+        Note that alias 'name' must be unique to this project, so this may
+        raise an IntegrityError if attempting to create an alias that
+        exists on another ProjectUserAvatar.
+
+        :param str name: Alias name
+        :return: New (or existing) alias entry
+        :rtype: ProjectUserAvatarAlias
+        """
+        return ProjectUserAvatarAlias.objects.get_or_create(
+            avatar=self,
+            name=name
+        )[0]
 
 
 class ProjectUserAvatarAlias(models.Model):
