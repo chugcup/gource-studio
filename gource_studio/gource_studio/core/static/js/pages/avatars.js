@@ -277,11 +277,11 @@ App.pages.avatars.init = function(upload_url, page_options) {
                         );
                         // Update count on popover panel
                         if (avatar_obj.aliases.length === 0) {
-                            _popover.addClass('show-hover')
-                                    .text('+');
+                            _popover.parent().addClass('show-hover');
+                            _popover.html('<i class="fa fa-plus"></i>');
                         } else {
-                            _popover.removeClass('show-hover')
-                                    .text('(+'+avatar_obj.aliases.length+')');
+                            _popover.parent().removeClass('show-hover');
+                            _popover.text('(+'+avatar_obj.aliases.length+')');
                         }
                     },
                     error: function(xhr, textStatus, err) {
@@ -333,8 +333,8 @@ App.pages.avatars.init = function(upload_url, page_options) {
                             _get_popover_html()
                         );
                         // Update count on popover panel
-                        _popover.removeClass('show-hover')
-                                .text('(+'+avatar_obj.aliases.length+')');
+                        _popover.parent().removeClass('show-hover');
+                        _popover.text('(+'+avatar_obj.aliases.length+')');
                     },
                     error: function(xhr, textStatus, err) {
                         console.log('[ERROR] Failed to save new '+avatar_obj.type+' alias for ID='+avatar_obj.id, err, xhr);

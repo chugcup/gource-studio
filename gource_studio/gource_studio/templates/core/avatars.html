@@ -39,6 +39,9 @@
     .avatar-alias-button a {
         display: block;
     }
+    .avatar-alias-button .fa.fa-plus {
+        line-height: 20px;
+    }
     .card:hover .avatar-alias-button.show-hover {
         opacity: 1;
     }
@@ -79,7 +82,11 @@
         position: absolute;
         right: 0;
         padding: 2px 8px;
-        color: #333333;
+        color: #FFFFFF;
+        height: 20px;
+        line-height: 16px;
+        border-radius: 0 0 0 4px;
+        background: #333333;
     }
     .card .avatar-dropdown.show .dropdown-toggle,
     .card:hover .avatar-dropdown .dropdown-toggle {
@@ -237,7 +244,7 @@
           <div class="avatar-dropdown dropdown">
             <a class="dropdown-toggle" role="button" title="{{ request.user.username }}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"></a>
             <div class="dropdown-menu dropdown-menu-left">
-              <a class="dropdown-item change-avatar-btn"><i class="fa fa-pencil"></i> Change</a>
+              <!--<a class="dropdown-item change-avatar-btn"><i class="fa fa-pencil"></i> Change</a>-->
               <div class="dropdown-divider"></div>
               <a class="dropdown-item delete-avatar-btn" data-avatar-id="{{ avatar.id }}" data-avatar-name="{{ avatar.name }}"{% if avatar.project_id %} data-project-id="{{ avatar.project_id }}"{% endif %}>
                 <i class="fa fa-trash"></i> Delete
@@ -251,11 +258,13 @@
             <span title="This avatar was found in the global collection">GLOBAL</span>
           </div>
           {% endif %}
+          {% if avatar.aliases_count > 0 or user_can_edit %}
           <div class="avatar-alias-button{% if avatar.aliases_count == 0 %} show-hover{% endif %}">
             <a title="{{ avatar.aliases_count }} additional aliases" data-avatar-id="{{ avatar.id }}" data-avatar-type="{{ avatar.AVATAR_TYPE }}">
-              {% if avatar.aliases_count == 0 %}+{% else %}(+{{ avatar.aliases_count }}){% endif %}
+              {% if avatar.aliases_count == 0 %}<i class="fa fa-plus"></i>{% else %}(+{{ avatar.aliases_count }}){% endif %}
             </a>
           </div>
+          {% endif %}
         {% if avatar.image %}
           <img class="card-img-top" src="{{ avatar.image_url }}" alt="" style="height:auto;width:auto;max-height:100px;max-width:100px;margin:auto" />
         {% else %}
