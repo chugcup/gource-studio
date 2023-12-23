@@ -37,6 +37,7 @@ from ..models import (
 from ..tasks import generate_gource_build
 from ..utils import (
     analyze_gource_log,
+    convert_image_to_supported,
     download_git_log,
     download_git_tags,
     estimate_gource_video_duration,
@@ -1081,17 +1082,23 @@ class ProjectUserAvatarsList(generics.ListCreateAPIView):
             try:
                 if ProjectUserAvatar.objects.filter(project=project, name=request.POST['name']).exists():
                     raise ValueError("Project avatar by that name already exists.")
-                # TODO: Validate as .jpg or .png (or convert)
+                # Convert image to supported .jpg or .png (and correct color mode)
+                img, img_format = convert_image_to_supported(request.FILES['image'])
                 # TODO: rescale to 256x256
-                avatar = ProjectUserAvatar(
+                avatar = ProjectUserAvatar.objects.create(
                     project=project,
                     name=request.POST['name'],
-                    image=request.FILES['image']
+                    created_by=request.user,
                 )
-                avatar.created_by = request.user
-                avatar.save()
+                # Determine filename using converted extension
+                filename = os.path.splitext(request.FILES['image'].name)[0]
+                if not filename:
+                    filename = 'image'
+                filename = f'{filename}.{img_format.lower()}'
+                # Save avatar
+                avatar.image.save(filename, ContentFile(img.read()))
 
-                # Generate serializer response for new ProjectBuild
+                # Generate serializer response
                 serializer = self.get_serializer(avatar, context={'request': request})
                 response = serializer.data
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -1204,14 +1211,20 @@ class UserAvatarsList(generics.ListCreateAPIView):
             try:
                 if UserAvatar.objects.filter(name=request.POST['name']).exists():
                     raise ValueError("Avatar by that name already exists.")
-                # TODO: Validate as .jpg or .png (or convert)
+                # Convert image to supported .jpg or .png (and correct color mode)
+                img, img_format = convert_image_to_supported(request.FILES['image'])
                 # TODO: rescale to 256x256
-                avatar = UserAvatar(
+                avatar = UserAvatar.objects.create(
                     name=request.POST['name'],
-                    image=request.FILES['image']
+                    created_by=request.user,
                 )
-                avatar.created_by = request.user
-                avatar.save()
+                # Determine filename using converted extension
+                filename = os.path.splitext(request.FILES['image'].name)[0]
+                if not filename:
+                    filename = 'image'
+                filename = f'{filename}.{img_format.lower()}'
+                # Save avatar
+                avatar.image.save(filename, ContentFile(img.read()))
 
                 # Generate serializer response
                 serializer = self.get_serializer(avatar, context={'request': request})

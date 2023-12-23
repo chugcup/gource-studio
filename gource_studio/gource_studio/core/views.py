@@ -900,7 +900,7 @@ def project_avatars(request, project_id=None, project_slug=None):
     avatars = sorted(
         [av for av in \
          ProjectUserAvatar.objects.prefetch_related('aliases')\
-                                  .filter(id__in=[x.id for _, x, _ in avatars_map.values() if hasattr(x, 'project_id')])\
+                                  .filter(project=project)\
                                   .order_by(Lower('name'))] \
       + [av for av in \
          UserAvatar.objects.prefetch_related('aliases')\

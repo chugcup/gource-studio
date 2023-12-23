@@ -11,12 +11,13 @@ from django.db import models
 from django.db.models import F
 from django.db.models.fields.files import FieldFile
 from django.urls import reverse
-from django.utils.functional import SimpleLazyObject
 from django.utils import timezone
+from django.utils.functional import SimpleLazyObject
+from django.utils.text import slugify
 from PIL import Image
 
-#from .managers import ProjectManager
 from .constants import VIDEO_OPTIONS
+#from .managers import ProjectManager
 from .managers import ProjectQuerySet
 from .tasks import generate_gource_build
 from .utils import (
@@ -26,16 +27,19 @@ from .utils import (
 
 
 def get_project_build_logo_path(instance, filename):
-    return f'projects/{instance.id}/{filename}'
+    _, ext = os.path.splitext(filename)
+    return f'projects/{instance.pk}/logo{ext}'
 
 def get_project_build_background_path(instance, filename):
-    return f'projects/{instance.id}/{filename}'
+    _, ext = os.path.splitext(filename)
+    return f'projects/{instance.pk}/background{ext}'
 
 def get_project_build_audio_path(instance, filename):
-    return f'projects/{instance.id}/{filename}'
+    _, ext = os.path.splitext(filename)
+    return f'projects/{instance.pk}/audio{ext}'
 
 def get_project_project_log_path(instance, filename):
-    return f'projects/{instance.id}/gource.log'
+    return f'projects/{instance.pk}/gource.log'
 
 ## TODO: Use custom OverwriteStorage() class
 ## https://stackoverflow.com/a/9523400
@@ -385,34 +389,37 @@ class ProjectOption(models.Model):
 
 
 def get_video_build_path(instance, filename):
-    return f'projects/{instance.project_id}/builds/{instance.id}/video.mp4'
+    return f'projects/{instance.project_id}/builds/{instance.pk}/video.mp4'
 
 def get_video_screenshot_path(instance, filename):
-    return f'projects/{instance.project_id}/builds/{instance.id}/screenshot.jpg'
+    return f'projects/{instance.project_id}/builds/{instance.pk}/screenshot.jpg'
 
 def get_video_thumbnail_path(instance, filename):
-    return f'projects/{instance.project_id}/builds/{instance.id}/thumb.jpg'
+    return f'projects/{instance.project_id}/builds/{instance.pk}/thumb.jpg'
 
 def get_build_project_log_path(instance, filename):
-    return f'projects/{instance.project_id}/builds/{instance.id}/gource.log'
+    return f'projects/{instance.project_id}/builds/{instance.pk}/gource.log'
 
 def get_build_project_captions_path(instance, filename):
-    return f'projects/{instance.project_id}/builds/{instance.id}/captions.txt'
+    return f'projects/{instance.project_id}/builds/{instance.pk}/captions.txt'
 
 def get_build_logo_path(instance, filename):
-    return f'projects/{instance.project_id}/builds/{instance.id}/{filename}'
+    _, ext = os.path.splitext(filename)
+    return f'projects/{instance.project_id}/builds/{instance.pk}/logo{ext}'
 
 def get_build_background_path(instance, filename):
-    return f'projects/{instance.project_id}/builds/{instance.id}/{filename}'
+    _, ext = os.path.splitext(filename)
+    return f'projects/{instance.project_id}/builds/{instance.pk}/background{ext}'
 
 def get_build_audio_path(instance, filename):
-    return f'projects/{instance.project_id}/builds/{instance.id}/{filename}'
+    _, ext = os.path.splitext(filename)
+    return f'projects/{instance.project_id}/builds/{instance.pk}/audio{ext}'
 
 def get_build_stdout_path(instance, filename):
-    return f'projects/{instance.project_id}/builds/{instance.id}/stdout.log'
+    return f'projects/{instance.project_id}/builds/{instance.pk}/stdout.log'
 
 def get_build_stderr_path(instance, filename):
-    return f'projects/{instance.project_id}/builds/{instance.id}/stderr.log'
+    return f'projects/{instance.project_id}/builds/{instance.pk}/stderr.log'
 
 
 class ProjectBuild(BaseProjectMixin, models.Model):
@@ -895,7 +902,9 @@ class ProjectBuildCaption(BaseCaption):
 
 
 def get_global_avatar_path(instance, filename):
-    return f'avatars/{filename}'
+    extension = os.path.splitext(filename)[1]
+    new_filename = f'{instance.pk}_{slugify(instance.name)}{extension}'
+    return f'avatars/{new_filename}'
 
 class UserAvatar(models.Model):
     """
@@ -978,7 +987,9 @@ class UserAvatarAlias(models.Model):
 
 
 def get_project_avatar_path(instance, filename):
-    return f'projects/{instance.id}/avatars/{filename}'
+    extension = os.path.splitext(filename)[1]
+    new_filename = f'{instance.pk}_{slugify(instance.name)}{extension}'
+    return f'projects/{instance.project_id}/avatars/{new_filename}'
 
 class ProjectUserAvatar(models.Model):
     """

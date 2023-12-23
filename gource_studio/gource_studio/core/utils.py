@@ -670,6 +670,54 @@ def rescale_image(image_path, width=256, output_format=None):
     return bf
 
 
+def convert_image_to_supported(image):
+    """
+    Given an input image, convert to supported RGBA mode JPEG or PNG
+
+    Returns `BytesIO` of resulting image.
+    """
+    orig = None
+    if isinstance(image, Image.Image):
+        orig = image
+    elif isinstance(image, str) or hasattr(image, 'read'):
+        orig = Image.open(image)
+    else:
+        raise ValueError("Unknown image format: must be PIL.Image, path, or file object")
+
+    bf = BytesIO()
+    final = convert_image_to_rgb(orig)
+    final_format = final.format
+    if final.format not in ['JPEG', 'PNG']:
+        final.save(bf, 'PNG')
+        final_format = 'PNG'
+    else:
+        final.save(bf, final.format)
+    bf.seek(0)
+    return (bf, final_format)
+
+
+def convert_image_to_rgb(image):
+    """
+    Given PIL.Image, convert indexed color to RGB[A].
+
+    If already RGBA, returns original PIL.Image.
+    """
+    indexed = image
+    if indexed.mode == "P":
+        # check if transparent
+        is_transparent = indexed.info.get("transparency", False)
+
+        if is_transparent is False:
+            # if not transparent, convert indexed image to RGB
+            image = indexed.convert("RGB")
+        else:
+            # convert indexed image to RGBA
+            image = indexed.convert("RGBA")
+    elif indexed.mode == 'PA':
+        image = indexed.convert("RGBA")
+    return image
+
+
 def get_video_thumbnail(video_path, width=512, secs=None, percent=None):
     "Get a thumbnail from file using seconds or duration percentage"
     video_duration = get_video_duration(video_path)
