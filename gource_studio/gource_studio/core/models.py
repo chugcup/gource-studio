@@ -376,6 +376,7 @@ class ProjectOption(models.Model):
 
     class Meta:
         ordering = ('name',)
+        unique_together = ('project', 'name')
 
     def __str__(self):
         return '{0}={1}'.format(self.name, self.value)
@@ -817,6 +818,7 @@ class ProjectBuildOption(models.Model):
 
     class Meta:
         ordering = ('name',)
+        unique_together = ('build', 'name')
 
     def __str__(self):
         return '{0}={1}'.format(self.name, self.value)

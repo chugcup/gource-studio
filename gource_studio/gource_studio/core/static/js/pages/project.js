@@ -23,7 +23,8 @@ App.pages.project.init = function(project_id, page_options) {
     $('body').on('click', '.save-project-settings-btn', function(e) {
         let video_size = $('#project-video-size').val();
         let gource_options = {};
-        $('.gource-option-container').each(function(idx, e) {
+        // Load current Gource options
+        $('#gource-settings-region .gource-option-container').each(function(idx, e) {
             let $input = $(e).find('input');
             if ($input.length > 0 && $input.attr('name')) {
                 gource_options[$input.attr('name')] = $input.val();
@@ -32,7 +33,8 @@ App.pages.project.init = function(project_id, page_options) {
 
         let post_data = {
             'video_size': video_size,
-            'gource_options': gource_options
+            'gource_options': gource_options,
+            'sync_gource_options': true,
         };
         $('.save-project-settings-btn').attr({disabled: true});
         $.ajax({

@@ -295,10 +295,21 @@ class ProjectDetail(ProjectPermissionQuerySetMixin, generics.RetrieveUpdateDestr
                         response['gource_options'] = f"Invalid Gource option '{option}'"
                         return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
-                # Delete old options
-                project.options.all().delete()
-                # Add new set
-                ProjectOption.objects.bulk_create(new_options)
+                # Check for flag to indicate if old options should be removed
+                sync_options = request.data.get('sync_gource_options', False)
+                if sync_options:
+                    # Delete old options
+                    project.options.all().delete()
+                    # Add new set
+                    ProjectOption.objects.bulk_create(new_options)
+                else:
+                    # Merge with current set
+                    ProjectOption.objects.bulk_create(
+                        new_options,
+                        update_conflicts=True,
+                        unique_fields=['project', 'name'],
+                        update_fields=['project', 'name']
+                    )
             else:
                 logging.error(f"Invalid 'gource_options' provided: {request.data['gource_options']}")
                 response['gource_options'] = "Invalid Gource options type (must be a dict)"

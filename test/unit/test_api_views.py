@@ -182,7 +182,8 @@ class TestProjectsAPI:
             "gource_options": {
                 "seconds-per-day": "2",
                 "auto-skip-seconds": "0.2",
-            }
+            },
+            "sync_gource_options": True,
         }
         req = client.patch(f'/api/v1/projects/{project.id}/', json.dumps(post_data), content_type="application/json")
         assert req.status_code == 200
@@ -193,12 +194,28 @@ class TestProjectsAPI:
             {"name": "seconds-per-day", "value": "2", "value_type": "float"},
         ]
 
-        # Verify we expect all options to be sent together
-        # (Omitted options are removed)
+        # Send additional option and verify it is added to current set
+        post_data = {
+            "gource_options": {
+                "caption-size": 40,
+            },
+        }
+        req = client.patch(f'/api/v1/projects/{project.id}/', json.dumps(post_data), content_type="application/json")
+        assert req.status_code == 200
+        req = client.get(f'/api/v1/projects/{project.id}/options/')
+        assert req.status_code == 200
+        assert req.data == [
+            {"name": "auto-skip-seconds", "value": "0.2", "value_type": "float"},
+            {"name": "caption-size", "value": "40", "value_type": "int"},
+            {"name": "seconds-per-day", "value": "2", "value_type": "float"},
+        ]
+
+        # Verify using flag we can sync settings (so all options to be sent together)
         post_data = {
             "gource_options": {
                 "seconds-per-day": "1",
-            }
+            },
+            "sync_gource_options": True,
         }
         req = client.patch(f'/api/v1/projects/{project.id}/', json.dumps(post_data), content_type="application/json")
         assert req.status_code == 200
