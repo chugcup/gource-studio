@@ -6,6 +6,8 @@ import urllib
 
 from django import forms
 from django.core.files.base import ContentFile
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser, Group as AuthGroup
 from django.db import IntegrityError
 from django.db.models import DateTimeField, Exists, Max, OuterRef, Prefetch, Q, Subquery, Value
 from django.db.models.functions import Coalesce, Greatest
@@ -617,31 +619,45 @@ class ProjectMembersList(generics.ListCreateAPIView):
 
         {
             "username": <username>,
-            "role": <developer|maintainer>,
+            "role": <viewer|developer|maintainer>,
         }
 
     """
-    queryset = ProjectMember.objects.all()
+    queryset = ProjectMember.objects.all().select_related('project', 'user')
     serializer_class = ProjectMemberSerializer
     permission_classes = (ProjectMemberPermission,)
     pagination_class = None
 
     def get_queryset(self):
-        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+        project = self.get_parent_object()
         return super().get_queryset().filter(project=project)
 
+    def get_parent_object(self):
+        project_qs = Project.objects.filter_permissions(self.request.user)
+        if 'project_id' in self.kwargs:
+            project = get_object_or_404(project_qs, **{'id': self.kwargs['project_id']})
+        elif 'project_slug' in self.kwargs:
+            project = get_object_or_404(project_qs, **{'project_slug': self.kwargs['project_slug']})
+        else:
+            project = get_object_or_404(project_qs, **{'id': None})     # Force 404
+        return project
+
     def post(self, request, *args, **kwargs):
-        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+        project = self.get_parent_object()
         response = {}
 
         if 'username' not in request.data:
             return Response({"detail": "Missing required field 'username'."}, status=status.HTTP_400_BAD_REQUEST)
-        user = get_object_or_404(get_user_model(), **{'username': request.data['username']})
+        try:
+            user = get_user_model().objects.get(**{'username': request.data['username']})
+        except get_user_model().DoesNotExist:
+            return Response({"username": f"Invalid username: {request.data['username']}"}, status=status.HTTP_400_BAD_REQUEST)
 
         if 'role' not in request.data:
             return Response({"detail": "Missing required field 'role'."}, status=status.HTTP_400_BAD_REQUEST)
         elif request.data['role'] not in ProjectMember.PROJECT_ROLES:
-            return Response({"role": "fInvalid role provided: {request.data['role']}"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"role": f"Invalid role provided: {request.data['role']}"}, status=status.HTTP_400_BAD_REQUEST)
+        role = request.data['role']
 
         try:
             ProjectMember.objects.get(project=project, user_id=user.id)
@@ -652,28 +668,33 @@ class ProjectMembersList(generics.ListCreateAPIView):
                                               role=role,
                                               added_by=request.user)
         serializer = self.get_serializer(pm, context={'request': request})
-        return Response(serializer.data, status=response_status)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class ProjectMemberDetail(generics.RetrieveUpdateDestroyAPIView):
     """
     Update project member details.
     """
-    queryset = ProjectMember.objects.all()
+    queryset = ProjectMember.objects.all().select_related('project', 'user')
     permission_classes = (ProjectMemberPermission,)
     serializer_class = ProjectMemberSerializer
 
     def get_object(self, *args, **kwargs):
+        project = self.get_parent_object()
+        return get_object_or_404(self.get_queryset(), **{'project_id': project.id, 'user_id': self.kwargs['project_member_id']})
+
+    def get_parent_object(self):
+        project_qs = Project.objects.filter_permissions(self.request.user)
         if 'project_id' in self.kwargs:
-            project = get_object_or_404(self.get_queryset(), **{'id': self.kwargs['project_id']})
+            project = get_object_or_404(project_qs, **{'id': self.kwargs['project_id']})
         elif 'project_slug' in self.kwargs:
-            project = get_object_or_404(self.get_queryset(), **{'project_slug': self.kwargs['project_slug']})
+            project = get_object_or_404(project_qs, **{'project_slug': self.kwargs['project_slug']})
         else:
-            project = get_object_or_404(self.get_queryset(), **{'id': None})    # Force 404
-        return get_object_or_404(ProjectMember, **{'project_id': project.pk, 'member_id': self.kwargs['project_member_id']})
+            project = get_object_or_404(project_qs, **{'id': None})     # Force 404
+        return project
 
     def get_queryset(self):
-        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+        project = self.get_parent_object()
         return super().get_queryset().filter(project=project)
 
 

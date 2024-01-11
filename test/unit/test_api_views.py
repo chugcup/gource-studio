@@ -238,3 +238,121 @@ class TestProjectsAPI:
         post_data["gource_options"] = [{"foo": "bar"}]
         req = client.patch(f'/api/v1/projects/{project.id}/', json.dumps(post_data), content_type="application/json")
         assert req.status_code == 400
+
+    def test_project_members_api(self, client):
+        # Create a user (and owner)
+        user1 = self._create_user("user1", password="pass1")
+        client.login(username="user1", password="pass1")
+
+        # Create a private project
+        project = Project.objects.create(name="test", project_vcs="git", project_slug="test",
+                                         created_by=user1, is_public=False)
+
+        # Fetch contents of Project
+        req = client.get(f'/api/v1/projects/{project.id}/')
+        assert req.status_code == 200
+        assert req.data['id'] == project.id
+        # Verify our user is the Project owner
+        assert req.data['created_by'] == {'id': user1.id, 'username': user1.username}
+
+        # Fetch list of members (should be empty)
+        req = client.get(f'/api/v1/projects/{project.id}/members/')
+        assert req.status_code == 200
+        assert req.data == []   # Empty
+
+        # Create additional users; add them to project
+        user2 = self._create_user("user2", password="pass")
+        user3 = self._create_user("user3", password="pass")
+        user4 = self._create_user("user4", password="pass")
+
+        # Verify each member cannot view private project
+        client.logout()
+        for username in [
+            user2.username,
+            user3.username,
+            user4.username,
+        ]:
+            client.login(username=username, password="pass")
+            req = client.get(f'/api/v1/projects/{project.id}/')
+            assert req.status_code == 404
+            client.logout()
+        client.login(username="user1", password="pass1")
+
+        # Add each user to project (with different roles)
+        for username, role in [
+            (user2.username, 'viewer'),
+            (user3.username, 'developer'),
+            (user4.username, 'maintainer'),
+        ]:
+            post_data = {
+                'username': username,
+                'role': role,
+            }
+            req = client.post(f'/api/v1/projects/{project.id}/members/', json.dumps(post_data), content_type="application/json")
+            assert req.status_code == 201
+
+        # Fetch list of members
+        req = client.get(f'/api/v1/projects/{project.id}/members/')
+        assert req.status_code == 200
+        assert len(req.data) == 3
+        user2_member = [r for r in req.data if r['user']['username'] == user2.username][0]
+
+        # Verify each member can now view project
+        client.logout()
+        for username in [
+            user2.username,
+            user3.username,
+            user4.username,
+        ]:
+            client.login(username=username, password="pass")
+            req = client.get(f'/api/v1/projects/{project.id}/')
+            assert req.status_code == 200
+            client.logout()
+        client.login(username="user1", password="pass1")
+
+        # Change role for user
+        assert user2_member['role'] == 'viewer'
+        patch_data = {'role': 'maintainer'}
+        req = client.patch(f'/api/v1/projects/{project.id}/members/{user2.id}/', json.dumps(patch_data), content_type="application/json")
+        assert req.status_code == 200
+        assert req.data['role'] == 'maintainer'
+        user2_member = req.data
+
+        # Delete user
+        req = client.delete(f'/api/v1/projects/{project.id}/members/{user2.id}/')
+        assert req.status_code == 204
+        # Fetch list of members
+        req = client.get(f'/api/v1/projects/{project.id}/members/')
+        assert req.status_code == 200
+        assert len(req.data) == 2
+        assert user2.username not in [r['user']['username'] for r in req.data]
+
+        # Input validation
+        # - Verify incorrect 'role' option
+        post_data = {'username': user2.username, 'role': 'foo'}
+        req = client.post(f'/api/v1/projects/{project.id}/members/', json.dumps(post_data), content_type="application/json")
+        assert req.status_code == 400
+        assert 'Invalid role' in str(req.data)
+        patch_data = {'role': 'foo'}
+        req = client.patch(f'/api/v1/projects/{project.id}/members/{user3.id}/', json.dumps(patch_data), content_type="application/json")
+        assert req.status_code == 400
+        assert 'not a valid choice' in str(req.data)
+        # - User already assigned
+        post_data = {'username': user3.username, 'role': 'viewer'}
+        req = client.post(f'/api/v1/projects/{project.id}/members/', json.dumps(post_data), content_type="application/json")
+        assert req.status_code == 400
+        assert 'already assigned' in str(req.data)
+        # - Missing 'username'/'role' fields
+        post_data = {'username': user2.username}
+        req = client.post(f'/api/v1/projects/{project.id}/members/', json.dumps(post_data), content_type="application/json")
+        assert req.status_code == 400
+        assert 'Missing required field' in str(req.data)
+        post_data = {'role': 'viewer'}
+        req = client.post(f'/api/v1/projects/{project.id}/members/', json.dumps(post_data), content_type="application/json")
+        assert req.status_code == 400
+        assert 'Missing required field' in str(req.data)
+        # - Invalid user
+        post_data = {'username': 'user5', 'role': 'viewer'}
+        req = client.post(f'/api/v1/projects/{project.id}/members/', json.dumps(post_data), content_type="application/json")
+        assert req.status_code == 400
+        assert 'Invalid username' in str(req.data)

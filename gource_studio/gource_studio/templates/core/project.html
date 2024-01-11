@@ -405,6 +405,9 @@
       <li class="nav-item">
         <a class="nav-link nav-link-alt" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
       </li>
+      <li class="nav-item">
+        <a class="nav-link nav-link-alt" href="#project-members-pane" data-toggle="tab" role="tab">Members</a>
+      </li>
     {% endif %}
       <li class="nav-item">
           <a class="nav-link" href="{% url 'project-avatars' project.id %}">Avatars <i class="fa fa-external-link"></i></a>
@@ -446,6 +449,9 @@
           </li>
           <li class="nav-item">
             <a class="nav-link nav-link-alt nav-link-sub" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link nav-link-alt nav-link-sub" href="#project-members-pane" data-toggle="tab" role="tab">Members</a>
           </li>
         {% endif %}
           <li class="nav-item separator"></li>
@@ -917,6 +923,47 @@
               </div>
             </div>
         {% endif %}
+          {% if user_can_edit %}
+            <!-- Project Members -->
+            <div class="tab-pane" id="project-members-pane" role="tabpanel">
+              <h5>
+                <i class="fa fa-group"></i> &nbsp;
+                Project Members
+              </h5>
+              <hr />
+
+              <div class="project-member-actions float-right">
+              <!--
+                <button class="btn btn-success save-project-members-btn"><i class="fa fa-disk"></i> Save</button>
+                -->
+              </div>
+              <div>
+              {% for member_user in project_member_users %}
+                <input type="text" class="form-control" name="username" autocomplete="off" value="{{ member_user.user.username }}" style="width: 400px; display: inline-block" readonly />
+                <select name="role" class="form-control" style="width:180px; display: inline-block;">
+                  <option value="viewer"{% if member_user.role == 'viewer' %} selected="selected"{% endif %}>Viewer</option>
+                  <option value="developer"{% if member_user.role == 'developer' %} selected="selected"{% endif %}>Developer</option>
+                  <option value="maintainer"{% if member_user.role == 'maintainer' %} selected="selected"{% endif %}>Maintainer</option>
+                </select>
+                <a id="remove-project-member-btn" class="btn btn-link text-danger" title="Delete member"><i class="fa fa-times"></i></a>
+              {% empty %}
+                <i class="text-muted">No members yet.</i>
+              {% endfor %}
+              </div>
+              <hr />
+              <div>
+                <input type="text" class="form-control" name="username" autocomplete="off" style="width: 400px; display: inline-block"/>
+                <select name="role" class="form-control" style="width:180px; display: inline-block;">
+                  <option value="viewer">Viewer</option>
+                  <option value="developer">Developer</option>
+                  <option value="maintainer">Maintainer</option>
+                </select>
+              </div>
+              <button class="btn btn-primary add-caption-btn" style="margin-top:1rem">
+                <i class="fa fa-plus"></i> Add Member
+              </button>
+            </div>
+          {% endif %}
           </div>
         </div>
       </div>

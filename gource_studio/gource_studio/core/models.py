@@ -1081,15 +1081,16 @@ class ProjectMember(models.Model):
     """
     Tracks per-project member rights that allows non-creators to manage project.
     """
-    PROJECT_ROLES = [
+    PROJECT_ROLE_CHOICES = [
         ("viewer", "Viewer"),
         ("developer", "Developer"),
         ("maintainer", "Maintainer"),
     ]
+    PROJECT_ROLES = [n[0] for n in PROJECT_ROLE_CHOICES]
 
     project = models.ForeignKey(Project, related_name="members", on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="projects", on_delete=models.CASCADE)
-    role = models.CharField(max_length=32, choices=PROJECT_ROLES, default="viewer")
+    role = models.CharField(max_length=32, choices=PROJECT_ROLE_CHOICES, default="viewer")
 
     date_added = models.DateTimeField(auto_now=True)
     added_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
@@ -1106,15 +1107,16 @@ class ProjectMemberGroup(models.Model):
     """
     Tracks per-project member rights that allows non-creators to manage project.
     """
-    PROJECT_ROLES = [
+    PROJECT_ROLE_CHOICES = [
         ("viewer", "Viewer"),
         ("developer", "Developer"),
         ("maintainer", "Maintainer"),
     ]
+    PROJECT_ROLES = [n[0] for n in PROJECT_ROLE_CHOICES]
 
     project = models.ForeignKey(Project, related_name="member_groups", on_delete=models.CASCADE)
     group = models.ForeignKey(AuthGroup, related_name="projects", on_delete=models.CASCADE)
-    role = models.CharField(max_length=32, choices=PROJECT_ROLES, default="viewer")
+    role = models.CharField(max_length=32, choices=PROJECT_ROLE_CHOICES, default="viewer")
 
     date_added = models.DateTimeField(auto_now=True)
     added_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)

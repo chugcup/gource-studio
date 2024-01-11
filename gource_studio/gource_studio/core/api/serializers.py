@@ -65,7 +65,6 @@ class ProjectMemberSerializer(serializers.HyperlinkedModelSerializer):
                   'date_added', 'added_by')
 
 
-
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     url = serializers.SerializerMethodField()
     project_log = ProjectLogSerializer(source='*')
@@ -75,6 +74,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     captions = serializers.SerializerMethodField('get_captions_url')
     members = serializers.SerializerMethodField('get_members_url')
     build_audio = serializers.SerializerMethodField('get_build_audio_url')
+    created_by = serializers.SerializerMethodField()
 
     def get_url(self, obj):
         return reverse('api-project-detail', args=[obj.pk], request=self.context.get('request'))
@@ -99,6 +99,14 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
             return reverse('api-project-build-audio-download', args=[obj.pk], request=self.context.get('request'))
         return None
 
+    def get_created_by(self, obj):
+        if obj.created_by is None:
+            return None
+        return {
+            "id": obj.created_by.id,
+            "username": obj.created_by.username
+        }
+
     class Meta:
         model = Project
         fields = ('id', 'name', 'project_slug', 'project_url', 'project_url_active',
@@ -106,7 +114,8 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                   'project_log', 'build_title', 'build_logo', 'video_size',
                   'build_audio', 'build_audio_name',
                   'options', 'builds', 'captions', 'avatars', 'members',
-                  'is_public', 'is_project_changed', 'created_at', 'updated_at', 'url')
+                  'is_public', 'is_project_changed', 'created_by',
+                  'created_at', 'updated_at', 'url')
         read_only_fields = ('project_log', 'created_at', 'updated_at')
 
 

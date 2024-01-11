@@ -217,6 +217,8 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
                 build.mark_aborted()
                 return HttpResponseRedirect(f'/projects/{project.id}/')
 
+    project_member_users = project.members.all()
+
     # Query Gource version to adjust options presented
     gource_version = None
     try:
@@ -247,6 +249,7 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
         'project_captions_json': [
             json.dumps(cpt.to_dict()) for cpt in project_captions
         ],
+        'project_member_users': project_member_users,
         'build_captions': build_captions if build_captions is not None else [],
         'build_captions_json': [
             json.dumps(opt.to_dict()) for opt in build_captions
