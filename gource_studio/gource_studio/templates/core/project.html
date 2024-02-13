@@ -1,6 +1,7 @@
 {% extends 'core/base.html' %}
 
 {% block page_css %}
+  <link rel="stylesheet" href="/static/css/lib/typeahead.css" />
   <style type="text/css">
   @media (min-width: 576px) and (max-width: 768px) {
     .container,
@@ -350,6 +351,50 @@
         padding: 2px 6px;
         z-index: 10;
     }
+    .project-member-icon {
+        display: inline-block;
+        width: 30px;
+        text-align: center;
+    }
+    #new-member-input-container .tt-menu {
+        top: 22px !important;
+    }
+    #new-member-input-container .tt-hint,
+    #new-member-input-container #new-member-input {
+        margin-top: -7px;
+    }
+    #new-member-input-container #new-member-input {
+        margin-left: -1px;
+    }
+    #add-new-member-btn {
+        margin-left: 34px;
+    }
+    .project-member-list-container {
+        white-space: nowrap;
+        margin-left: -40px;
+    }
+    .project-member-list-container input.form-control,
+    .project-member-list-container select.form-control {
+        width: 180px;
+        display: inline-block;
+    }
+  @media (max-width: 576px) {
+    #new-member-input-container input#new-member-input,
+    #new-member-input-container input.form-control {
+        width: 180px !important;
+    }
+  }
+  @media (min-width: 576px) {
+    .project-member-list-container {
+        margin-left: 0px;
+    }
+    #new-member-input-container input#new-member-input,
+    #new-member-input-container input.form-control[name="username"],
+    .project-member-list-container input.form-control[name="username"] {
+        width: 400px;
+        display: inline-block;
+    }
+  }
   </style>
 {% endblock %}
 
@@ -405,9 +450,11 @@
       <li class="nav-item">
         <a class="nav-link nav-link-alt" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
       </li>
+      {% if project_user_role in maintainer_role %}
       <li class="nav-item">
         <a class="nav-link nav-link-alt" href="#project-members-pane" data-toggle="tab" role="tab">Members</a>
       </li>
+      {% endif %}
     {% endif %}
       <li class="nav-item">
           <a class="nav-link" href="{% url 'project-avatars' project.id %}">Avatars <i class="fa fa-external-link"></i></a>
@@ -450,9 +497,11 @@
           <li class="nav-item">
             <a class="nav-link nav-link-alt nav-link-sub" href="#project-captions-pane" data-toggle="tab" role="tab">Captions</a>
           </li>
+          {% if project_user_role in maintainer_role %}
           <li class="nav-item">
             <a class="nav-link nav-link-alt nav-link-sub" href="#project-members-pane" data-toggle="tab" role="tab">Members</a>
           </li>
+          {% endif %}
         {% endif %}
           <li class="nav-item separator"></li>
           <li class="nav-item">
@@ -923,45 +972,41 @@
               </div>
             </div>
         {% endif %}
-          {% if user_can_edit %}
+          {% if project_user_role in maintainer_role %}
             <!-- Project Members -->
             <div class="tab-pane" id="project-members-pane" role="tabpanel">
-              <h5>
-                <i class="fa fa-group"></i> &nbsp;
-                Project Members
-              </h5>
-              <hr />
+              <div id="project-members-region">
+                <h5>
+                  <i class="fa fa-group"></i> &nbsp;
+                  Project Members
+                </h5>
+                <hr />
 
-              <div class="project-member-actions float-right">
-              <!--
-                <button class="btn btn-success save-project-members-btn"><i class="fa fa-disk"></i> Save</button>
-                -->
+                <project-member-edit v-for="member in member_users_list"
+                                     v-on:remove-project-member="removeMember(member.id)"
+                                     v-on:change:role="changeRole(member, $event)"
+                                     v-bind:key="member.id"
+                                     v-bind="member"></project-member-edit>
+
+                <div v-if="member_users_list.length === 0">
+                  <i class="text-muted">No members yet.</i>
+                </div>
+
+                <hr />
+
+                <div id="new-member-input-container">
+                  <span id="new-member-icon" class="project-member-icon"></span>
+                  <input id="new-member-input" type="text" class="form-control typeahead" name="username" autocomplete="off" placeholder="Username" style="width: 400px; display: inline-block"/>
+                  <select id="new-member-role" name="role" class="form-control" style="width:180px; display: inline-block;">
+                    <option value="viewer">Viewer</option>
+                    <option value="developer">Developer</option>
+                    <option value="maintainer">Maintainer</option>
+                  </select>
+                </div>
+                <button id="add-new-member-btn" class="btn btn-primary" style="margin-top:1rem">
+                  <i class="fa fa-plus"></i> Add Member
+                </button>
               </div>
-              <div>
-              {% for member_user in project_member_users %}
-                <input type="text" class="form-control" name="username" autocomplete="off" value="{{ member_user.user.username }}" style="width: 400px; display: inline-block" readonly />
-                <select name="role" class="form-control" style="width:180px; display: inline-block;">
-                  <option value="viewer"{% if member_user.role == 'viewer' %} selected="selected"{% endif %}>Viewer</option>
-                  <option value="developer"{% if member_user.role == 'developer' %} selected="selected"{% endif %}>Developer</option>
-                  <option value="maintainer"{% if member_user.role == 'maintainer' %} selected="selected"{% endif %}>Maintainer</option>
-                </select>
-                <a id="remove-project-member-btn" class="btn btn-link text-danger" title="Delete member"><i class="fa fa-times"></i></a>
-              {% empty %}
-                <i class="text-muted">No members yet.</i>
-              {% endfor %}
-              </div>
-              <hr />
-              <div>
-                <input type="text" class="form-control" name="username" autocomplete="off" style="width: 400px; display: inline-block"/>
-                <select name="role" class="form-control" style="width:180px; display: inline-block;">
-                  <option value="viewer">Viewer</option>
-                  <option value="developer">Developer</option>
-                  <option value="maintainer">Maintainer</option>
-                </select>
-              </div>
-              <button class="btn btn-primary add-caption-btn" style="margin-top:1rem">
-                <i class="fa fa-plus"></i> Add Member
-              </button>
             </div>
           {% endif %}
           </div>
@@ -1103,16 +1148,21 @@
 
 {% block page_js %}
   <script src="/static/js/pages/project.js"></script>
+  <script src="/static/js/lib/typeahead.bundle.js"></script>
   <script type="text/javascript">
     const PROJECT_ID = {{ project.id }};
+    const CURRENT_USER = {{ current_user|safe }};
     const CAN_USER_EDIT = {{ user_can_edit|lower }};
     const IS_LATEST_BUILD = {{ is_latest_build|lower }};
+    const PROJECT_USER_ROLE = "{{ project_user_role }}";
     const IS_READONLY = !CAN_USER_EDIT || !IS_LATEST_BUILD;
     $(document).ready(function() {
         "use strict";
 
         // Initialize page object
         App.pages.project.init(PROJECT_ID, {
+            user: CURRENT_USER,
+            user_role: PROJECT_USER_ROLE,
             can_user_edit: CAN_USER_EDIT,
             is_latest_build: IS_LATEST_BUILD,
             is_readonly: IS_READONLY,
@@ -1173,6 +1223,46 @@
                 App.pages.project.build_captions_container.captions_list.push(item);
             });
         }
+
+        let init_project_members_users = [{% for member_json in project_members_json %}
+            {{ member_json|safe }},{% endfor %}
+        ];
+        if (init_project_members_users.length > 0) {
+            _.each(init_project_members_users, function(item) {
+                App.pages.project.project_members_container.addMember(item);
+            });
+        }
+
+        const available_users = new Bloodhound({
+            datumTokenizer: Bloodhound.tokenizers.whitespace,
+            queryTokenizer: Bloodhound.tokenizers.whitespace,
+            identify: function(obj) { return obj.id; },
+            remote: {
+                url: "/api/v1/users/?project_id="+PROJECT_ID+"&q=%QUERY",
+                wildcard: '%QUERY'
+            }
+        });
+
+        $('#new-member-input-container .typeahead').typeahead(null, {
+            name: 'available-users',
+            highlight: true,
+            display: 'username',
+            source: available_users,
+            templates: {
+                empty: [
+                    '<div class="empty-message">',
+                        '<i class="text-muted">No matches found</i>',
+                    '</div>'
+                ].join('\n'),
+                suggestion: function(context) {
+                    let account_name = _.filter([context.first_name, context.last_name]).join(" ");
+                    return $(_.template('<div><% if (account_name) { %><%- account_name %> (<%- username %>)<% } else { %><%- username %><% } %></div>')({
+                        account_name: account_name,
+                        username: context.username,
+                    }));
+                },
+            },
+        });
 
         if (IS_READONLY) {
             // Remove selectable options

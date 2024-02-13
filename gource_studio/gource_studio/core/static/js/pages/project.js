@@ -13,6 +13,8 @@ App.pages.project.init = function(project_id, page_options) {
     // Initialize page defaults
     this.project_id = project_id;
     page_options = page_options || {};
+    this.user = page_options.user || {};
+    this.user_role = page_options.user_role;
     this.can_user_edit = !!page_options.can_user_edit;
     this.is_latest_build = !!page_options.is_latest_build;
     this.is_readonly = !!page_options.is_readonly;
@@ -332,6 +334,157 @@ App.pages.project.init = function(project_id, page_options) {
             can_edit: Boolean
         },
         template: '<option :value="name">{{ label }}</option>'
+    });
+
+    Vue.component('project-member-edit', {
+        props: {
+            id: Number,
+            username: String,
+            first_name: String,
+            last_name: String,
+            display_name: String,
+            role: String,
+            role_display: String,
+            date_added: String,
+            can_edit: Boolean,
+            is_current_user: Boolean
+        },
+        template: `
+            <div class="project-member-list-container">
+              <span class="project-member-icon">
+                <i class="fa fa-star text-primary" v-if="role == 'owner'"></i>
+                <i class="fa fa-user" v-if="role != 'owner'"></i>
+              </span>
+              <input type="text" class="form-control" name="username" autocomplete="off" :value="display_name" readonly />
+              <input type="text" class="form-control" :value="role_display" style="width: 180px; display: inline-block" readonly v-if="role == 'owner' || is_current_user" />
+              <select name="role" class="form-control" v-on:change="$emit('change:role', $event.target.value)" v-if="role != 'owner' && !is_current_user">
+                <option value="viewer" :selected="role == 'viewer'">Viewer</option>
+                <option value="developer" :selected="role == 'developer'">Developer</option>
+                <option value="maintainer" :selected="role == 'maintainer'">Maintainer</option>
+              </select>
+              <a id="remove-project-member-btn" class="btn btn-link text-danger" title="Delete member" v-if="role != 'owner' && !is_current_user" v-on:click="$emit('remove-project-member')"><i class="fa fa-times"></i></a>
+              <span class="text-muted" v-if="is_current_user">(It's You)</span>
+            </div>`
+    });
+    this.project_members_container = new Vue({
+        el: '#project-members-region',
+        data: {
+            member_users_list: [],
+        },
+        methods: {
+            addMember: function(id, username, role) {
+                App.debug && console.log('[Members] addMember', id, username, role);
+                let obj;
+                if (_.isObject(id)) {
+                    obj = id;
+                    obj.id = obj.user.id;
+                    obj.username = obj.user.username;
+                    obj.first_name = obj.user.first_name;
+                    obj.last_name = obj.user.last_name;
+                } else {
+                    obj = {
+                        id: id,
+                        username: username,
+                        role: role,
+                    };
+                }
+                // Implementation of .capitalize()
+                obj.role_display = obj.role.charAt(0).toUpperCase() + obj.role.slice(1);
+                obj.can_edit = App.pages.project.can_user_edit;
+                obj.display_name = this.getDisplayName(obj);
+                obj.is_current_user = (obj.username == App.pages.project.user.username);
+                this.member_users_list.push(obj);
+                this.member_users_list = _.sortBy(this.member_users_list, 'username');
+            },
+            // Resolve display name
+            // - FIRST LAST (USERNAME)
+            //   or
+            //   USERNAME
+            getDisplayName: function(id) {
+                let target_member = null;
+                if (_.isObject(id)) {
+                    target_member = id;
+                } else {
+                    target_member = _.findWhere(this.member_users_list, {id: id});
+                }
+                if (!target_member) {
+                    console.log("Invalid member: "+id);
+                    return '';
+                }
+                let account_name = _.filter([target_member.first_name, target_member.last_name]).join(" ");
+                return _.template('<% if (account_name) { %><%- account_name %> (<%- username %>)<% } else { %><%- username %><% } %>')({
+                    account_name: account_name,
+                    username: target_member.username,
+                });
+            },
+            changeRole: function(member, value) {
+                let patch_url = '/api/v1/projects/'+project_id+'/members/'+member.id+'/';
+                let patch_data = {
+                    "role": value
+                };
+                let self = this;
+                $.ajax({
+                    url: patch_url,
+                    method: 'PATCH',
+                    data: JSON.stringify(patch_data),
+                    contentType: "application/json",
+                    dataType: "json",
+                    beforeSend: function(xhr) {
+                        // Attach CSRF Token
+                        xhr.setRequestHeader("X-CSRFToken", App.utils.getCookie("csrftoken"));
+                    },
+                    success: function(data, textStatus, xhr) {
+                        $.notify("Member updated successfully.", {className: "success", position: "top right"});
+                        // Update in list
+                        self.updateRole(member, value);
+                    },
+                    error: function(xhr, textStatus, err) {
+                        // Error
+                        App.utils.handleErrorXHR(xhr, err);
+                        // FIXME: restore value in DOM?
+                    }
+                });
+            },
+            removeMember: function(id) {
+                App.debug && console.log('removeMember', id);
+                let target_member = _.findWhere(this.member_users_list, {id: id});
+                if (!target_member) {
+                    console.log("Invalid member: "+id);
+                    return;
+                }
+                let self = this;
+                let delete_url = '/api/v1/projects/'+project_id+'/members/'+target_member.id+'/';
+                $.ajax({
+                    url: delete_url,
+                    method: 'DELETE',
+                    //data: JSON.stringify(post_data),
+                    contentType: "application/json",
+                    dataType: "json",
+                    beforeSend: function(xhr) {
+                        // Attach CSRF Token
+                        xhr.setRequestHeader("X-CSRFToken", App.utils.getCookie("csrftoken"));
+                    },
+                    success: function(data, textStatus, xhr) {
+                        $.notify("Member removed successfully.", {className: "success", position: "top right"});
+                        // Remove from selected list
+                        self.member_users_list = _.sortBy(
+                            _.filter(self.member_users_list, function(item) { return item.id != target_member.id; }),
+                            'username'
+                        );
+                    },
+                    error: function(xhr, textStatus, err) {
+                        // Error
+                        App.utils.handleErrorXHR(xhr, err);
+                    }
+                });
+
+            },
+            updateRole: function(member, role) {
+                member.role = role;
+                // Implementation of .capitalize()
+                member.role_display = member.role.charAt(0).toUpperCase() + member.role.slice(1);
+            },
+        },
     });
 
     $('body').on('click', '#add-gource-option-btn', function(e) {
@@ -965,5 +1118,47 @@ App.pages.project.init = function(project_id, page_options) {
             App.pages.project.build_settings_container.options_selected,
             video_size
         );
+    });
+    $('body').on('click', '#add-new-member-btn', function(e) {
+        let new_member_username = $('#new-member-input').val();
+        let new_member_role = $('#new-member-role').val();
+        if (!new_member_username || !new_member_role) {
+            return;
+        }
+
+        let post_data = {
+            username: new_member_username,
+            role: new_member_role,
+        };
+
+        $('.add-new-member-btn').attr({disabled: true});
+        $.ajax({
+            url: "/api/v1/projects/"+project_id+"/members/",
+            method: 'POST',
+            data: JSON.stringify(post_data),
+            contentType: "application/json",
+            dataType: "json",
+            beforeSend: function(xhr) {
+                // Attach CSRF Token
+                xhr.setRequestHeader("X-CSRFToken", App.utils.getCookie("csrftoken"));
+            },
+            success: function(data, textStatus, xhr) {
+                $.notify("Member added successfully.", {className: "success", position: "top right"});
+                App.pages.project.project_members_container.addMember(data);
+                // Reset input
+                $('#new-member-input').val('');
+                $('#new-member-role').val('viewer');
+            },
+            error: function(xhr, textStatus, err) {
+                // Error
+                console.log("Save error: "+err, xhr);
+                App.utils.handleErrorXHR(xhr, err);
+            },
+            complete: function(xhr, textStatus) {
+                setTimeout(function() {
+                    $('.add-new-member-btn').attr({disabled: false});
+                }, 1500);
+            }
+        });
     });
 };

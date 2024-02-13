@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from rest_framework.reverse import reverse
 from rest_framework import serializers
 
@@ -306,3 +307,13 @@ class UserPlaylistProjectSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = UserPlaylistProject
         fields = ('id', 'playlist_id', 'project', 'project_id', 'name', 'index', 'content_url', 'screenshot_url', 'thumbnail_url', 'url')
+
+
+class BasicUserSerializer(serializers.HyperlinkedModelSerializer):
+    """Serializes Django User account information"""
+    class Meta:
+        model = get_user_model()
+        fields = ('id', 'username', 'first_name', 'last_name')
+        read_only_fields = ('id', 'username', 'first_name', 'last_name')
+
+

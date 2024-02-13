@@ -27,7 +27,7 @@ ssl._create_default_https_context = ssl._create_unverified_context
 from .api.serializers import UserPlaylistProjectSerializer
 from .constants import GOURCE_OPTIONS, GOURCE_OPTIONS_LIST, GOURCE_OPTIONS_JSON, VIDEO_OPTIONS, filter_by_version
 from .exceptions import ProjectBuildAbortedError
-from .models import Project, ProjectBuild, ProjectBuildOption, ProjectCaption, ProjectOption, ProjectUserAvatar, UserAvatar, UserPlaylist
+from .models import Project, ProjectBuild, ProjectBuildOption, ProjectCaption, ProjectMember, ProjectOption, ProjectUserAvatar, UserAvatar, UserPlaylist
 from .tasks import generate_gource_build
 from .utils import (
     add_background_audio,   #(video_path, audio_path, loop=True):
@@ -217,6 +217,11 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
                 build.mark_aborted()
                 return HttpResponseRedirect(f'/projects/{project.id}/')
 
+    project_owner_json = []
+    if project.created_by:
+        project_owner_json = [
+            ProjectMember(project=project, user=project.created_by, date_added=project.created_at, role="owner").to_dict()
+        ]
     project_member_users = project.members.all()
 
     # Query Gource version to adjust options presented
@@ -225,6 +230,15 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
         gource_version = get_gource_version(split=True)
     except:
         pass
+
+    current_user = None
+    if request.user and request.user.id:
+        current_user = {
+            "id": request.user.id,
+            "username": request.user.username,
+            "first_name": request.user.first_name,
+            "last_name": request.user.last_name,
+        }
 
     context = {
         'document_title': f'{project.name} - {SITE_NAME}',
@@ -250,13 +264,21 @@ def project_details(request, project_id=None, project_slug=None, build_id=None):
             json.dumps(cpt.to_dict()) for cpt in project_captions
         ],
         'project_member_users': project_member_users,
+        'project_members_json': project_owner_json + [
+            json.dumps(m.to_dict()) for m in project_member_users \
+            if m.id != project.created_by_id    # In case ProjectMember exists for owner
+        ],
         'build_captions': build_captions if build_captions is not None else [],
         'build_captions_json': [
             json.dumps(opt.to_dict()) for opt in build_captions
         ] if build_captions is not None else [],
         'build': build,
         'is_latest_build': is_latest_build,
-        'user_can_edit': project.check_permission(request.user, 'edit')
+        'current_user': json.dumps(current_user),
+        'project_user_role': project.get_user_role(request.user) or "",
+        'user_can_edit': project.check_permission(request.user, 'edit'),
+        # Constants
+        'maintainer_role': ['maintainer', 'owner', 'admin'],
     }
     return render(request, 'core/project.html', context)
 

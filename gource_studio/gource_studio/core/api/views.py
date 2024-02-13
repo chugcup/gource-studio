@@ -15,7 +15,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import dateparse
 from django.utils.timezone import now as utc_now
 from django.views.static import serve
-from rest_framework import generics, parsers, status, views
+from rest_framework import filters, generics, parsers, status, views
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, SAFE_METHODS
 from rest_framework.response import Response
@@ -47,6 +47,7 @@ from ..utils import (
     validate_project_url,
 )
 from .serializers import (
+    BasicUserSerializer,
     ProjectBuildOptionSerializer,
     ProjectBuildSerializer,
     ProjectCaptionSerializer,
@@ -89,6 +90,7 @@ class ProjectMemberPermission(IsAuthenticatedOrReadOnly):
             if not isinstance(obj, Project):
                 obj = obj.project
             return obj.check_permission(request.user, request.method)
+
 
 class IsStaffPermission(IsAuthenticatedOrReadOnly):
     "Checks that user has 'is_staff' permission"
@@ -644,6 +646,10 @@ class ProjectMembersList(generics.ListCreateAPIView):
 
     def post(self, request, *args, **kwargs):
         project = self.get_parent_object()
+        max_role = project.get_user_role(request.user)
+        if max_role not in ['maintainer', 'owner', 'admin']:
+            return Response({"detail": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+
         response = {}
 
         if 'username' not in request.data:
@@ -681,7 +687,7 @@ class ProjectMemberDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def get_object(self, *args, **kwargs):
         project = self.get_parent_object()
-        return get_object_or_404(self.get_queryset(), **{'project_id': project.id, 'user_id': self.kwargs['project_member_id']})
+        return get_object_or_404(self.get_queryset(), **{'project_id': project.id, 'user_id': self.kwargs['user_id']})
 
     def get_parent_object(self):
         project_qs = Project.objects.filter_permissions(self.request.user)
@@ -696,6 +702,26 @@ class ProjectMemberDetail(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         project = self.get_parent_object()
         return super().get_queryset().filter(project=project)
+
+    def patch(self, request, **kwargs):
+        project = self.get_parent_object()
+        max_role = project.get_user_role(request.user)
+        if max_role not in ['maintainer', 'owner', 'admin']:
+            return Response({"detail": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+        member = self.get_object()
+        if request.user == member.user and not request.user.is_superuser:
+            return Response({"detail": "Cannot modify own membership."}, status=status.HTTP_401_UNAUTHORIZED)
+        return super().patch(request, **kwargs)
+
+    def delete(self, request, **kwargs):
+        project = self.get_parent_object()
+        max_role = project.get_user_role(request.user)
+        if max_role not in ['maintainer', 'owner', 'admin']:
+            return Response({"detail": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+        member = self.get_object()
+        if request.user == member.user and not request.user.is_superuser:
+            return Response({"detail": "Cannot delete own membership."}, status=status.HTTP_401_UNAUTHORIZED)
+        return super().delete(request, **kwargs)
 
 
 class ProjectOptionsList(generics.ListAPIView):
@@ -1544,3 +1570,35 @@ class UserPlaylistProjectDetail(generics.RetrieveUpdateDestroyAPIView):
         res = super().delete(request, *args, **kwargs)
         playlist_project.playlist.update_project_indexes()
         return res
+
+
+class AvailableUsersList(generics.ListAPIView):
+    """
+    Return a list of available User accounts for a given filter.
+
+    Retrieve available members for project
+    ?project_id=<int>
+    """
+    queryset = get_user_model().objects.all()
+    serializer_class = BasicUserSerializer
+    permission_classes = (ProjectMemberPermission,)
+    filter_backends = (filters.SearchFilter,)
+    search_fields = ('username', 'first_name', 'last_name')
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+
+        project_id = self.request.query_params.get('project_id')
+        if project_id:
+            try:
+                project = Project.objects.get(id=project_id)
+                member_ids = list(ProjectMember.objects.all().filter(project_id=project.id).values_list('user_id', flat=True))
+                if project.created_by_id:
+                    member_ids.append(project.created_by_id)
+                qs = qs.exclude(id__in=member_ids)
+            except Project.DoesNotExist:
+                pass    # Invalid Project ID
+            except Exception as e:
+                logging.error("Error filtering users by project: %s", str(e))
+        return qs

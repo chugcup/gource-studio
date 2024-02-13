@@ -178,6 +178,48 @@ class Project(BaseProjectMixin, models.Model):
         self.is_project_changed = bool(changed)
         self.save(update_fields=['is_project_changed'])
 
+    def get_user_role(self, actor):
+        """
+        Return highest permission role available to `User` on this project.
+
+        If anonymous or no role, returns `None`.
+        """
+        if not isinstance(actor, (get_user_model(), AnonymousUser, SimpleLazyObject)):
+            return None
+
+        if actor == self.created_by:
+            return "owner"
+        # Early short-circuit for superusers
+        if actor.is_superuser:
+            return "admin"
+        # Anonymous user check
+        if actor.is_anonymous:
+            return None
+
+        # Check each permission
+        # + "view" - View project (if not `is_public` set)
+        max_role = None
+        member_groups = self.member_groups.all()
+        # Determine maximum project membership role
+        # - NOTE: Direct-project membership overrides any role in Groups
+        project_member = self.members.filter(user=actor)
+        if project_member:
+            max_role = project_member[0].role
+        else:
+            # Search any groups associated with Project
+            project_group_roles = [g.role for g in member_groups.filter(id__in=actor.groups.all())]
+            if project_group_roles:
+                if 'maintainer' in project_group_roles:
+                    max_role = 'maintainer'
+                elif 'developer' in project_group_roles:
+                    max_role = 'developer'
+                elif 'viewer' in project_group_roles:
+                    max_role = 'viewer'
+
+        if max_role:
+            return max_role
+        return None
+
     def check_permission(self, actor, action):
         """
         Return True/False if `User` can perform `action` on this project.
@@ -1101,6 +1143,19 @@ class ProjectMember(models.Model):
 
     def __str__(self):
         return f"{self.project.name} ({self.user.username})"
+
+    def to_dict(self):
+        return {
+            "project_id": self.project_id,
+            "user": {
+                "id": self.user_id,
+                "username": self.user.username,
+                "first_name": self.user.first_name,
+                "last_name": self.user.last_name,
+            },
+            "role": self.role,
+            "date_added": self.date_added.isoformat(),
+        }
 
 
 class ProjectMemberGroup(models.Model):

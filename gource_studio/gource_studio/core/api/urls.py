@@ -44,11 +44,12 @@ urlpatterns = [
     re_path(r'^projects/(?P<project_id>\d+)/builds/(?P<project_build_id>\d+)/thumbnail/download/?$', views.ProjectBuildThumbnailDownload.as_view(), name='api-project-build-thumbnail-download'),
     re_path(r'^projects/(?P<project_id>\d+)/captions/?$', views.ProjectCaptionsList.as_view(), name='api-project-captions-list'),
     re_path(r'^projects/(?P<project_id>\d+)/members/?$', views.ProjectMembersList.as_view(), name='api-project-members-list'),
-    re_path(r'^projects/(?P<project_id>\d+)/members/(?P<project_member_id>\d+)/?$', views.ProjectMemberDetail.as_view(), name='api-project-member-detail'),
+    re_path(r'^projects/(?P<project_id>\d+)/members/(?P<user_id>\d+)/?$', views.ProjectMemberDetail.as_view(), name='api-project-member-detail'),
     re_path(r'^projects/(?P<project_id>\d+)/options/?$', views.ProjectOptionsList.as_view(), name='api-project-options-list'),
     re_path(r'^projects/(?P<project_id>\d+)/project_log/?$', views.ProjectLogDetail.as_view(), name='api-project-log'),
     re_path(r'^projects/(?P<project_slug>[-\w]+)/project_log/?$', views.ProjectLogDetail.as_view(), name='api-project-log-slug'),
     re_path(r'^projects/(?P<project_id>\d+)/project_log/download/?$', views.ProjectLogDownload.as_view(), name='api-project-log-download'),
     re_path(r'^projects/(?P<project_id>\d+)/utils/duration/?$', views.ProjectDurationUtility.as_view(), name='api-project-duration-utility'),
     #re_path(r'^projects/(?P<project_id>\d+)/utils/members_query/?$', views.ProjectQueryMembersUtility.as_view(), name='api-project-query-members-utility'),
+    re_path(r'^users/?$', views.AvailableUsersList.as_view(), name='api-available-users-list'),
 ]
