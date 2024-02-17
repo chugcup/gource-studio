@@ -1138,8 +1138,6 @@ class ProjectUserAvatarsList(generics.ListCreateAPIView):
         )
         if form.is_valid():
             try:
-                if ProjectUserAvatar.objects.filter(project=project, name=request.POST['name']).exists():
-                    raise ValueError("Project avatar by that name already exists.")
                 # Convert image to supported .jpg or .png (and correct color mode)
                 img, img_format = convert_image_to_supported(request.FILES['image'])
                 # TODO: rescale to 256x256
@@ -1170,12 +1168,47 @@ class ProjectUserAvatarDetail(generics.RetrieveDestroyAPIView):
     queryset = ProjectUserAvatar.objects.all()
     serializer_class = ProjectUserAvatarSerializer
 
+
+    def get_parent_object(self):
+        return get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+
     def get_object(self):
-        project = get_object_or_404(Project.objects.filter_permissions(self.request.user), **{'id': self.kwargs['project_id']})
+        project = self.get_parent_object()
         return get_object_or_404(super().get_queryset(), **{
             'project_id': project.id,
             'id': self.kwargs['project_avatar_id']
         })
+
+    def put(self, request, *args, **kwargs):
+        project = self.get_parent_object()
+        avatar = self.get_object()
+        form = UploadAvatarForm(
+            request.data,   # POST
+            request.data,   # FILE
+        )
+        if form.is_valid():
+            try:
+                # Convert image to supported .jpg or .png (and correct color mode)
+                img, img_format = convert_image_to_supported(request.FILES['image'])
+                # TODO: rescale to 256x256
+                # Update 'created_by' reference
+                avatar.created_by = request.user
+                # Determine filename using converted extension
+                filename = os.path.splitext(request.FILES['image'].name)[0]
+                if not filename:
+                    filename = 'image'
+                filename = f'{filename}.{img_format.lower()}'
+                # Save avatar
+                avatar.image.save(filename, ContentFile(img.read()))
+
+                # Generate serializer response
+                serializer = self.get_serializer(avatar, context={'request': request})
+                response = serializer.data
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"detail": form.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProjectUserAvatarImageDownload(views.APIView):
@@ -1258,6 +1291,7 @@ class UserAvatarsList(generics.ListCreateAPIView):
     """
     queryset = UserAvatar.objects.all()
     serializer_class = UserAvatarSerializer
+    permission_classes = (IsStaffPermission,)
     parser_classes = (parsers.MultiPartParser,)
 
     def post(self, request, *args, **kwargs):
@@ -1297,7 +1331,38 @@ class UserAvatarsList(generics.ListCreateAPIView):
 class UserAvatarDetail(generics.RetrieveDestroyAPIView):
     queryset = UserAvatar.objects.all()
     serializer_class = UserAvatarSerializer
+    permission_classes = (IsStaffPermission,)
     lookup_url_kwarg = 'avatar_id'
+
+    def put(self, request, *args, **kwargs):
+        avatar = self.get_object()
+        form = UploadAvatarForm(
+            request.data,   # POST
+            request.data,   # FILE
+        )
+        if form.is_valid():
+            try:
+                # Convert image to supported .jpg or .png (and correct color mode)
+                img, img_format = convert_image_to_supported(request.FILES['image'])
+                # TODO: rescale to 256x256
+                # Update 'created_by' reference
+                avatar.created_by = request.user
+                # Determine filename using converted extension
+                filename = os.path.splitext(request.FILES['image'].name)[0]
+                if not filename:
+                    filename = 'image'
+                filename = f'{filename}.{img_format.lower()}'
+                # Save avatar
+                avatar.image.save(filename, ContentFile(img.read()))
+
+                # Generate serializer response
+                serializer = self.get_serializer(avatar, context={'request': request})
+                response = serializer.data
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"detail": form.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserAvatarImageDownload(views.APIView):

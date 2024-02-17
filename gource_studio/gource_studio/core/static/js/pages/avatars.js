@@ -172,7 +172,101 @@ App.pages.avatars.init = function(upload_url, page_options) {
             });
         });
         _popover.popover('show');
+    });
 
+    // Change avatar image (existing entry)
+    $('body').on('click', '.change-avatar-btn', function(e) {
+        // Locate parent `.card` and ensure dropzone not rendered
+        let $card = $(e.currentTarget).parents('.card');
+        if ($card.length === 0 ) { return; }
+        if ($card.find('.avatar-change-image-overlay').length > 0) {
+            return;     // Already open
+        }
+
+        let contributor_name = $(e.currentTarget).text();
+        let avatar_id = $(e.currentTarget).attr('data-avatar-id');
+        // Optional
+        let project_id = $(e.currentTarget).attr('data-project-id');
+        if (!avatar_id) {
+            return;
+        }
+
+        let upload_url;
+        if (project_id) {
+            upload_url = "/api/v1/projects/"+project_id+"/avatars/"+avatar_id+"/";
+        } else {
+            upload_url = "/api/v1/avatars/"+avatar_id+"/";
+        }
+        let dropzone_html = ''
+            +'<div class="avatar-change-image-overlay">'
+            + '<div class="text-center" style="margin-top:2px">'
+            +   '<button type="submit" class="btn btn-primary btn-sm submit-dropzone-upload" disabled>Submit</button>'
+            +   '<button type="button" class="btn btn-default btn-sm cancel-dropzone-upload" style="margin-right:-18px;"><i class="fa fa-times"></i></button>'
+            + '</div>'
+
+            + '<div class="dropzone avatar-upload-dropzone"></div>'
+            +'</div>';
+        $card.prepend(dropzone_html);
+        let _dropzone = new window.Dropzone(
+            $card.find('div.avatar-upload-dropzone')[0],
+            {
+                url: upload_url,
+                method: "put",
+                paramName: "image",
+                maxFiles: 1,
+                maxFilesize: 2, // MB
+                acceptedFiles: 'image/*',
+                thumbnailHeight: 70,
+                thumbnailWidth: 70,
+                thumbnailMethod: 'contain',
+                dictDefaultMessage: 'Select Image',
+                autoProcessQueue: false,
+                headers: {
+                    "X-CSRFToken": App.utils.getCookie("csrftoken"),
+                },
+                init: function() {
+                    this.on("addedfile", function(file) {
+                        // NOTE: this will still be called if invalid/too large file selected
+                        $card.find('.submit-dropzone-upload').attr({disabled: false});
+                    });
+                    this.on("removedfile", function(file) {
+                        $card.find('.submit-dropzone-upload').attr({disabled: true});
+                    });
+                    this.on("sending", function(file, xhr, formData) {
+                        // Append 'name' field to request
+                        formData.append('name', contributor_name);
+                    });
+                    this.on("success", function(file, responseText, e) {
+                        // Success (reload the page after animation ends)
+                        setTimeout(function() { window.location.reload(); }, 1000);
+                    });
+                    this.on("error", function(file, message, xhr) {
+                        console.log("ERROR: Avatar upload error: ", message, xhr);
+                        let responseText = xhr.responseText;
+                        try {
+                            responseText = JSON.parse(responseText);
+                            if (responseText.detail) {
+                                $.notify(responseText.detail, {autoHide: false, position: 'top center'});
+                            }
+                        } catch (err) {
+                            console.log("Error parsing response as JSON: ", err);
+                            $.notify("Error occurred while submitting avatar", {autoHide: false, position: 'top center'});
+                        }
+                    });
+                }
+            }
+        );
+
+        $card.find('button.submit-dropzone-upload').on('click', function(e) {
+            e.preventDefault();
+            _dropzone.processQueue();
+        });
+        $card.find('button.cancel-dropzone-upload').on('click', function(e) {
+            e.preventDefault();
+            $card.find('.avatar-change-image-overlay').remove();
+            _dropzone.removeAllFiles();
+            _dropzone.destroy();
+        });
     });
 
     // Alias popover

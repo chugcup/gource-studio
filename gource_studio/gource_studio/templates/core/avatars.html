@@ -204,6 +204,20 @@
         fill: #FF0000;
         stroke: #000000;
     }
+    .avatar-change-image-overlay {
+        position: absolute;
+        top: -30px;
+        left: 4px;
+        background: #FFFFFF;
+        z-index: 1;
+    }
+    .avatar-change-image-overlay .dz-clickable {
+        width: 110px;
+        height: 110px;
+    }
+    .avatar-change-image-overlay .dz-clickable .dz-message {
+        padding-top: 22px;
+    }
   </style>
 {% endblock %}
 
@@ -244,7 +258,7 @@
           <div class="avatar-dropdown dropdown">
             <a class="dropdown-toggle" role="button" title="{{ request.user.username }}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"></a>
             <div class="dropdown-menu dropdown-menu-left">
-              <!--<a class="dropdown-item change-avatar-btn"><i class="fa fa-pencil"></i> Change</a>-->
+              <a class="dropdown-item change-avatar-btn" data-avatar-id="{{ avatar.id }}" data-avatar-name="{{ avatar.name }}"{% if avatar.project_id %} data-project-id="{{ avatar.project_id }}"{% endif %}><i class="fa fa-pencil"></i> Change</a>
               <div class="dropdown-divider"></div>
               <a class="dropdown-item delete-avatar-btn" data-avatar-id="{{ avatar.id }}" data-avatar-name="{{ avatar.name }}"{% if avatar.project_id %} data-project-id="{{ avatar.project_id }}"{% endif %}>
                 <i class="fa fa-trash"></i> Delete
@@ -266,15 +280,14 @@
           </div>
           {% endif %}
         {% if avatar.image %}
-          <img class="card-img-top" src="{{ avatar.image_url }}" alt="" style="height:auto;width:auto;max-height:100px;max-width:100px;margin:auto" />
+          <img class="card-img-top" src="{{ avatar.image_url }}?_={{ avatar.updated_at|date:"U" }}" alt="" style="height:auto;width:auto;max-height:100px;max-width:100px;margin:auto" />
         {% else %}
           <img class="card-img-top" src="/static/img/no-preview-185x100.png" alt="No Preview" />
         {% endif %}
         </div>
         <div class="card-body">
           <b class="card-title">{{ avatar.name }}</b>
-          <small class="card-text text-muted">
-          </small>
+          <small class="card-text text-muted"></small>
         </div>
       </div>
     {% empty %}
