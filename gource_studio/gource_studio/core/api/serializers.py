@@ -161,10 +161,10 @@ class ProjectBuildSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('id', 'project_id', 'project_branch',
                   'status', 'error_description', 'content', 'content_size', 'duration',
                   'screenshot', 'thumbnail', 'project_log', 'options',
-                  'current_build_stage', 'current_build_message',
+                  'is_full_build', 'current_build_stage', 'current_build_message',
                   'queued_at', 'running_at', 'aborted_at', 'completed_at', 'errored_at', 'url')
         read_only_fields = ('project_id', 'project_branch', 'status', 'content_size', 'duration',
-                            'current_build_stage', 'current_build_message',
+                            'is_full_build', 'current_build_stage', 'current_build_message',
                             'queued_at', 'running_at', 'aborted_at', 'completed_at', 'errored_at')
 
 

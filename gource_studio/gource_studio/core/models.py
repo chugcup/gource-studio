@@ -512,6 +512,8 @@ class ProjectBuild(BaseProjectMixin, models.Model):
     errored_at = models.DateTimeField(null=True)
 
     ## Build fields
+    # Indicates if build required new video capture (or just audio remixing)
+    is_full_build = models.BooleanField(default=True)
     current_build_stage = models.CharField(max_length=64, blank=True, null=True)
     current_build_message = models.CharField(max_length=512, blank=True, null=True)
     # Process output logging
@@ -764,6 +766,7 @@ class ProjectBuild(BaseProjectMixin, models.Model):
             project_log_commit_preview=self.project_log_commit_preview,
             video_size=self.video_size,
             status='queued' if not defer_queue else 'pending',
+            is_full_build=remix_audio is False,
             queued_at=timezone.now() if not defer_queue else None
         )
 

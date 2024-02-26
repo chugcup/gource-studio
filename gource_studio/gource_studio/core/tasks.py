@@ -15,6 +15,7 @@ from .utils import (
     add_background_audio,   #(video_path, audio_path, loop=True):
     analyze_gource_log,     #(data):
     download_git_log,       #(url, branch="master"):
+    format_duration,        #(seconds):
     generate_gource_video,  #(log_data, seconds_per_day=0.1, framerate=60, avatars=None, default_avatar=None):
     get_video_duration,     #(video_path):
     get_video_thumbnail,    #(video_path, width=512, secs=None, percent=None):
@@ -71,6 +72,7 @@ def generate_gource_build(build_id):
             with open(final_path, 'rb') as f:
                 build.content.save('video.mp4', File(f))
 
+            thumbs_start_time = time.monotonic()
             logger.info("Generating thumbnails...")
             build.set_build_stage("thumbnail", "Generating thumbnails")
             try:
@@ -86,6 +88,7 @@ def generate_gource_build(build_id):
                 build.thumbnail.save('thumb.jpg', thumb_data)
             except:
                 logger.exception("Failed to generate thumbnail")
+            logger.info("[+%s] Thumbnails complete", format_duration(time.monotonic() - thumbs_start_time))
 
             # Finishing steps
             build.mark_completed()
@@ -162,22 +165,23 @@ def generate_gource_build(build_id):
                 output_path=output_path,
             )
         except ProjectBuildAbortedError:
-            logger.info("Project was aborted by user [elapsed: %s sec]", time.monotonic() - start_time)
+            logger.info("Project was aborted by user [elapsed: %s]", format_duration(time.monotonic() - start_time))
             return
 
-        process_time = time.monotonic() - start_time
-        logger.info("Processing time: %s sec", process_time)
+        logger.info("[+%s] Video capture complete", format_duration(time.monotonic() - start_time))
         build.duration = int(get_video_duration(final_path))
 
         # Add background audio (optional)
         # TODO support abort
         try:
             if build.build_audio:
+                mixer_start_time = time.monotonic()
                 build.set_build_stage("audio", "Mixing audio")
                 audio_path = build.build_audio.path
                 logger.info("Beginning audio mixing...")
                 output_path = Path(tempdir) / f"{int(time.time())}_audio.mp4"
                 final_path = add_background_audio(final_path, audio_path, loop=True, output_path=output_path)
+                logger.info("[+%s] Audio mixing complete", format_duration(time.monotonic() - mixer_start_time))
         except:
             logger.exception("Failed to mix background audio")
 
@@ -187,6 +191,7 @@ def generate_gource_build(build_id):
         with open(final_path, 'rb') as f:
             build.content.save('video.mp4', File(f))
 
+        thumbs_start_time = time.monotonic()
         logger.info("Generating thumbnails...")
         build.set_build_stage("thumbnail", "Generating thumbnails")
         try:
@@ -202,6 +207,7 @@ def generate_gource_build(build_id):
             build.thumbnail.save('thumb.jpg', thumb_data)
         except:
             logger.exception("Failed to generate thumbnail")
+        logger.info("[+%s] Thumbnails complete", format_duration(time.monotonic() - thumbs_start_time))
 
         # Finishing steps
         build.mark_completed()

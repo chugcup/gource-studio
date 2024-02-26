@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import functools
 from io import BytesIO
 import logging
@@ -134,6 +134,29 @@ def _get_software_version(cmd, pattern, split=False):
     if split:
         return tuple([int(n) for n in version.split('.')])
     return version
+
+
+def format_duration(seconds):
+    """
+    Convert duration (seconds) to [HH:]mm:ss format
+    """
+    output = ''
+    if isinstance(seconds, timedelta):
+        seconds = seconds.total_seconds()
+    seconds = int(seconds)
+    # Support negative
+    sign = '' if seconds >= 0 else '-'
+    hours, remainder = divmod(abs(seconds), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    # Build output
+    if hours:
+        output = '{hours}:'
+    output += '{minutes}:{seconds}'
+    return sign+output.format(
+        hours=hours,
+        minutes=str(minutes).zfill(2),
+        seconds=str(seconds).zfill(2)
+    )
 
 
 def test_http_url(url):
@@ -415,6 +438,7 @@ def generate_gource_video(log_data, *, video_size='1280x720', framerate=60, avat
                 pass
         #####################################################################
 
+        start_time = time.monotonic()
         print(f" ~ Starting Gource{gource_display}")
         p1 = subprocess.Popen(cmd, cwd=str(tempdir_path),
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -535,6 +559,7 @@ def add_background_audio(video_path, audio_path, loop=True, output_path=None):
                 cmd1_out
         ]
         # Direct FFmpeg stdout/stderr to file to avoid halting due to filled I/O buffer
+        a1_start_time = time.monotonic()
         with open(str(tempdir_path / 'ffmpeg1.stdout'), 'w') as ffout:
             with open(str(tempdir_path / 'ffmpeg1.stderr'), 'w') as fferr:
                 p1 = subprocess.Popen(cmd1, cwd=str(tempdir_path), stdout=ffout, stderr=fferr)
@@ -544,6 +569,7 @@ def add_background_audio(video_path, audio_path, loop=True, output_path=None):
                     # Error
                     #_stdout, _stderr = [x.decode('utf-8') for x in p1.communicate()]
                     raise RuntimeError(f"Non-zero exit code while mixing audio (1/2) -- Exit code: {p1.returncode}")
+                logging.info("[+%s][AUDIO MIXING 1/2] + Completed", format_duration(time.monotonic() - a1_start_time))
 
         # Checkpoint
         save_file = cmd1_out
@@ -559,6 +585,7 @@ def add_background_audio(video_path, audio_path, loop=True, output_path=None):
                 cmd2_out
         ]
         # Direct FFmpeg stdout/stderr to file to avoid halting due to filled I/O buffer
+        a2_start_time = time.monotonic()
         with open(str(tempdir_path / 'ffmpeg2.stdout'), 'w') as ffout:
             with open(str(tempdir_path / 'ffmpeg2.stderr'), 'w') as fferr:
                 p2 = subprocess.Popen(cmd2, cwd=str(tempdir_path), stdout=ffout, stderr=fferr)
@@ -568,6 +595,7 @@ def add_background_audio(video_path, audio_path, loop=True, output_path=None):
                     # Error
                     #_stdout, _stderr = [x.decode('utf-8') for x in p2.communicate()]
                     raise RuntimeError(f"Non-zero exit code while mixing audio (2/2) -- Exit code: {p2.returncode}")
+                logging.info("[+%s][AUDIO MIXING 2/2] + Completed", format_duration(time.monotonic() - a2_start_time))
 
         save_file = cmd2_out
 
