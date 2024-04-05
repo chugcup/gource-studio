@@ -24,7 +24,7 @@ from django.views.static import serve
 # Ignore SSL verification
 ssl._create_default_https_context = ssl._create_unverified_context
 
-from .api.serializers import UserPlaylistProjectSerializer
+from .api.serializers import ProjectSerializer, UserPlaylistProjectSerializer
 from .constants import GOURCE_OPTIONS, GOURCE_OPTIONS_LIST, GOURCE_OPTIONS_JSON, VIDEO_OPTIONS, filter_by_version
 from .exceptions import ProjectBuildAbortedError
 from .models import Project, ProjectBuild, ProjectBuildOption, ProjectCaption, ProjectMember, ProjectOption, ProjectUserAvatar, UserAvatar, UserPlaylist
@@ -654,11 +654,19 @@ def project_audio_upload(request, project_id=None, project_slug=None):
             project.build_audio_name = os.path.basename(project.build_audio.name)
             project.is_project_changed = True
             project.save()
+            if 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+                response = json.dumps(ProjectSerializer(project, context={'request': request}).data)
+                return HttpResponse(response, status=201, content_type="application/json")
             return HttpResponseRedirect(f'/projects/{project.id}/')
             #response = {"error": False, "message": "Project saved successfully."}
             #return HttpResponse(json.dumps(response), status=201, content_type="application/json")
         else:
             logging.error("Invalid form: %s", form.errors)
+            if 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+                response = json.dumps({"error": True, "message": "Build logo invalid."})
+                return HttpResponse(response, status=400, content_type="application/json")
+
+    # Invalid method really
     return HttpResponseRedirect(f'/projects/{project.id}/')
 
 
@@ -684,11 +692,19 @@ def project_build_logo_upload(request, project_id=None, project_slug=None):
             project.build_logo = request.FILES['build_logo']
             project.is_project_changed = True
             project.save()
+            if 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+                response = json.dumps(ProjectSerializer(project, context={'request': request}).data)
+                return HttpResponse(response, status=201, content_type="application/json")
             return HttpResponseRedirect(f'/projects/{project.id}/')
             #response = {"error": False, "message": "Project saved successfully."}
             #return HttpResponse(json.dumps(response), status=201, content_type="application/json")
         else:
             logging.error("Invalid form: %s", form.errors)
+            if 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+                response = json.dumps({"error": True, "message": "Build logo invalid."})
+                return HttpResponse(response, status=400, content_type="application/json")
+
+    # Invalid method really
     return HttpResponseRedirect(f'/projects/{project.id}/')
 
 
@@ -714,11 +730,20 @@ def project_build_background_upload(request, project_id=None, project_slug=None)
             project.build_background = request.FILES['build_background']
             project.is_project_changed = True
             project.save()
+            if 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+                response = json.dumps(ProjectSerializer(project, context={'request': request}).data)
+                return HttpResponse(response, status=201, content_type="application/json")
+
             return HttpResponseRedirect(f'/projects/{project.id}/')
             #response = {"error": False, "message": "Project saved successfully."}
             #return HttpResponse(json.dumps(response), status=201, content_type="application/json")
         else:
             logging.error("Invalid form: %s", form.errors)
+            if 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+                response = json.dumps({"error": True, "message": "Build background invalid."})
+                return HttpResponse(response, status=400, content_type="application/json")
+
+    # Invalid method really
     return HttpResponseRedirect(f'/projects/{project.id}/')
 
 

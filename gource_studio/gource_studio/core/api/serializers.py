@@ -75,6 +75,8 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     captions = serializers.SerializerMethodField('get_captions_url')
     members = serializers.SerializerMethodField('get_members_url')
     build_audio = serializers.SerializerMethodField('get_build_audio_url')
+    build_background = serializers.SerializerMethodField('get_build_background_url')
+    build_logo = serializers.SerializerMethodField('get_build_logo_url')
     created_by = serializers.SerializerMethodField()
 
     def get_url(self, obj):
@@ -100,6 +102,16 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
             return reverse('api-project-build-audio-download', args=[obj.pk], request=self.context.get('request'))
         return None
 
+    def get_build_background_url(self, obj):
+        if obj.build_background:
+            return reverse('api-project-background-download', args=[obj.pk], request=self.context.get('request'))
+        return None
+
+    def get_build_logo_url(self, obj):
+        if obj.build_logo:
+            return reverse('api-project-logo-download', args=[obj.pk], request=self.context.get('request'))
+        return None
+
     def get_created_by(self, obj):
         if obj.created_by is None:
             return None
@@ -112,7 +124,8 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
         model = Project
         fields = ('id', 'name', 'project_slug', 'project_url', 'project_url_active',
                   'project_branch', 'project_vcs',
-                  'project_log', 'build_title', 'build_logo', 'video_size',
+                  'project_log', 'video_size', 'build_title',
+                  'build_logo', 'build_background',
                   'build_audio', 'build_audio_name',
                   'options', 'builds', 'captions', 'avatars', 'members',
                   'is_public', 'is_project_changed', 'created_by',
