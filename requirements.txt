@@ -7,6 +7,7 @@ django-split-settings
 djangorestframework
 Markdown
 Pillow
+psycopg2-binary
 pydub
 pytz
 redis

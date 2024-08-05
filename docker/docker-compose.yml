@@ -1,0 +1,52 @@
+version: "3.7"
+
+services:
+    django:
+        build:
+            context: ..
+            dockerfile: docker/Dockerfile
+        volumes:
+            - appconfig:/etc/gource_studio:ro
+            - appdata:/var/run/gource_studio
+        ports:
+            - "8000:8000"
+        environment:
+            - DEBUG=1
+            - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 [::1]
+            - CELERY_BROKER=redis://redis:6379/0
+            - CELERY_BACKEND=redis://redis:6379/0
+        depends_on:
+            - pgdb
+            - redis
+    celery:
+        build:
+            context: ..
+            dockerfile: docker/Dockerfile
+        entrypoint: ./celery-entrypoint.sh
+        volumes:
+            - appconfig:/etc/gource_studio:ro
+            - appdata:/var/run/gource_studio
+        environment:
+            - DEBUG=1
+            - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 [::1]
+            - CELERY_BROKER=redis://redis:6379/0
+            - CELERY_BACKEND=redis://redis:6379/0
+        depends_on:
+            - django
+            - redis
+    pgdb:
+        image: postgres
+        container_name: pgdb
+        environment:
+            - POSTGRES_DB=gource_studio
+            - POSTGRES_USER=gource_studio_user
+            - POSTGRES_PASSWORD=password
+        volumes:
+            - pgdata:/var/lib/postgresql/data/
+    redis:
+        image: "redis:alpine"
+
+volumes:
+    appconfig:
+    appdata:
+    pgdata:

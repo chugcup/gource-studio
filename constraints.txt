@@ -9,6 +9,7 @@ djangorestframework>=3.14.0
 gunicorn>=21.0
 kombu>=5.3.0
 Pillow>=4
+psycopg2-binary>=2.9.8
 pydub>=0.24.1
 pytz>=2023.3
 redis>=5.0.0

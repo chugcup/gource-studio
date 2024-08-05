@@ -81,12 +81,26 @@ WSGI_APPLICATION = 'gource_studio.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
+# General SQLite configuration
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'app.db',
     }
 }
+
+# Alternative PostgreSQL configuration sample
+#DATABASES = {
+#    'default': {
+#        'ENGINE': 'django.db.backends.postgresql',
+#        'NAME': 'gource_studio',
+#        'USER': 'gource_studio_user',
+#        'PASSWORD': '<PASSWORD>',
+#        'HOST': '127.0.0.1',
+#        'PORT': '5432',
+#    }
+#}
+
 
 # Configure automatic PK field (Django 3.2+)
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

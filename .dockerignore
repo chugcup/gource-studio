@@ -1,0 +1,5 @@
+gource_studio/app.db
+gource_studio/gource_studio/media
+gource_studio/gource_studio/static
+gource_studio/gource_studio/custom_settings.py
+gource_studio/gource_studio/config/secrets.py
