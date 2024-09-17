@@ -1,5 +1,11 @@
-Requirements
-=================
+# Gource Studio
+
+Gource Studio is a web application used to configure and build animated development videos of software projects using [Gource](https://gource.io/).
+
+<kbd><img src="./doc/images/gource-studio-project-view.png" width="800" /></kbd>
+
+
+## Requirements
 
 The project uses the following software:
 
@@ -12,13 +18,11 @@ The project uses the following software:
 - SQLite / PostgreSQL
 
 
-First Steps
-=================
+## First Steps
 
-Ubuntu 20.04 / 22.04 LTS
-------------------------
+### Debian (12+) and Ubuntu Linux (20.04+ LTS)
 
-    sudo apt install ffmpeg git gource libjpeg8-dev libpng-dev mercurial python3 python3-dev python3-venv redis-server sqlite3 zlib1g-dev
+    sudo apt install ffmpeg git gource libjpeg-dev libpng-dev mercurial python3 python3-dev python3-venv redis-server sqlite3 zlib1g-dev
 
 **NOTE:** The version of `gource` (0.50/0.51) included with these Ubuntu versions has
 an issue where the font scale is not applied to the file extension sidebar.  On larger
@@ -28,8 +32,7 @@ To address this, you can manually include a newer version of ``gource`` on the s
 and set the absolute path using the ``GOURCE_PATH`` setting.
 
 
-Python Setup
------------------
+### Python Setup
 
 Create a virtual environment and install needed packages
 
@@ -43,8 +46,7 @@ environment variable to prevent Xcode from building the wrong binary type
     ARCHFLAGS="-arch x86_64" pip install Pillow
 
 
-Initialize App
-=================
+## Initialize App
 
 First, copy the sample settings override file into place (and make any needed changes):
 
@@ -64,8 +66,7 @@ Lastly, create a default superuser account for the application
     python3 gource_studio/manage.py createsuperuser
 
 
-Run Services
-==================
+## Run Services
 
 Application uses Redis as a cache backend, so ensure `redis-server` is running.
 
@@ -80,8 +81,7 @@ Last, start the main Django application service
     ./run.sh
 
 
-Gunicorn
-----------------------------------
+### Gunicorn
 
 For a more production WSGI deployment, Gunicorn can be used to launch multiple workers.
 
@@ -114,8 +114,7 @@ To stop Gunicorn workers, use:
     killall gunicorn
 
 
-Nginx
-----------------------------------
+### Nginx
 
 The Nginx web server can proxy Gunicorn for more efficient connections and to manage HTTPS.
 
@@ -138,11 +137,36 @@ The application should now be listening on both ports 80 and 8000.
 Logs can be monitored within `/var/log/nginx` for the running application.
 
 
-Other Notes
-==================
+## Docker
 
-Test Suite
-----------------------------------
+OK enough with that nonsense above, let's just get to the Docker deployment.
+
+To manage the different services required for Gource Studio we utilize [Docker Compose](https://docs.docker.com/compose/) orchestration,
+so view installation setup for your system.
+
+    cd docker/
+    docker compose up
+
+This will launch containers for the Django application, Celery worker, Redis cache, and PostgreSQL database.
+
+    $ docker compose up
+    Creating network "docker_default" with the default driver
+    Creating redis ... done
+    Creating pgdb  ... done
+    Creating gource_web ... done
+    Creating gource_celery ... done
+    Attaching to pgdb, redis, gource_web, gource_celery
+
+To clear the running containers:
+
+    docker compose down
+
+**TODO** Configure shared mounts for long-term data (``appconfig`` and ``appdata``)
+
+
+## Other Notes
+
+### Test Suite
 
 Unit tests can be run by first installing test requirements
 
@@ -155,8 +179,7 @@ Then, use the provided script
     ./run_tests.sh
 
 
-Run Headless with Xvfb (Linux)
-----------------------------------
+### Run Headless with Xvfb (Linux)
 
 If you are running on a Linux system, you may be able to run the Gource render
 in a headless mode using **Xvfb** (X virtual frame buffer).  This avoids needing
