@@ -24,11 +24,11 @@ The project uses the following software:
 
     sudo apt install ffmpeg git gource libjpeg-dev libpng-dev mercurial python3 python3-dev python3-venv redis-server sqlite3 zlib1g-dev
 
-**NOTE:** The version of `gource` (0.50/0.51) included with these Ubuntu versions has
+**NOTE:** The version of `gource` included with Ubuntu 20.04/22.04 LTS (0.50/0.51) have
 an issue where the font scale is not applied to the file extension sidebar.  On larger
 resolutions (1920x1080 or higher) this can make the widget text too small to recognize.
 
-To address this, you can manually include a newer version of ``gource`` on the system
+To address this, you could manually include a newer version of ``gource`` on the system
 and set the absolute path using the ``GOURCE_PATH`` setting.
 
 
@@ -73,12 +73,12 @@ Application uses Redis as a cache backend, so ensure `redis-server` is running.
 Next, start the Celery task runner service:
 
     # Runs in foreground
-    ./run_celery.sh
+    ./scripts/run_celery.sh
 
 Last, start the main Django application service
 
     # Runs in foreground
-    ./run.sh
+    ./scripts/run.sh
 
 
 ### Gunicorn
@@ -176,7 +176,7 @@ Unit tests can be run by first installing test requirements
 Then, use the provided script
 
     # Run pytest (optionally with coverage)
-    ./run_tests.sh
+    ./scripts/run_tests.sh
 
 
 ### Run Headless with Xvfb (Linux)

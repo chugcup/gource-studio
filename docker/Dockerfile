@@ -6,7 +6,7 @@ WORKDIR /opt/gource_studio
 
 # Install OS packages
 RUN apt update && apt install -y ffmpeg git gource libjpeg-dev libpng-dev \
-                mercurial python3 python3-dev python3-pip python3-venv \
+                mercurial postgresql-client python3 python3-dev python3-pip python3-venv \
                 redis-server sqlite3 xvfb zlib1g-dev
 
 # Copy in needed artifacts
@@ -20,6 +20,7 @@ RUN pip install --break-system-packages --upgrade -c constraints.txt pip \
 # Copy application code, startup scripts and Docker settings
 COPY ./docker/celery-entrypoint.sh ./
 COPY ./docker/django-entrypoint.sh ./
+COPY ./docker/wait-for-postgres.sh ./
 COPY gource_studio ./
 COPY ./docker/docker_settings.py ./gource_studio/custom_settings.py
 

@@ -1,7 +1,10 @@
 version: "3.7"
 
 services:
-    django:
+    gource_studio:
+        image: gource_studio
+        container_name: gource_web
+        entrypoint: ./wait-for-postgres.sh pgdb ./django-entrypoint.sh
         build:
             context: ..
             dockerfile: docker/Dockerfile
@@ -15,14 +18,15 @@ services:
             - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 [::1]
             - CELERY_BROKER=redis://redis:6379/0
             - CELERY_BACKEND=redis://redis:6379/0
+            - POSTGRES_USER=gource_studio_user
+            - POSTGRES_PASSWORD=password
         depends_on:
             - pgdb
             - redis
     celery:
-        build:
-            context: ..
-            dockerfile: docker/Dockerfile
-        entrypoint: ./celery-entrypoint.sh
+        image: gource_studio
+        container_name: gource_celery
+        entrypoint: ./wait-for-postgres.sh pgdb ./celery-entrypoint.sh
         volumes:
             - appconfig:/etc/gource_studio:ro
             - appdata:/var/run/gource_studio
@@ -31,8 +35,11 @@ services:
             - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 [::1]
             - CELERY_BROKER=redis://redis:6379/0
             - CELERY_BACKEND=redis://redis:6379/0
+            - POSTGRES_USER=gource_studio_user
+            - POSTGRES_PASSWORD=password
         depends_on:
-            - django
+            - gource_studio
+            - pgdb
             - redis
     pgdb:
         image: postgres
@@ -45,6 +52,7 @@ services:
             - pgdata:/var/lib/postgresql/data/
     redis:
         image: "redis:alpine"
+        container_name: redis
 
 volumes:
     appconfig:
