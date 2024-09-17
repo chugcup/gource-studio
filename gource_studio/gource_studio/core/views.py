@@ -36,9 +36,13 @@ from .utils import (
     download_git_tags,      #(url, branch="master"):
     estimate_gource_video_duration,
     generate_gource_video,  #(log_data, video_size='1280x720', framerate=60, gource_options={}):
+    get_ffmpeg_version,     #(split=False):
+    get_git_version,        #(split=False):
     get_gource_version,     #(split=False):
+    get_mercurial_version,  #(split=False):
     get_video_duration,     #(video_path):
     get_video_thumbnail,    #(video_path, width=512, secs=None, percent=None):
+    get_xvfb_run,
     remove_background_audio,#(video_path):
     resolve_project_avatars,
     test_http_url,          #(url):
@@ -136,6 +140,37 @@ def index(request):
         'show_home_banner': show_home_banner,
     }
     return render(request, 'core/index.html', context)
+
+
+def app_info(request):
+    "Application info page"
+    # Determine version information
+    versions = {}
+    for name, version_func in [
+        ('gource', get_gource_version),
+        ('git', get_git_version),
+        ('mercurial', get_mercurial_version),
+        ('ffmpeg', get_ffmpeg_version),
+    ]:
+        try:
+            versions[name] = version_func()
+        except:
+            versions[name] = None
+
+    # Determine headless Xvfb status (`xvfb-run`)
+    use_xvfb = False
+    try:
+        use_xvfb = settings.USE_XVFB and bool(get_xvfb_run())
+    except:
+        pass
+
+    context = {
+        'document_title': f'Info - {SITE_NAME}',
+        'nav_page': '',
+        'software_versions': versions,
+        'use_xvfb': use_xvfb,
+    }
+    return render(request, 'core/info.html', context)
 
 
 def projects(request):

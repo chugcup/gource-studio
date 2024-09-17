@@ -1,0 +1,96 @@
+{% extends 'core/base.html' %}
+
+{% block page_css %}
+  <style type="text/css">
+    h3 small.text-muted {
+        padding-left: 24px;
+    }
+    .row {
+        margin-bottom: 20px;
+    }
+    .info-row,
+    .version-row {
+        line-height: 1rem;
+    }
+    .info-row label,
+    .version-row label {
+        font-weight: bold;
+    }
+    .info-row label a,
+    .version-row label a {
+        color: #212529;     /* Default color */
+    }
+    .version-row label.version-name {
+        width: 100px;
+    }
+    .info-row label {
+        width: 120px;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="main-container container">
+    <div>
+      <h3>
+        Application Info
+        <small class="text-muted">Version: {{ app_version }}</small>
+      </h3>
+      <div class="clearfix"></div>
+      <hr />
+    </div>
+
+    <div class="row">
+      <div class="col-lg-12 col-md-12 col-sm-12">
+        <div class="version-row">
+          <label class="version-name" title="gource">
+            <a href="https://www.ffmpeg.org/" target="_blank">Gource:</a>
+          </label>
+          <span class="version-num">
+            {% if software_versions.gource %}{{ software_versions.gource }}{% else %}<span class="text-muted">N/A</span>{% endif %}
+          </span>
+        </div>
+        <div class="version-row">
+          <label class="version-name" title="git">
+            <a href="https://git-scm.com/" target="_blank">Git:</a>
+          </label>
+          <span class="version-num">
+            {% if software_versions.git %}{{ software_versions.git }}{% else %}<span class="text-muted">N/A</span>{% endif %}
+          </span>
+        </div>
+        <div class="version-row">
+          <label class="version-name" title="hg">
+            <a href="https://www.mercurial-scm.org/" target="_blank">Mercurial:</a>
+          </label>
+          <span class="version-num">
+            {% if software_versions.mercurial %}{{ software_versions.mercurial }}{% else %}<span class="text-muted">N/A</span>{% endif %}
+          </span>
+        </div>
+        <div class="version-row">
+          <label class="version-name" title="ffmpeg">
+            <a href="https://www.ffmpeg.org/" target="_blank">FFmpeg:</a>
+          </label>
+          <span class="version-num">
+            {% if software_versions.ffmpeg %}{{ software_versions.ffmpeg }}{% else %}<span class="text-muted">N/A</span>{% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-lg-12 col-md-12 col-sm-12">
+        <div class="info-row">
+          <label title="USE_XVFB">Xvfb Enabled:</label>
+          <span>
+            {% if use_xvfb %}True{% else %}False{% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <br />
+{% endblock %}
+
+{% block page_js %}
+{% endblock %}

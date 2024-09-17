@@ -1,6 +1,8 @@
 from django.conf import settings
 
 def app_request_default(request):
+    from .. import __version__
+
     # (nav_page, label, url, logged_id)
     NAVIGATION_OPTIONS = [
         ('new', 'New Project', '/new/', True),
@@ -16,6 +18,8 @@ def app_request_default(request):
     return {
         # Public site name
         'site_name': settings.SITE_NAME,
+        # Current application version
+        'app_version': __version__,
         # HTML document title
         'document_title': '',
         # Header navigation defaults

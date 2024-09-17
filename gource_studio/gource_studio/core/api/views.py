@@ -43,6 +43,11 @@ from ..utils import (
     download_git_log,
     download_git_tags,
     estimate_gource_video_duration,
+    get_ffmpeg_version,
+    get_git_version,
+    get_gource_version,
+    get_mercurial_version,
+    get_xvfb_run,
     test_http_url,
     validate_project_url,
 )
@@ -112,6 +117,43 @@ class APIRoot(views.APIView):
             'avatars': reverse('api-useravatars-list', request=request),
             'projects': reverse('api-projects-list', request=request),
             'builds': reverse('api-project-builds-list', request=request),
+            'info': reverse('api-app-info', request=request),
+        })
+
+
+class ApplicationInfo(views.APIView):
+    """
+    Application information and settings.
+    """
+    queryset = Project.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        from ... import __version__
+
+        # Determine version information
+        versions = {}
+        for name, version_func in [
+            ('gource', get_gource_version),
+            ('git', get_git_version),
+            ('mercurial', get_mercurial_version),
+            ('ffmpeg', get_ffmpeg_version),
+        ]:
+            try:
+                versions[name] = version_func()
+            except:
+                versions[name] = None
+
+        # Determine headless Xvfb status (`xvfb-run`)
+        use_xvfb = False
+        try:
+            use_xvfb = settings.USE_XVFB and bool(get_xvfb_run())
+        except:
+            pass
+
+        return Response({
+            'app_version': __version__,
+            'software_versions': versions,
+            'use_xvfb': use_xvfb,
         })
 
 

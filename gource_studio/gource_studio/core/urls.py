@@ -10,6 +10,7 @@ urlpatterns = [
     re_path(r'^avatars/upload/?$', views.avatar_upload, name='avatar-upload'),
     #re_path(r'^avatars/(?P<avatar_id>\d+)/$', views.avatar_details, name='avatar-details'),
     re_path(r'^avatars/(?P<avatar_id>\d+)/image/?$', views.avatar_image, name='avatar-image'),
+    re_path(r'^info/?$', views.app_info, name='app-info'),
     re_path(r'^playlists/?$', views.user_playlists, name='user-playlists'),
     re_path(r'^playlists/(?P<playlist_id>\d+)/?$', views.user_playlist_details, name='user-playlist-details'),
     re_path(r'^projects/?$', views.projects, name='projects'),
