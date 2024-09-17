@@ -1,5 +1,5 @@
-TIME_ZONE = "US/Eastern"
-CELERY_TIMEZONE = "US/Eastern"
+#TIME_ZONE = "America/New_York"
+#CELERY_TIMEZONE = "America/New_York"
 
 # Whitelist of web domains that projects can be pulled from
 PROJECT_DOMAINS = [
@@ -10,10 +10,22 @@ PROJECT_DOMAINS = [
 
 ALLOWED_HOSTS = ['*']
 
+# SQLite (default)
 #DATABASES = {
 #    'default': {
 #        'ENGINE': 'django.db.backends.sqlite3',
 #        'NAME': BASE_DIR / 'app.db',
+#    }
+#}
+# PostgreSQL example
+#DATABASES = {
+#    'default': {
+#        'ENGINE': 'django.db.backends.postgresql',
+#        'NAME': 'gource_studio',
+#        'USER': 'your_username',
+#        'PASSWORD': 'your_password',
+#        'HOST': '127.0.0.1',
+#        'PORT': 5432,
 #    }
 #}
 
